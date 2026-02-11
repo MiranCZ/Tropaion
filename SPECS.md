@@ -91,6 +91,10 @@ fn main() {
 - `bool` is evaluated to `1` if `true`, to `0` if `false`
 - `bool(0)` and `bool(NaN)` is `false`, rest is `true`
 
+# Naming
+
+- function and variable names can contain alphanumeric symbols and '_'.
+- the name must not start with a number
 
 # Variables
 
