@@ -136,3 +136,46 @@ fn foo(arg1: &int, arg2: string) -> float {
 <br>
 
 - might want anonymous functions if we wanna have sth like `vec.map`, but not defined for now I guess
+
+
+# Structs
+ 
+- `struct` keyword
+- fields are ordered and type must be specified
+- fields are declared in `()` after the struct name
+- struct methods can be then declared in `{}`
+  - =TODO= do the methods get passed `self`?
+  - would probably rather like java-style with optional `this` to reference self params
+
+- structs with methods do not need a `;` after
+- struct without methods do need `;`
+
+- =TODO= can structs hold references?
+```
+struct NameHolder(name: String);
+
+let holder = NameHolder("jeff");
+holder.name = "tom";
+
+print(holder.name);
+```
+
+
+```
+
+struct Rect(width: float, height: float) {
+ 
+  fn circumference() -> float {
+    return width + height; 
+  } 
+  
+  fn area() -> float {
+    return this.width * this.height;
+  }
+
+}
+
+let a = Rect(5, 10);
+let area = a.area();
+```
+
