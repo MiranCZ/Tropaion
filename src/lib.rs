@@ -3,6 +3,7 @@ use crate::parser::Parser;
 pub mod lexer;
 mod parser;
 mod ast;
+pub mod error;
 
 #[test]
 pub fn main() {
@@ -37,6 +38,14 @@ pub fn main() {
     println!("Tokenization of: \n{text}");
 
     let tokens = lexer.parse();
+
+    println!("-------");
+    println!();
+
+    if tokens.is_err() {
+        panic!("GOT PARSER ERROR {tokens:?}");
+    }
+    let tokens = tokens.unwrap();
 
     let mut parser = Parser::new(tokens);
 
