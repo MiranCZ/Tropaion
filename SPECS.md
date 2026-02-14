@@ -8,7 +8,7 @@
 
 # Datatypes
 
-`bool`, `int` (32 bits), `float` (32 bits),`array`* ,`string`
+`bool`, `int` (32 bits), `float` (32 bits), `tuple`, `array`* ,`string`
 
 \* should array be ungrowable? (imo it should NOT growable)
 
@@ -33,6 +33,15 @@ fn main() {
 <br>
 
 - `float` wrapps to the respective infinity
+
+# Tuples
+- declared using `()`
+- =TODO= mutabble/immutable?
+- can have values of different types
+- indexed using `[]`
+- `let my_tuple: (string, int) = ("hello", 5);`
+- `let value = my_tuple[0];`
+
 
 # Control flow
 
