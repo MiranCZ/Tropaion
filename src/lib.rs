@@ -1,4 +1,8 @@
+use crate::parser::Parser;
+
 pub mod lexer;
+mod parser;
+mod ast;
 
 #[test]
 pub fn main() {
@@ -26,18 +30,28 @@ pub fn main() {
         */
     "#;
 
+    let text = "let x = 1 + 2 * 3;";
+
     let mut lexer = lexer::Lexer::new(text.to_string());
 
     println!("Tokenization of: \n{text}");
-    loop {
-        let token = lexer.read_next();
 
-        println!("\t{token:?}");
+    let tokens = lexer.parse();
 
-        if token == lexer::token::Token::EOF {
-            break;
-        }
-    }
+    let mut parser = Parser::new(tokens);
+
+    let res = parser.parse();
+
+    println!("{res:#?}");
+    // loop {
+    //     let token = lexer.read_next();
+    //
+    //     println!("\t{token:?}");
+    //
+    //     if token == lexer::token::Token::EOF {
+    //         break;
+    //     }
+    // }
 }
 
 

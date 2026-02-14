@@ -22,6 +22,23 @@ impl Lexer {
         }
     }
 
+    pub fn parse(&mut self) -> Vec<Token> {
+        let mut res = vec![];
+       
+        loop {
+            let next = self.read_next();
+            println!("{next:?}");
+
+            if next == EOF {
+                res.push(EOF);
+                break;
+            }
+            
+            res.push(next);
+        }
+        
+        res
+    }
 
     fn next_char(&mut self) -> Result<char, EOFError> {
         if self.pos >= self.str.len() {
@@ -246,7 +263,7 @@ impl Lexer {
 
         self.pos = match_at;
         if let Some(result) = biggest_match {
-            return Token::SimpleToken(result);
+            return Token::SimpleTokenType(result);
         }
 
         self.pos = start_pos;

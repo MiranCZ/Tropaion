@@ -1,9 +1,9 @@
 use crate::lexer::SimpleToken::*;
 use strum_macros::EnumIter;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    SimpleToken(SimpleToken),
+    SimpleTokenType(SimpleToken),
 
     Identifier(String),
     NumberIntLiteral(i32),
@@ -17,7 +17,8 @@ pub enum Token {
 }
 
 
-#[derive(Debug, PartialEq, Copy, Clone, EnumIter)]
+
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Ord, PartialOrd, Eq, EnumIter)]
 pub enum SimpleToken {
     True,
     False,
