@@ -10,6 +10,13 @@ pub fn main() {
         let y = "bye!";
         let test = "I am a \"quoated\" string";
 
+        let z = 10;
+        z++;
+
+        let check = x < z;
+
+        x *= z;
+
         return false;
     }
         /*

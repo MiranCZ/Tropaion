@@ -1,11 +1,9 @@
+use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberFloatLiteral, NumberIntLiteral, StringLiteral, EOF};
+use crate::lexer::token::{SimpleToken, Token};
 use std::cmp::Reverse;
-use crate::lexer::symbols::{Keywords, MathOperators, Operators};
-use crate::lexer::symbols::Operators::{AssignMath, Math};
-use crate::lexer::token::Token;
-use crate::lexer::token::Token::{Comment, Identifier, Keyword, NumberIntLiteral, NumberFloatLiteral, Operator, Separator, StringLiteral, EOF};
+use strum::IntoEnumIterator;
 
 pub mod token;
-pub mod symbols;
 
 pub struct Lexer {
     str: Vec<char>,
@@ -139,55 +137,6 @@ impl Lexer {
         false
     }
 
-    fn next_keyword(&mut self) -> Option<Keywords> {
-        let start_pos = self.pos;
-
-        let mut candidates = Vec::from(Keywords::values());
-        candidates.sort_by_key(|k| Reverse(k.text().len()));
-
-        let mut text = String::new();
-
-        'charLoop:
-        while let Ok(next) = self.next_char() {
-            text.push(next);
-
-            for x in candidates.iter() {
-                if x.text() == text.as_str() {
-                    return Some(*x);
-                }
-
-                if x.text().starts_with(text.as_str()) {
-                    continue 'charLoop;
-                }
-            }
-
-            break;
-        }
-
-        self.pos = start_pos;
-        None
-    }
-
-    fn parse_math_operator(&mut self, ch: char) -> Option<MathOperators> {
-
-        match ch {
-            '+' => Some(MathOperators::Plus),
-            '-' => Some(MathOperators::Minus),
-            '*' => Some(MathOperators::Multiply),
-            '/' => Some(MathOperators::Divide),
-            '%' => Some(MathOperators::Modulo),
-            '|' => Some(MathOperators::BitOr),
-            '&' => Some(MathOperators::BitAnd),
-            '^' => Some(MathOperators::BitXor),
-            '>' if self.next_char_if('>') => {
-                Some(MathOperators::ShiftRight)
-            },
-            '<' if self.next_char_if('<') => {
-                Some(MathOperators::ShiftLeft)
-            }
-            _ => None
-        }
-    }
 
     fn next_number_literal(&mut self) -> Option<Token> {
         let mut had_dot = false;
@@ -246,7 +195,7 @@ impl Lexer {
             }
 
             if self.next_char_if('*') {
-                return Comment(self.next_multiline_comment().unwrap());
+                return MultilineComment(self.next_multiline_comment().unwrap());
             }
         }
 
@@ -260,68 +209,47 @@ impl Lexer {
             return self.next_number_literal().unwrap();
         }
 
-        let mut has_two_chars = |desired| -> bool {
-            return ch == desired && self.next_char_if('+');
-        };
-
-        if has_two_chars('+') {
-            return Operator(Operators::Increment);
-        }
-        if has_two_chars('-') {
-            return Operator(Operators::Decrement);
-        }
-        if has_two_chars('|') {
-            return Operator(Operators::Or);
-        }
-        if has_two_chars('&') {
-            return Operator(Operators::And);
-        }
-
-        let math_op = self.parse_math_operator(ch);
-
-        if let Some(operator) = math_op {
-            if self.next_char_if('=') {
-                return Operator(AssignMath(operator));
-            }
-
-            return Operator(Math(operator));
-        }
-
-        match ch {
-            '!' => {
-                return if self.next_char_if('=') {
-                    Operator(Operators::NotEquals)
-                } else {
-                    Operator(Operators::Not)
-                }
-            },
-            '=' => {
-                return if self.next_char_if('=') {
-                    Operator(Operators::Equals)
-                } else {
-                    Operator(Operators::Assign)
-                }
-            },
-            '~' => return Operator(Operators::BitNot),
-            '>' => return Operator(Operators::BiggerThan),
-            '<' => return Operator(Operators::LowerThan),
-            _ => {
-            }
-        };
-
-
-        let separators = ['(', ')', '[', ']', '{', '}', ';', ',', ':'];
-
-        if separators.contains(&ch) {
-            return Separator(ch);
-        }
-
+        let mut candidates: Vec<SimpleToken> = SimpleToken::iter().collect();
+        candidates.sort_by_key(|k| Reverse(k.string_representation().len()));
 
         self.pos -= 1;
 
-        if let Some(keyword) = self.next_keyword() {
-            return Keyword(keyword);
+        let mut text = String::new();
+
+        let start_pos = self.pos;
+        let mut biggest_match: Option<SimpleToken> = None;
+        let mut match_at = self.pos;
+
+        while let Ok(next) = self.next_char() {
+            text.push(next);
+
+            let mut continue_loop = false;
+            for x in candidates.iter() {
+                if x.string_representation() == text.as_str() {
+
+                    if biggest_match.is_none() || x.string_representation().len() > biggest_match.unwrap().string_representation().len() {
+                        biggest_match = Some(*x);
+                        match_at = self.pos;
+                    }
+
+                    continue_loop = true;
+                }
+
+                if x.string_representation().starts_with(text.as_str()) {
+                    continue_loop = true;
+                }
+            }
+            if !continue_loop {
+                break;
+            }
         }
+
+        self.pos = match_at;
+        if let Some(result) = biggest_match {
+            return Token::SimpleToken(result);
+        }
+
+        self.pos = start_pos;
 
         if let Some(identifier) = self.next_word() {
             return Identifier(identifier);
