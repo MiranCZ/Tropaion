@@ -18,6 +18,12 @@ pub struct StringLiteralExpr(pub String);
 pub struct IdentifierExpr(pub String);
 
 #[expression]
+pub struct PrefixExpr {
+    pub operator: SimpleToken,
+    pub expr: Box<dyn Expression>
+}
+
+#[expression]
 pub struct BinaryExpr {
     pub left: Box<dyn Expression>,
     pub operator: SimpleToken,

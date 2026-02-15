@@ -1,8 +1,8 @@
-use crate::ast::expression::{BinaryExpr, Expression};
+use crate::ast::expression::{BinaryExpr, Expression, PrefixExpr};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
-use crate::parser::binding_power::Bp;
+use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
 use crate::parser::Parser;
 
 pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
@@ -42,6 +42,17 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dy
     }
 }
 
+pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+    let operator = parser.next()?;
+
+    if let SimpleTokenType(t) = operator {
+        let expr = parse_expression(parser, UNARY)?;
+
+        return Ok(Box::new(PrefixExpr { operator: t, expr }));
+    }
+
+    panic!("uh oh")
+}
 
 pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
     let operator = parser.next()?;

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
-use crate::parser::binding_power::{Bp, ASSIGNMENT, NUMERIC_ADD, NUMERIC_MULT};
-use crate::parser::expression_parser::parse_binary_expr;
+use crate::parser::binding_power::{Bp, ASSIGNMENT, LOGICAL_ADD, LOGICAL_MULT, NUMERIC_ADD, NUMERIC_MULT};
+use crate::parser::expression_parser::{parse_binary_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
 use crate::parser::statement_parser::parse_var_declaration_stmnt;
 
@@ -47,10 +47,26 @@ impl Lookup {
             statement_lookup.insert(token, handler);
         };
 
+        nud(Dash, parse_prefix_expr);
+        nud(Tilde, parse_prefix_expr);
+        nud(Exclamation, parse_prefix_expr);
+
         led(Dash, NUMERIC_ADD, parse_binary_expr);
         led(Plus, NUMERIC_ADD, parse_binary_expr);
 
         led(Star, NUMERIC_MULT, parse_binary_expr);
+        led(Slash, NUMERIC_MULT, parse_binary_expr);
+        led(Percent, NUMERIC_MULT, parse_binary_expr);
+
+        led(VerticalBar, LOGICAL_ADD, parse_binary_expr);
+        led(Ampersand, LOGICAL_MULT, parse_binary_expr);
+
+        led(LeftLeft, LOGICAL_MULT, parse_binary_expr);
+        led(RightRight, LOGICAL_MULT, parse_binary_expr);
+
+        led(BitOr, LOGICAL_ADD, parse_binary_expr);
+        led(BitAnd, LOGICAL_MULT, parse_binary_expr);
+        led(BitXor, LOGICAL_MULT, parse_binary_expr);
 
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);

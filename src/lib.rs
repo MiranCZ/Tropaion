@@ -33,7 +33,7 @@ pub fn main() {
         */
     "#;
 
-    let text = "let x = 1 + 2 * 3;";
+    let text = "let x = -1 + 2 * 3;";
 
     let mut lexer = lexer::Lexer::new(text.to_string());
 
