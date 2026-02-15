@@ -1,11 +1,12 @@
 use crate::ast::expression::Expression;
 use crate::ast::statement::Statement;
+use crate::error::parser_error::ParserError;
 use crate::parser::binding_power::Bp;
 use crate::parser::Parser;
 
-pub type StatementHandler = fn(&mut Parser) -> Box<dyn Statement>;
-pub type NudHandler = fn(&mut Parser) -> Box<dyn Expression>;
-pub type LedHandler = fn(&mut Parser, Box<dyn Expression>, u32) -> Box<dyn Expression>;
+pub type StatementHandler = fn(&mut Parser) -> Result<Box<dyn Statement>, ParserError>;
+pub type NudHandler = fn(&mut Parser) -> Result<Box<dyn Expression>, ParserError>;
+pub type LedHandler = fn(&mut Parser, Box<dyn Expression>, u32) -> Result<Box<dyn Expression>, ParserError>;
 
 
 #[derive(Clone, Copy)]

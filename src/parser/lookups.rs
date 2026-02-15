@@ -4,6 +4,7 @@ use crate::ast::expression::{
     Expression, FloatLiteralExpr, IdentifierExpr, IntLiteralExpr, StringLiteralExpr,
 };
 use crate::ast::statement::Statement;
+use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::*;
 use crate::parser::handlers::{LedInfo, NudHandler, StatementHandler};
@@ -12,17 +13,17 @@ use crate::parser::Parser;
 
 impl Token {
     pub fn nud(&self, lookup: &Lookup) -> Option<NudHandler> {
-        fn handle_literal(parser: &mut Parser) -> Box<dyn Expression> {
-            let token = parser.next().unwrap();
+        fn handle_literal(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+            let token = parser.next()?;
 
-            match token {
+            Ok(match token {
                 Identifier(v) => Box::new(IdentifierExpr(v.clone())),
                 NumberIntLiteral(v) => Box::new(IntLiteralExpr(v)),
                 NumberFloatLiteral(v) => Box::new(FloatLiteralExpr(v)),
                 StringLiteral(v) => Box::new(StringLiteralExpr(v.clone())),
 
                 _ => panic!()
-            }
+            })
         }
 
         match self {

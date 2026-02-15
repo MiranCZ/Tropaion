@@ -6,6 +6,7 @@ mod expression_parser;
 
 use std::f32::consts::E;
 use crate::ast::statement::BlockStmt;
+use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::EOF;
 use crate::parser::lookups::lookup::Lookup;
@@ -31,49 +32,52 @@ impl Parser {
         &self.lookup
     }
 
-    pub fn parse(&mut self) -> BlockStmt {
+    pub fn parse(&mut self) -> Result<BlockStmt, ParserError> {
         let mut body = Vec::new();
 
-        while let Some(token) = self.peek() {
+        loop {
+            let token = self.peek()?;
+
             if token == EOF {
                 break;
             }
 
-            body.push(parse_statement(self).unwrap());
+            body.push(parse_statement(self)?);
         }
 
-        return BlockStmt{
+        Ok(BlockStmt{
             body
-        }
+        })
     }
 
-    pub fn next(&mut self) -> Option<Token> {
+    pub fn next(&mut self) -> Result<Token, ParserError> {
         if self.pos >= self.tokens.len() {
-            return None;
+            return Err(ParserError::EOFError);
         }
 
         let token = &self.tokens[self.pos];
 
         self.pos += 1;
 
-        Some(token.clone())
+        Ok(token.clone())
     }
 
-    pub fn expect_next(&mut self, expected: Token) -> Option<Token> {
-        let next = self.next();
-        if let Some(token) = next.clone() && token == expected {
-            return Some(token);
+    pub fn expect_next(&mut self, expected: Token) -> Result<Token, ParserError> {
+        let next = self.next()?;
+        if next == expected {
+            return Ok(next);
         }
 
-        panic!("Expected {expected:?} got {next:?}")
+        Err(ParserError::UnexpectedToken)
+        // panic!("Expected {expected:?} got {next:?}")
     }
 
-    pub fn peek(&self) -> Option<Token> {
+    pub fn peek(&self) -> Result<Token, ParserError> {
         if self.pos >= self.tokens.len() {
-            return None;
+            return Err(ParserError::EOFError);
         }
 
-        Some(self.tokens[self.pos].clone())
+        Ok(self.tokens[self.pos].clone())
     }
 
 

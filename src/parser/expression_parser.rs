@@ -1,40 +1,31 @@
 use crate::ast::expression::{BinaryExpr, Expression};
+use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::Bp;
 use crate::parser::Parser;
 
-pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Option<Box<dyn Expression>> {
-    let token = parser.peek();
-
-    if token.is_none() {
-        return None;
-    }
-    let token = token.unwrap();
+pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+    let token = parser.peek()?;
 
     let nud_fn = token.nud(&parser.lookup);
 
     if nud_fn.is_none() {
-        panic!("Expected NUD implemented for {token:?}");
+        return Err(ParserError::NUDMissing);
     }
 
     let nud_fn = nud_fn.unwrap();
 
-    let mut left = nud_fn(parser);
+    let mut left = nud_fn(parser)?;
 
     loop {
-        let token = parser.peek();
-
-        if token.is_none() {
-            return None;
-        }
-        let token = token.unwrap();
+        let token = parser.peek()?;
 
         let led_info = token.led(&parser.lookup);
 
         if led_info.is_none() {
             // !("LED not implemented for {token:?}");
-            return Some(left);
+            return Ok(left);
         }
 
         let led_info = led_info.unwrap();
@@ -44,21 +35,21 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Option<Box<dy
         let led_fn = led_info.handler;
 
         if lbp < binding_power {
-            return Some(left);
+            return Ok(left);
         }
 
-        left = led_fn(parser, left, rbp);
+        left = led_fn(parser, left, rbp)?;
     }
 }
 
 
-pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Box<dyn Expression> {
-    let operator = parser.next().unwrap();
+pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+    let operator = parser.next()?;
 
     if let SimpleTokenType(t) = operator {
-        let right = parse_expression(parser, binding_power).unwrap();
+        let right = parse_expression(parser, binding_power)?;
 
-        return Box::new(BinaryExpr { left, operator: t, right });
+        return Ok(Box::new(BinaryExpr { left, operator: t, right }));
     }
 
     panic!("uh oh")

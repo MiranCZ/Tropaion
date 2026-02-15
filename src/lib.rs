@@ -1,3 +1,5 @@
+use crate::ast::statement::BlockStmt;
+use crate::error::parser_error::ParserError;
 use crate::parser::Parser;
 
 pub mod lexer;
@@ -51,7 +53,13 @@ pub fn main() {
 
     let res = parser.parse();
 
-    println!("{res:#?}");
+    match res {
+        Ok(v) => {
+            println!("{v:#?}");
+        }
+        Err(e) => panic!("GOT AN ERROR {e:?}")
+    }
+
     // loop {
     //     let token = lexer.read_next();
     //
