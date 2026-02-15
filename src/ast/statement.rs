@@ -1,25 +1,22 @@
 use std::fmt::Debug;
+use tropaion_derive::statement;
 use crate::ast::expression::Expression;
 
 
 pub trait Statement : Debug{
 }
 
-#[derive(Debug)]
+#[statement]
 pub struct BlockStmt {
     pub body: Vec<Box<dyn Statement>>
 }
 
-#[derive(Debug)]
+#[statement]
 pub struct ExpressionStmt(pub Box<dyn Expression>);
 
-#[derive(Debug)]
+#[statement]
 pub struct VarDeclarationStmt {
     pub name: String,
     pub is_const: bool,
     pub value: Box<dyn Expression>
 }
-
-impl Statement for VarDeclarationStmt{}
-impl Statement for ExpressionStmt{}
-impl Statement for BlockStmt{}

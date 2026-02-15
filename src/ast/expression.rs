@@ -1,25 +1,23 @@
 use std::fmt::Debug;
+use tropaion_derive::expression;
 use crate::lexer::token::SimpleToken;
 
 pub trait Expression : Debug {
 }
 
-#[derive(Debug)]
+#[expression]
 pub struct IntLiteralExpr(pub i32);
-#[derive(Debug)]
+
+#[expression]
 pub struct FloatLiteralExpr(pub f32);
-#[derive(Debug)]
+
+#[expression]
 pub struct StringLiteralExpr(pub String);
 
-#[derive(Debug)]
+#[expression]
 pub struct IdentifierExpr(pub String);
-impl Expression for IdentifierExpr {}
-impl Expression for IntLiteralExpr {}
-impl Expression for StringLiteralExpr {}
-impl Expression for FloatLiteralExpr {}
-impl Expression for BinaryExpr {}
 
-#[derive(Debug)]
+#[expression]
 pub struct BinaryExpr {
     pub left: Box<dyn Expression>,
     pub operator: SimpleToken,
