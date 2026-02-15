@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use tropaion_derive::statement;
+use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 
 
@@ -18,5 +19,6 @@ pub struct ExpressionStmt(pub Box<dyn Expression>);
 pub struct VarDeclarationStmt {
     pub name: String,
     pub is_const: bool,
-    pub value: Box<dyn Expression>
+    pub value: Box<dyn Expression>,
+    pub explicit_type: Option<Box<dyn AstType>>
 }

@@ -1,8 +1,10 @@
 mod statement_parser;
 pub mod handlers;
 mod lookups;
+mod type_lookups;
 pub mod binding_power;
 mod expression_parser;
+mod type_parser;
 
 use std::f32::consts::E;
 use crate::ast::statement::BlockStmt;
@@ -11,9 +13,11 @@ use crate::lexer::token::Token;
 use crate::lexer::token::Token::EOF;
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::parse_statement;
+use crate::parser::type_lookups::type_lookup::TypeLookup;
 
 pub struct Parser {
     lookup: Lookup,
+    type_lookup: TypeLookup,
     tokens: Vec<Token>,
     pos: usize
 }
@@ -23,6 +27,7 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             lookup: Lookup::new(),
+            type_lookup: TypeLookup::new(),
             tokens,
             pos: 0
         }

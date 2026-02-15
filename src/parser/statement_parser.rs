@@ -3,10 +3,10 @@ use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::Token::SimpleTokenType;
-use crate::parser::binding_power::{Bp, ASSIGNMENT};
+use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::{binding_power, Parser};
-
+use crate::parser::type_parser::parse_type;
 
 pub fn parse_statement(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
     let token = parser.peek()?;
@@ -35,6 +35,14 @@ pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statem
         let next = parser.next()?;
 
         return if let Token::Identifier(v) = next {
+
+            let mut explicit_type = None;
+            if parser.peek()? == SimpleTokenType(SimpleToken::Colon) {
+                parser.next()?;
+                explicit_type = Some(parse_type(parser, DEFAULT)?);
+            }
+
+
             parser.expect_next(SimpleTokenType(SimpleToken::Assign))?;
 
             let value = parse_expression(parser, ASSIGNMENT)?;
@@ -44,7 +52,8 @@ pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statem
             Ok(Box::new(VarDeclarationStmt {
                 name: v,
                 is_const,
-                value
+                value,
+                explicit_type
             }))
         } else {
             Err(ParserError::UnexpectedToken)
