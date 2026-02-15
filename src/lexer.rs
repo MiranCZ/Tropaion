@@ -1,7 +1,10 @@
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberFloatLiteral, NumberIntLiteral, StringLiteral, EOF};
 use crate::lexer::token::{SimpleToken, Token};
 use std::cmp::Reverse;
+use std::f32::consts::E;
+use std::num::ParseFloatError;
 use strum::IntoEnumIterator;
+use crate::error::lexer_error::LexerError;
 
 pub mod token;
 
@@ -22,10 +25,32 @@ impl Lexer {
         }
     }
 
+    pub fn parse(&mut self) -> Result<Vec<Token>, LexerError> {
+        let mut res = vec![];
+       
+        loop {
+            let next = self.read_next()?;
 
-    fn next_char(&mut self) -> Result<char, EOFError> {
+            println!("{next:?}");
+
+            if next == EOF {
+                res.push(EOF);
+                break;
+            }
+            
+            res.push(next);
+        }
+        
+        Ok(res)
+    }
+
+    fn has_next(&self) -> bool {
+        self.pos < self.str.len()
+    }
+
+    fn next_char(&mut self) -> Result<char, LexerError> {
         if self.pos >= self.str.len() {
-            return Err(EOFError{});
+            return Err(LexerError::EOFError);
         }
 
         let ch = self.str[self.pos];
@@ -34,9 +59,9 @@ impl Lexer {
         Ok(ch)
     }
 
-    fn peek_char(&self) -> Result<char, EOFError> {
+    fn peek_char(&self) -> Result<char, LexerError> {
         if self.pos >= self.str.len() {
-            return Err(EOFError{})
+            return Err(LexerError::EOFError)
         }
 
         Ok(self.str[self.pos])
@@ -58,7 +83,7 @@ impl Lexer {
         res
     }
 
-    fn next_multiline_comment(&mut self) -> Option<String> {
+    fn next_multiline_comment(&mut self) -> Result<String, LexerError> {
         let mut res = String::new();
         let mut ended = false;
 
@@ -71,13 +96,13 @@ impl Lexer {
         }
 
         if ended {
-            return Some(res);
+            return Ok(res);
         }
 
-        None
+        Err(LexerError::UnclosedComment)
     }
 
-    fn next_word(&mut self) -> Option<String> {
+    fn try_next_word(&mut self) -> Option<String> {
         let mut res = String::new();
         while let Ok(next) = self.next_char() {
             if next == ' ' || (!next.is_alphanumeric() && next != '_')  {
@@ -94,9 +119,9 @@ impl Lexer {
         Some(res)
     }
 
-    fn next_string(&mut self) -> Option<String> {
+    fn next_string(&mut self) -> Result<String, LexerError> {
         if !self.next_char_if('"') {
-            return None;
+            panic!("Invalid `next_string` call");
         }
 
         let mut res = String::new();
@@ -117,11 +142,10 @@ impl Lexer {
         }
 
         if ended {
-            return Some(res);
+            return Ok(res);
         }
 
-        // TODO error
-        None
+        Err(LexerError::UnclosedString)
     }
 
     fn next_char_if(&mut self, ch: char) -> bool {
@@ -138,7 +162,7 @@ impl Lexer {
     }
 
 
-    fn next_number_literal(&mut self) -> Option<Token> {
+    fn next_number_literal(&mut self) -> Result<Token, LexerError> {
         let mut had_dot = false;
 
         let mut res = String::new();
@@ -160,26 +184,32 @@ impl Lexer {
         }
 
         if res.is_empty() {
-            return None;
+            return Err(LexerError::NumberExpected(res));
         }
 
         if had_dot {
-            return Some(NumberFloatLiteral(res.parse::<f32>().unwrap()));
+            let parse_result = res.parse::<f32>();
+            return match parse_result {
+                Err(e) => Err(LexerError::FloatParseFail(e)),
+                Ok(v) => Ok(NumberFloatLiteral(v))
+            };
         }
 
-        Some(NumberIntLiteral(res.parse::<i32>().unwrap()))
+        let parse_result = res.parse::<i32>();
+        match parse_result {
+            Err(e) => Err(LexerError::IntParseFail(e)),
+            Ok(v) => Ok(NumberIntLiteral(v))
+        }
     }
 
-    pub fn read_next(&mut self) -> Token {
-
+    pub fn read_next(&mut self) -> Result<Token, LexerError> {
         let ch;
         loop {
-            let opt = self.next_char();
-
-            if let Err(_) = opt {
-                return EOF;
+            if !self.has_next() {
+                return Ok(EOF);
             }
-            let char = opt.ok().unwrap();
+
+            let char = self.next_char()?;
 
             if char.is_whitespace() || (char == '\r' && self.next_char_if('\n')) {
                 continue;
@@ -191,22 +221,22 @@ impl Lexer {
 
         if ch == '/' {
             if self.next_char_if('/') {
-                return Comment(self.next_line());
+                return Ok(Comment(self.next_line()));
             }
 
             if self.next_char_if('*') {
-                return MultilineComment(self.next_multiline_comment().unwrap());
+                return Ok(MultilineComment(self.next_multiline_comment()?));
             }
         }
 
         if ch == '"' {
             self.pos -= 1;
-            return StringLiteral(self.next_string().unwrap());
+            return Ok(StringLiteral(self.next_string()?));
         }
 
         if ch.is_numeric() {
             self.pos -= 1;
-            return self.next_number_literal().unwrap();
+            return Ok(self.next_number_literal()?);
         }
 
         let mut candidates: Vec<SimpleToken> = SimpleToken::iter().collect();
@@ -246,16 +276,16 @@ impl Lexer {
 
         self.pos = match_at;
         if let Some(result) = biggest_match {
-            return Token::SimpleToken(result);
+            return Ok(Token::SimpleTokenType(result));
         }
 
         self.pos = start_pos;
 
-        if let Some(identifier) = self.next_word() {
-            return Identifier(identifier);
+        if let Some(identifier) = self.try_next_word() {
+            return Ok(Identifier(identifier));
         }
 
-        EOF
+        Err(LexerError::UnknownToken(ch))
     }
 
 }
