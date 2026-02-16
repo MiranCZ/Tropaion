@@ -10,8 +10,6 @@
 
 `bool`, `int` (32 bits), `float` (32 bits), `tuple`, `array`* ,`string`
 
-\* should array be ungrowable? (imo it should NOT growable)
-
 
 ```rust
 const ARR: [int; 5] = [0, 1, 2, 3, 4];
@@ -42,6 +40,16 @@ fn main() {
 - `let my_tuple: (string, int) = ("hello", 5);`
 - `let value = my_tuple[0];`
 
+# Arrays
+- need to have the SAME type
+- size MUST be known at compile time
+- declaration `let my_arr: [int; 3] = [0, 1, 2];`
+- you can also specify EXACTLY one element and the whole array will be filled with it:
+  - `let my_arr: [int; 3] = [6];` => `[6, 6, 6]`
+
+=TODO= some ppl might complain that size must be known,
+so maybe dynamically allocate arrays with comp-time unknown sizes?
+Downside of this is someone making a mistake, allocating on heap, and not realizing
 
 # Control flow
 
