@@ -13,9 +13,6 @@ pub struct Lexer {
     pos: usize
 }
 
-struct EOFError{
-}
-
 impl Lexer {
 
     pub fn new(str: String) -> Self {
@@ -174,6 +171,8 @@ impl Lexer {
                 }
 
                 had_dot = true;
+                res.push(next);
+                continue;
             }
 
             if !next.is_numeric() {
