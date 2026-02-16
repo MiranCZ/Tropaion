@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use tropaion_derive::statement;
+use tropaion_derive::{ast_type, statement};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 
@@ -22,3 +22,20 @@ pub struct VarDeclarationStmt {
     pub value: Box<dyn Expression>,
     pub explicit_type: Option<Box<dyn AstType>>
 }
+
+#[derive(Debug)]
+pub struct Parameter {
+    pub name: String,
+    pub param_type: Box<dyn AstType>
+}
+
+#[statement]
+pub struct FunctionStmt {
+    pub name: String,
+    pub params: Vec<Parameter>,
+    pub return_type: Option<Box<dyn AstType>>,
+    pub body: BlockStmt
+}
+
+#[statement]
+pub struct ReturnStmt(pub Box<dyn Expression>);

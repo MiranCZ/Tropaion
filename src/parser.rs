@@ -66,6 +66,10 @@ impl Parser {
         Ok(token.clone())
     }
 
+    pub fn has_next(&self) -> bool {
+        self.pos < self.tokens.len()
+    }
+
     pub fn is_next(&self, expected: SimpleToken) -> Result<bool, ParserError> {
         if let SimpleTokenType(v) = self.peek()? && v == expected {
             return Ok(true);
@@ -77,10 +81,10 @@ impl Parser {
         if self.is_next(expected)? {
             self.next()?;
             return Ok(true);
-        } 
+        }
         Ok(false)
     }
-    
+
     pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ParserError> {
         let next = self.next()?;
         if let SimpleTokenType(v) = next && v == expected {
@@ -98,7 +102,7 @@ impl Parser {
 
         Err(ParserError::UnexpectedToken)
     }
-    
+
     pub fn expect_next_identifier(&mut self) -> Result<String, ParserError> {
         let next = self.next()?;
         if let Identifier(v) = next {
