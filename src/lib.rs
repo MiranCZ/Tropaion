@@ -35,12 +35,12 @@ pub fn main() {
 
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
-    let text = r#"
-    fn add(a: int, b: int) -> int {
-        let res = a + b;
-        return res;
-    }
-    "#;
+    // let text = r#"
+    // fn add(a: int, b: int) -> int {
+    //     let res = a + b;
+    //     return res;
+    // }
+    // "#;
 
     let mut lexer = lexer::Lexer::new(text.to_string());
 
@@ -51,8 +51,8 @@ pub fn main() {
     println!("-------");
     println!();
 
-    if tokens.is_err() {
-        panic!("GOT PARSER ERROR {tokens:?}");
+    if let Err(e) = tokens {
+        panic!("{e}");
     }
     let tokens = tokens.unwrap();
 
@@ -64,7 +64,7 @@ pub fn main() {
         Ok(v) => {
             println!("{v:#?}");
         }
-        Err(e) => panic!("GOT AN ERROR {e:?}")
+        Err(e) => panic!("{e}")
     }
 
     // loop {

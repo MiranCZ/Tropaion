@@ -190,14 +190,14 @@ impl Lexer {
         if had_dot {
             let parse_result = res.parse::<f32>();
             return match parse_result {
-                Err(e) => Err(LexerError::FloatParseFail(e)),
+                Err(e) => Err(LexerError::FloatParseFail(res, e)),
                 Ok(v) => Ok(NumberFloatLiteral(v))
             };
         }
 
         let parse_result = res.parse::<i32>();
         match parse_result {
-            Err(e) => Err(LexerError::IntParseFail(e)),
+            Err(e) => Err(LexerError::IntParseFail(res, e)),
             Ok(v) => Ok(NumberIntLiteral(v))
         }
     }

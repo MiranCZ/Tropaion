@@ -11,7 +11,7 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn AstT
     let nud_fn = token.type_nud(&parser.type_lookup);
 
     if nud_fn.is_none() {
-        return Err(ParserError::NUDMissing);
+        return Err(ParserError::NUDMissing(token));
     }
 
     let nud_fn = nud_fn.unwrap();

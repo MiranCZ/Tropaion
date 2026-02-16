@@ -11,7 +11,7 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dy
     let nud_fn = token.nud(&parser.lookup);
 
     if nud_fn.is_none() {
-        return Err(ParserError::NUDMissing);
+        return Err(ParserError::NUDMissing(token));
     }
 
     let nud_fn = nud_fn.unwrap();

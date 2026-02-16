@@ -91,7 +91,7 @@ impl Parser {
             return Ok(next);
         }
 
-        Err(ParserError::UnexpectedToken)
+        Err(ParserError::UnexpectedToken{expected: SimpleTokenType(expected), actual: next})
     }
 
     pub fn expect_next_simple(&mut self) -> Result<SimpleToken, ParserError> {
@@ -100,7 +100,7 @@ impl Parser {
             return Ok(v);
         }
 
-        Err(ParserError::UnexpectedToken)
+        Err(ParserError::MismatchedTokenType{expected: "SimpleToken".to_string(), actual: next})
     }
 
     pub fn expect_next_identifier(&mut self) -> Result<String, ParserError> {
@@ -109,7 +109,7 @@ impl Parser {
             return Ok(v);
         }
 
-        Err(ParserError::UnexpectedToken)
+        Err(ParserError::MismatchedTokenType{expected: "Identifier".to_string(), actual: next})
     }
 
     pub fn expect_next_int(&mut self) -> Result<i32, ParserError> {
@@ -118,7 +118,7 @@ impl Parser {
             return Ok(v);
         }
 
-        Err(ParserError::UnexpectedToken)
+        Err(ParserError::MismatchedTokenType{expected: "NumberIntLiteral".to_string(), actual: next})
     }
 
     pub fn peek(&self) -> Result<Token, ParserError> {
