@@ -40,3 +40,9 @@ pub struct AssignExpr {
     pub operator: SimpleToken,
     pub value: Box<dyn Expression>
 }
+
+#[expression]
+pub struct IncrementExpr(pub Box<dyn Expression>);
+
+#[expression]
+pub struct DecrementExpr(pub Box<dyn Expression>);

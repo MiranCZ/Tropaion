@@ -1,4 +1,4 @@
-use crate::ast::expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, Expression, PrefixExpr};
+use crate::ast::expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, DecrementExpr, Expression, IncrementExpr, PrefixExpr};
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{False, True};
@@ -69,6 +69,16 @@ pub fn parse_bool_literal_expr(parser: &mut Parser) -> Result<Box<dyn Expression
     }
     
     panic!("Invalid call")
+}
+
+pub fn parse_increment_expr(parser: &mut Parser, left: Box<dyn Expression>, _bp: Bp) -> Result<Box<dyn Expression>, ParserError> {
+    parser.next()?;
+    Ok(Box::new(IncrementExpr(left)))
+}
+
+pub fn parse_decrement_expr(parser: &mut Parser, left: Box<dyn Expression>, _bp: Bp) -> Result<Box<dyn Expression>, ParserError> {
+    parser.next()?;
+    Ok(Box::new(DecrementExpr(left)))
 }
 
 pub fn parse_assignment_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
