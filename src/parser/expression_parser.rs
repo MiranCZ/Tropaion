@@ -43,25 +43,17 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dy
 }
 
 pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
-    let operator = parser.next()?;
+    let operator = parser.expect_next_simple()?;
 
-    if let SimpleTokenType(t) = operator {
-        let expr = parse_expression(parser, UNARY)?;
+    let expr = parse_expression(parser, UNARY)?;
 
-        return Ok(Box::new(PrefixExpr { operator: t, expr }));
-    }
-
-    panic!("uh oh")
+    Ok(Box::new(PrefixExpr { operator, expr }))
 }
 
 pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
-    let operator = parser.next()?;
+    let operator = parser.expect_next_simple()?;
 
-    if let SimpleTokenType(t) = operator {
-        let right = parse_expression(parser, binding_power)?;
+    let right = parse_expression(parser, binding_power)?;
 
-        return Ok(Box::new(BinaryExpr { left, operator: t, right }));
-    }
-
-    panic!("uh oh")
+    Ok(Box::new(BinaryExpr { left, operator, right }))
 }

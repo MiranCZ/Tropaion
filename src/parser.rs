@@ -6,11 +6,10 @@ pub mod binding_power;
 mod expression_parser;
 mod type_parser;
 
-use std::f32::consts::E;
 use crate::ast::statement::BlockStmt;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::Token;
-use crate::lexer::token::Token::EOF;
+use crate::lexer::token::Token::{Identifier, NumberIntLiteral, SimpleTokenType, EOF};
+use crate::lexer::token::{SimpleToken, Token};
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::parse_statement;
 use crate::parser::type_lookups::type_lookup::TypeLookup;
@@ -67,14 +66,55 @@ impl Parser {
         Ok(token.clone())
     }
 
-    pub fn expect_next(&mut self, expected: Token) -> Result<Token, ParserError> {
+    pub fn is_next(&self, expected: SimpleToken) -> Result<bool, ParserError> {
+        if let SimpleTokenType(v) = self.peek()? && v == expected {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    pub fn consume_if_next(&mut self, expected: SimpleToken) -> Result<bool, ParserError> {
+        if self.is_next(expected)? {
+            self.next()?;
+            return Ok(true);
+        } 
+        Ok(false)
+    }
+    
+    pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ParserError> {
         let next = self.next()?;
-        if next == expected {
+        if let SimpleTokenType(v) = next && v == expected {
             return Ok(next);
         }
 
         Err(ParserError::UnexpectedToken)
-        // panic!("Expected {expected:?} got {next:?}")
+    }
+
+    pub fn expect_next_simple(&mut self) -> Result<SimpleToken, ParserError> {
+        let next = self.next()?;
+        if let SimpleTokenType(v) = next {
+            return Ok(v);
+        }
+
+        Err(ParserError::UnexpectedToken)
+    }
+    
+    pub fn expect_next_identifier(&mut self) -> Result<String, ParserError> {
+        let next = self.next()?;
+        if let Identifier(v) = next {
+            return Ok(v);
+        }
+
+        Err(ParserError::UnexpectedToken)
+    }
+
+    pub fn expect_next_int(&mut self) -> Result<i32, ParserError> {
+        let next = self.next()?;
+        if let NumberIntLiteral(v) = next {
+            return Ok(v);
+        }
+
+        Err(ParserError::UnexpectedToken)
     }
 
     pub fn peek(&self) -> Result<Token, ParserError> {

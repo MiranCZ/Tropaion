@@ -1,6 +1,7 @@
 use crate::ast::ast_type::{ArrayType, AstType, ReferenceType, TupleType};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
+use crate::lexer::token::SimpleToken::CloseBracket;
 use crate::parser::binding_power::{Bp, DEFAULT};
 use crate::parser::Parser;
 
@@ -41,7 +42,7 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn AstT
 }
 
 pub fn parse_reference_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
-    parser.expect_next(Token::SimpleTokenType(SimpleToken::Ampersand))?;
+    parser.expect_next(SimpleToken::Ampersand)?;
 
     let expr = parse_type(parser, DEFAULT)?;
 
@@ -49,28 +50,25 @@ pub fn parse_reference_type(parser: &mut Parser) -> Result<Box<dyn AstType>, Par
 }
 
 pub fn parse_array_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
-    parser.expect_next(Token::SimpleTokenType(SimpleToken::OpenSquare))?;
+    parser.expect_next(SimpleToken::OpenSquare)?;
 
     let expr = parse_type(parser, DEFAULT)?;
 
-    parser.expect_next(Token::SimpleTokenType(SimpleToken::Semicolon))?;
+    parser.expect_next(SimpleToken::Semicolon)?;
 
-    let next = parser.next()?;
+    let count = parser.expect_next_int()?;
 
-    if let Token::NumberIntLiteral(count) = next {
-        parser.expect_next(Token::SimpleTokenType(SimpleToken::CloseSquare))?;
+    parser.expect_next(SimpleToken::CloseSquare)?;
 
-        return Ok(Box::new(ArrayType{
-            underlying: expr,
-            count: count as u32
-        }));
-    }
+    Ok(Box::new(ArrayType{
+        underlying: expr,
+        count: count as u32
+    }))
 
-    Err(ParserError::UnexpectedToken)
 }
 
 pub fn parse_tuple_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
-    parser.expect_next(Token::SimpleTokenType(SimpleToken::OpenBracket))?;
+    parser.expect_next(SimpleToken::OpenBracket)?;
 
     let mut result = vec![];
     loop {
@@ -78,12 +76,11 @@ pub fn parse_tuple_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserE
 
         result.push(expr);
 
-        if parser.peek()? == Token::SimpleTokenType(SimpleToken::CloseBracket) {
-            parser.next()?;
+        if parser.consume_if_next(CloseBracket)? {
             break;
         }
 
-        parser.expect_next(Token::SimpleTokenType(SimpleToken::Comma))?;
+        parser.expect_next(SimpleToken::Comma)?;
     }
 
     Ok(Box::new(TupleType{

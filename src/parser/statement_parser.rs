@@ -2,6 +2,7 @@ use crate::ast::statement::{ExpressionStmt, Statement, VarDeclarationStmt};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
+use crate::lexer::token::SimpleToken::Colon;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
@@ -19,46 +20,34 @@ pub fn parse_statement(parser: &mut Parser) -> Result<Box<dyn Statement>, Parser
 
     let expression = parse_expression(parser, binding_power::DEFAULT)?;
 
-    parser.expect_next(SimpleTokenType(SimpleToken::Semicolon))?;
+    parser.expect_next(SimpleToken::Semicolon)?;
 
     Ok(Box::new(ExpressionStmt(expression)))
 }
 
 pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
-    let token = parser.next()?;
-    
-    if let SimpleTokenType(t) = token {
-        assert!(t == SimpleToken::Let || t == SimpleToken::Const);
+    let token = parser.expect_next_simple()?;
+   
+    assert!(token == SimpleToken::Let || token == SimpleToken::Const);
 
-        let is_const = (t == SimpleToken::Const);
+    let is_const = (token == SimpleToken::Const);
+    let name = parser.expect_next_identifier()?;
 
-        let next = parser.next()?;
-
-        return if let Token::Identifier(v) = next {
-
-            let mut explicit_type = None;
-            if parser.peek()? == SimpleTokenType(SimpleToken::Colon) {
-                parser.next()?;
-                explicit_type = Some(parse_type(parser, DEFAULT)?);
-            }
-
-
-            parser.expect_next(SimpleTokenType(SimpleToken::Assign))?;
-
-            let value = parse_expression(parser, ASSIGNMENT)?;
-
-            parser.expect_next(SimpleTokenType(SimpleToken::Semicolon))?;
-
-            Ok(Box::new(VarDeclarationStmt {
-                name: v,
-                is_const,
-                value,
-                explicit_type
-            }))
-        } else {
-            Err(ParserError::UnexpectedToken)
-        }
+    let mut explicit_type = None;
+    if parser.consume_if_next(Colon)? {
+        explicit_type = Some(parse_type(parser, DEFAULT)?);
     }
 
-    panic!()
+    parser.expect_next(SimpleToken::Assign)?;
+
+    let value = parse_expression(parser, ASSIGNMENT)?;
+
+    parser.expect_next(SimpleToken::Semicolon)?;
+
+    Ok(Box::new(VarDeclarationStmt {
+        name,
+        is_const,
+        value, 
+        explicit_type
+    }))
 }
