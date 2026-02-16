@@ -6,6 +6,10 @@ pub trait Expression : Debug {
 }
 
 #[expression]
+pub struct BoolLiteralExpr(pub bool);
+
+
+#[expression]
 pub struct IntLiteralExpr(pub i32);
 
 #[expression]

@@ -1,5 +1,6 @@
-use crate::ast::expression::{BinaryExpr, Expression, PrefixExpr};
+use crate::ast::expression::{BinaryExpr, BoolLiteralExpr, Expression, PrefixExpr};
 use crate::error::parser_error::ParserError;
+use crate::lexer::token::SimpleToken::{False, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
@@ -56,4 +57,15 @@ pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding
     let right = parse_expression(parser, binding_power)?;
 
     Ok(Box::new(BinaryExpr { left, operator, right }))
+}
+
+pub fn parse_bool_literal_expr(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+    if parser.consume_if_next(True)? {
+        return Ok(Box::new(BoolLiteralExpr(true)));
+    }
+    if parser.consume_if_next(False)? {
+        return Ok(Box::new(BoolLiteralExpr(false)));
+    }
+    
+    panic!("Invalid call")
 }
