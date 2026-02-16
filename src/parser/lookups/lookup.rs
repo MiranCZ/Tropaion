@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMPARING, LOGICAL_ADD, LOGICAL_MULT, NUMERIC_ADD, NUMERIC_MULT};
-use crate::parser::expression_parser::{parse_binary_expr, parse_bool_literal_expr, parse_prefix_expr};
+use crate::parser::expression_parser::{parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
 use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_return_stmt, parse_var_declaration_stmnt};
 
@@ -77,6 +77,18 @@ impl Lookup {
         led(LessEquals, COMPARING, parse_binary_expr);
         led(Greater, COMPARING, parse_binary_expr);
         led(GreaterEquals, COMPARING, parse_binary_expr);
+
+        led(Assign, ASSIGNMENT, parse_assignment_expr);
+        led(PlusAssign, ASSIGNMENT, parse_assignment_expr);
+        led(DashAssign, ASSIGNMENT, parse_assignment_expr);
+        led(StarAssign, ASSIGNMENT, parse_assignment_expr);
+        led(SlashAssign, ASSIGNMENT, parse_assignment_expr);
+        led(PercentAssign, ASSIGNMENT, parse_assignment_expr);
+        led(RightRightAssign, ASSIGNMENT, parse_assignment_expr);
+        led(LeftLeftAssign, ASSIGNMENT, parse_assignment_expr);
+        led(BitOrAssign, ASSIGNMENT, parse_assignment_expr);
+        led(BitAndAssign, ASSIGNMENT, parse_assignment_expr);
+        led(BitXorAssign, ASSIGNMENT, parse_assignment_expr);
 
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);

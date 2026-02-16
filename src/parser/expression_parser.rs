@@ -1,4 +1,5 @@
-use crate::ast::expression::{BinaryExpr, BoolLiteralExpr, Expression, PrefixExpr};
+use crate::ast::expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, Expression, PrefixExpr};
+use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{False, True};
 use crate::lexer::token::Token;
@@ -68,4 +69,16 @@ pub fn parse_bool_literal_expr(parser: &mut Parser) -> Result<Box<dyn Expression
     }
     
     panic!("Invalid call")
+}
+
+pub fn parse_assignment_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+    let operator = parser.expect_next_simple()?;
+    
+    let value = parse_expression(parser, binding_power)?;
+    
+    Ok(Box::new(AssignExpr{
+        assignee: left,
+        operator,
+        value
+    }))
 }

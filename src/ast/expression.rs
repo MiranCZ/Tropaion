@@ -34,3 +34,9 @@ pub struct BinaryExpr {
     pub right: Box<dyn Expression>
 }
 
+#[expression]
+pub struct AssignExpr {
+    pub assignee: Box<dyn Expression>,
+    pub operator: SimpleToken,
+    pub value: Box<dyn Expression>
+}
