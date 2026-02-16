@@ -1,4 +1,4 @@
-use crate::ast::ast_type::{ArrayType, AstType, TupleType};
+use crate::ast::ast_type::{ArrayType, AstType, ReferenceType, TupleType};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
 use crate::parser::binding_power::{Bp, DEFAULT};
@@ -38,6 +38,14 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn AstT
 
         left = led_fn(parser, left, rbp)?;
     }
+}
+
+pub fn parse_reference_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
+    parser.expect_next(Token::SimpleTokenType(SimpleToken::Ampersand))?;
+
+    let expr = parse_type(parser, DEFAULT)?;
+
+    Ok(Box::new(ReferenceType { underlying: expr }))
 }
 
 pub fn parse_array_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {

@@ -9,6 +9,11 @@ pub trait AstType : Debug {
 pub struct SymbolType(pub String);
 
 #[ast_type]
+pub struct ReferenceType {
+    pub underlying: Box<dyn AstType>
+}
+
+#[ast_type]
 pub struct ArrayType {
     pub underlying: Box<dyn AstType>,
     pub count: u32
