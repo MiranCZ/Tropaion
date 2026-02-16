@@ -1,11 +1,13 @@
-use crate::ast::ast_type::{ArrayType, AstType, ReferenceType, TupleType};
+use crate::ast::ast_type::AstType;
+use crate::ast::ast_type::AstType::*;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
 use crate::lexer::token::SimpleToken::CloseBracket;
 use crate::parser::binding_power::{Bp, DEFAULT};
+use crate::parser::handlers::ReturnedType;
 use crate::parser::Parser;
 
-pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn AstType>, ParserError> {
+pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> ReturnedType {
     let token = parser.peek()?;
 
     let nud_fn = token.type_nud(&parser.type_lookup);
@@ -41,15 +43,15 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn AstT
     }
 }
 
-pub fn parse_reference_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
+pub fn parse_reference_type(parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::Ampersand)?;
 
     let expr = parse_type(parser, DEFAULT)?;
 
-    Ok(Box::new(ReferenceType { underlying: expr }))
+    Ok(ReferenceType { underlying: expr.boxed() })
 }
 
-pub fn parse_array_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
+pub fn parse_array_type(parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::OpenSquare)?;
 
     let expr = parse_type(parser, DEFAULT)?;
@@ -60,14 +62,14 @@ pub fn parse_array_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserE
 
     parser.expect_next(SimpleToken::CloseSquare)?;
 
-    Ok(Box::new(ArrayType{
-        underlying: expr,
+    Ok(ArrayType{
+        underlying: expr.boxed(),
         count: count as u32
-    }))
+    })
 
 }
 
-pub fn parse_tuple_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
+pub fn parse_tuple_type(parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::OpenBracket)?;
 
     let mut result = vec![];
@@ -83,7 +85,5 @@ pub fn parse_tuple_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserE
         parser.expect_next(SimpleToken::Comma)?;
     }
 
-    Ok(Box::new(TupleType{
-        types: result
-    }))
+    Ok(TupleType(result))
 }

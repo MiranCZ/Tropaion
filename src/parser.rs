@@ -6,7 +6,8 @@ pub mod binding_power;
 mod expression_parser;
 mod type_parser;
 
-use crate::ast::statement::BlockStmt;
+use crate::ast::statement::Statement;
+use crate::ast::statement::Statement::BlockStmt;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberIntLiteral, SimpleTokenType, EOF};
 use crate::lexer::token::{SimpleToken, Token};
@@ -36,7 +37,7 @@ impl Parser {
         &self.lookup
     }
 
-    pub fn parse(&mut self) -> Result<BlockStmt, ParserError> {
+    pub fn parse(&mut self) -> Result<Statement, ParserError> {
         let mut body = Vec::new();
 
         loop {

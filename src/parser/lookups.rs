@@ -1,26 +1,25 @@
 pub mod lookup;
 
-use crate::ast::expression::{
-    Expression, FloatLiteralExpr, IdentifierExpr, IntLiteralExpr, StringLiteralExpr,
-};
+use crate::ast::expression::Expression::*;
+
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::*;
-use crate::parser::handlers::{LedInfo, NudHandler, StatementHandler};
+use crate::parser::handlers::{LedInfo, NudHandler, ReturnedExpression, StatementHandler};
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::{parse_comment_smt, parse_multiline_comment_smt};
 use crate::parser::Parser;
 
 impl Token {
     pub fn nud(&self, lookup: &Lookup) -> Option<NudHandler> {
-        fn handle_literal(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+        fn handle_literal(parser: &mut Parser) -> ReturnedExpression {
             let token = parser.next()?;
 
             Ok(match token {
-                Identifier(v) => Box::new(IdentifierExpr(v.clone())),
-                NumberIntLiteral(v) => Box::new(IntLiteralExpr(v)),
-                NumberFloatLiteral(v) => Box::new(FloatLiteralExpr(v)),
-                StringLiteral(v) => Box::new(StringLiteralExpr(v.clone())),
+                Identifier(v) => IdentifierExpr(v.clone()),
+                NumberIntLiteral(v) => IntLiteralExpr(v),
+                NumberFloatLiteral(v) => FloatLiteralExpr(v),
+                StringLiteral(v) => StringLiteralExpr(v.clone()),
 
                 _ => panic!()
             })

@@ -5,12 +5,18 @@ use crate::error::parser_error::ParserError;
 use crate::parser::binding_power::Bp;
 use crate::parser::Parser;
 
-pub type StatementHandler = fn(&mut Parser) -> Result<Box<dyn Statement>, ParserError>;
-pub type NudHandler = fn(&mut Parser) -> Result<Box<dyn Expression>, ParserError>;
-pub type LedHandler = fn(&mut Parser, Box<dyn Expression>, u32) -> Result<Box<dyn Expression>, ParserError>;
 
-pub type TypeNudHandler = fn(&mut Parser) -> Result<Box<dyn AstType>, ParserError>;
-pub type TypeLedHandler = fn(&mut Parser, Box<dyn AstType>, u32) -> Result<Box<dyn AstType>, ParserError>;
+pub type ReturnedStatement = Result<Statement, ParserError>;
+pub type ReturnedExpression = Result<Expression, ParserError>;
+pub type ReturnedType = Result<AstType, ParserError>;
+
+
+pub type StatementHandler = fn(&mut Parser) -> ReturnedStatement;
+pub type NudHandler = fn(&mut Parser) -> ReturnedExpression;
+pub type LedHandler = fn(&mut Parser, Expression, u32) -> ReturnedExpression;
+
+pub type TypeNudHandler = fn(&mut Parser) -> ReturnedType;
+pub type TypeLedHandler = fn(&mut Parser, AstType, u32) -> ReturnedType;
 
 
 #[derive(Clone, Copy)]

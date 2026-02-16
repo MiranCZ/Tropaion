@@ -1,25 +1,20 @@
 use std::fmt::Debug;
-use tropaion_derive::ast_type;
 
-pub trait AstType : Debug {
+#[derive(Debug, PartialEq)]
+pub enum AstType{
+    SymbolType(String),
+    ReferenceType {
+        underlying: Box<AstType>
+    },
+    ArrayType {
+        underlying: Box<AstType>,
+        count: u32,
+    },
+    TupleType(Vec<AstType>)
 }
 
-
-#[ast_type]
-pub struct SymbolType(pub String);
-
-#[ast_type]
-pub struct ReferenceType {
-    pub underlying: Box<dyn AstType>
-}
-
-#[ast_type]
-pub struct ArrayType {
-    pub underlying: Box<dyn AstType>,
-    pub count: u32
-}
-
-#[ast_type]
-pub struct TupleType {
-    pub types: Vec<Box<dyn AstType>>
+impl AstType {
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
 }

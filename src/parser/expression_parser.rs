@@ -1,13 +1,15 @@
-use crate::ast::expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, DecrementExpr, Expression, IncrementExpr, PrefixExpr};
+use crate::ast::expression::Expression;
+use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{False, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
+use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 
-pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
     let token = parser.peek()?;
 
     let nud_fn = token.nud(&parser.lookup);
@@ -44,51 +46,51 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> Result<Box<dy
     }
 }
 
-pub fn parse_prefix_expr(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_prefix_expr(parser: &mut Parser) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
 
     let expr = parse_expression(parser, UNARY)?;
 
-    Ok(Box::new(PrefixExpr { operator, expr }))
+    Ok(PrefixExpr { operator, expr: expr.boxed() })
 }
 
-pub fn parse_binary_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_binary_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
 
     let right = parse_expression(parser, binding_power)?;
 
-    Ok(Box::new(BinaryExpr { left, operator, right }))
+    Ok(BinaryExpr { left: left.boxed(), operator, right: right.boxed() })
 }
 
-pub fn parse_bool_literal_expr(parser: &mut Parser) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_bool_literal_expr(parser: &mut Parser) -> ReturnedExpression {
     if parser.consume_if_next(True)? {
-        return Ok(Box::new(BoolLiteralExpr(true)));
+        return Ok(BoolLiteralExpr(true));
     }
     if parser.consume_if_next(False)? {
-        return Ok(Box::new(BoolLiteralExpr(false)));
+        return Ok(BoolLiteralExpr(false));
     }
     
     panic!("Invalid call")
 }
 
-pub fn parse_increment_expr(parser: &mut Parser, left: Box<dyn Expression>, _bp: Bp) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_increment_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
-    Ok(Box::new(IncrementExpr(left)))
+    Ok(IncrementExpr(left.boxed()))
 }
 
-pub fn parse_decrement_expr(parser: &mut Parser, left: Box<dyn Expression>, _bp: Bp) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_decrement_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
-    Ok(Box::new(DecrementExpr(left)))
+    Ok(DecrementExpr(left.boxed()))
 }
 
-pub fn parse_assignment_expr(parser: &mut Parser, left: Box<dyn Expression>, binding_power: Bp) -> Result<Box<dyn Expression>, ParserError> {
+pub fn parse_assignment_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
     
     let value = parse_expression(parser, binding_power)?;
     
-    Ok(Box::new(AssignExpr{
-        assignee: left,
+    Ok(AssignExpr{
+        assignee: left.boxed(),
         operator,
-        value
-    }))
+        value: value.boxed()
+    })
 }

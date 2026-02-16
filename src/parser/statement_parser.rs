@@ -1,4 +1,6 @@
-use crate::ast::statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, MultilineCommentStmt, Parameter, ReturnStmt, Statement, VarDeclarationStmt};
+use crate::ast::statement::{Parameter, StatementBlock};
+use crate::ast::statement::Statement::*;
+use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
@@ -7,9 +9,11 @@ use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::{binding_power, Parser};
+use crate::parser::handlers::ReturnedStatement;
 use crate::parser::type_parser::parse_type;
 
-pub fn parse_statement(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+
+pub fn parse_statement(parser: &mut Parser) -> ReturnedStatement {
     let token = parser.peek()?;
 
     let stmnt_fn = token.statement(parser.lookup());
@@ -22,22 +26,22 @@ pub fn parse_statement(parser: &mut Parser) -> Result<Box<dyn Statement>, Parser
 
     parser.expect_next(SimpleToken::Semicolon)?;
 
-    Ok(Box::new(ExpressionStmt(expression)))
+    Ok(ExpressionStmt(expression))
 }
 
-pub fn parse_comment_smt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+pub fn parse_comment_smt(parser: &mut Parser) -> ReturnedStatement {
     let text = parser.expect_next_comment()?;
     
-    Ok(Box::new(CommentStmt(text)))
+    Ok(CommentStmt(text))
 }
 
-pub fn parse_multiline_comment_smt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+pub fn parse_multiline_comment_smt(parser: &mut Parser) -> ReturnedStatement {
     let text = parser.expect_next_multiline_comment()?;
 
-    Ok(Box::new(MultilineCommentStmt(text)))
+    Ok(MultilineCommentStmt(text))
 }
 
-pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> ReturnedStatement {
     let token = parser.expect_next_simple()?;
 
     assert!(token == SimpleToken::Let || token == SimpleToken::Const);
@@ -56,19 +60,19 @@ pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statem
 
     parser.expect_next(SimpleToken::Semicolon)?;
 
-    Ok(Box::new(VarDeclarationStmt {
+    Ok(VarDeclarationStmt {
         name,
         is_const,
         value,
         explicit_type
-    }))
+    })
 }
 
-pub fn parse_block_stmt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
-    Ok(Box::new(_parse_block_stmt(parser)?))
+pub fn parse_block_stmt(parser: &mut Parser) -> ReturnedStatement {
+    Ok(BlockStmt{body: _parse_block_stmt(parser)?})
 }
 
-fn _parse_block_stmt(parser: &mut Parser) -> Result<BlockStmt, ParserError> {
+fn _parse_block_stmt(parser: &mut Parser) -> Result<StatementBlock, ParserError> {
     parser.expect_next(SimpleToken::OpenCurly)?;
 
     let mut statements = vec![];
@@ -77,20 +81,20 @@ fn _parse_block_stmt(parser: &mut Parser) -> Result<BlockStmt, ParserError> {
         statements.push(parse_statement(parser)?);
     }
 
-    Ok(BlockStmt{ body: statements })
+    Ok(statements)
 }
 
-pub fn parse_return_stmt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+pub fn parse_return_stmt(parser: &mut Parser) -> ReturnedStatement {
     parser.expect_next(Return)?;
 
     let expr = parse_expression(parser, DEFAULT)?;
 
     parser.expect_next(Semicolon)?;
 
-    Ok(Box::new(ReturnStmt(expr)))
+    Ok(ReturnStmt(expr))
 }
 
-pub fn parse_fn_declaration_stmt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+pub fn parse_fn_declaration_stmt(parser: &mut Parser) -> ReturnedStatement {
    parser.expect_next(SimpleToken::Fn)?;
 
     let fn_name = parser.expect_next_identifier()?;
@@ -123,10 +127,10 @@ pub fn parse_fn_declaration_stmt(parser: &mut Parser) -> Result<Box<dyn Statemen
 
     let body = _parse_block_stmt(parser)?;
 
-    Ok(Box::new(FunctionStmt{
+    Ok(FunctionStmt{
         name: fn_name,
         params,
         return_type,
         body
-    }))
+    })
 }
