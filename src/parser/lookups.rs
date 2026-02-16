@@ -3,12 +3,12 @@ pub mod lookup;
 use crate::ast::expression::{
     Expression, FloatLiteralExpr, IdentifierExpr, IntLiteralExpr, StringLiteralExpr,
 };
-use crate::ast::statement::Statement;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::*;
 use crate::parser::handlers::{LedInfo, NudHandler, StatementHandler};
 use crate::parser::lookups::lookup::Lookup;
+use crate::parser::statement_parser::{parse_comment_smt, parse_multiline_comment_smt};
 use crate::parser::Parser;
 
 impl Token {
@@ -47,6 +47,13 @@ impl Token {
     }
 
     pub fn statement(&self, lookup: &Lookup) -> Option<StatementHandler> {
+        if let Comment(_) = self {
+            return Some(parse_comment_smt)
+        }
+        if let MultilineComment(_) = self {
+            return Some(parse_multiline_comment_smt)
+        }
+        
         if let SimpleTokenType(t) = self {
             return lookup.statement_lookup.get(t).copied();
         }

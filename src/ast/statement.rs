@@ -39,3 +39,9 @@ pub struct FunctionStmt {
 
 #[statement]
 pub struct ReturnStmt(pub Box<dyn Expression>);
+
+#[statement]
+pub struct CommentStmt(pub String);
+
+#[statement]
+pub struct MultilineCommentStmt(pub String);

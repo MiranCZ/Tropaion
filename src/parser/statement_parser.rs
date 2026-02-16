@@ -1,9 +1,9 @@
-use crate::ast::statement::{BlockStmt, ExpressionStmt, FunctionStmt, Parameter, ReturnStmt, Statement, VarDeclarationStmt};
+use crate::ast::statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, MultilineCommentStmt, Parameter, ReturnStmt, Statement, VarDeclarationStmt};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Return, Semicolon};
-use crate::lexer::token::Token::SimpleTokenType;
+use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::{binding_power, Parser};
@@ -23,6 +23,18 @@ pub fn parse_statement(parser: &mut Parser) -> Result<Box<dyn Statement>, Parser
     parser.expect_next(SimpleToken::Semicolon)?;
 
     Ok(Box::new(ExpressionStmt(expression)))
+}
+
+pub fn parse_comment_smt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+    let text = parser.expect_next_comment()?;
+    
+    Ok(Box::new(CommentStmt(text)))
+}
+
+pub fn parse_multiline_comment_smt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {
+    let text = parser.expect_next_multiline_comment()?;
+
+    Ok(Box::new(MultilineCommentStmt(text)))
 }
 
 pub fn parse_var_declaration_stmnt(parser: &mut Parser) -> Result<Box<dyn Statement>, ParserError> {

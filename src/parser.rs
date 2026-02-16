@@ -8,7 +8,7 @@ mod type_parser;
 
 use crate::ast::statement::BlockStmt;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::Token::{Identifier, NumberIntLiteral, SimpleTokenType, EOF};
+use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberIntLiteral, SimpleTokenType, EOF};
 use crate::lexer::token::{SimpleToken, Token};
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::parse_statement;
@@ -120,6 +120,25 @@ impl Parser {
 
         Err(ParserError::MismatchedTokenType{expected: "NumberIntLiteral".to_string(), actual: next})
     }
+
+    pub fn expect_next_comment(&mut self) -> Result<String, ParserError> {
+        let next = self.next()?;
+        if let Comment(v) = next {
+            return Ok(v);
+        }
+
+        Err(ParserError::MismatchedTokenType{expected: "Comment".to_string(), actual: next})
+    }
+
+    pub fn expect_next_multiline_comment(&mut self) -> Result<String, ParserError> {
+        let next = self.next()?;
+        if let MultilineComment(v) = next {
+            return Ok(v);
+        }
+
+        Err(ParserError::MismatchedTokenType{expected: "MultilineComment".to_string(), actual: next})
+    }
+
 
     pub fn peek(&self) -> Result<Token, ParserError> {
         if self.pos >= self.tokens.len() {
