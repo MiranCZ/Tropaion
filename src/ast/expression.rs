@@ -23,6 +23,9 @@ pub enum Expression {
         operator: SimpleToken,
         value: Box<Expression>
     },
+    TupleExpr {
+        values: Vec<Expression>
+    }
 }
 
 impl Expression {

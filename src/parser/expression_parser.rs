@@ -2,7 +2,7 @@ use crate::ast::expression::Expression;
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{False, True};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, False, OpenBracket, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
@@ -81,6 +81,35 @@ pub fn parse_increment_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> R
 pub fn parse_decrement_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
     Ok(DecrementExpr(left.boxed()))
+}
+
+pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
+    parser.expect_next(OpenBracket)?;
+
+    let expr = parse_expression(parser, DEFAULT)?;
+
+    // we are defining a tuple
+    if parser.consume_if_next(Comma)? {
+        let mut values = vec![];
+        values.push(expr);
+
+        loop {
+            let value = parse_expression(parser, DEFAULT)?;
+
+            values.push(value);
+
+            if !parser.consume_if_next(Comma)? {
+                parser.expect_next(CloseBracket)?;
+                break;
+            }
+        }
+
+        return Ok(TupleExpr {values});
+    }
+
+    parser.expect_next(CloseBracket)?;
+
+    Ok(expr)
 }
 
 pub fn parse_assignment_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {

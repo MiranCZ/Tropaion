@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMPARING, LOGICAL_ADD, LOGICAL_MULT, NUMERIC_ADD, NUMERIC_MULT};
-use crate::parser::expression_parser::{parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_decrement_expr, parse_increment_expr, parse_prefix_expr};
+use crate::parser::expression_parser::{parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_decrement_expr, parse_increment_expr, parse_parenthesis_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
 use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_return_stmt, parse_var_declaration_stmnt};
 
@@ -53,6 +53,8 @@ impl Lookup {
 
         nud(True, parse_bool_literal_expr);
         nud(False, parse_bool_literal_expr);
+
+        nud(OpenBracket, parse_parenthesis_expr);
         
         led(Dash, NUMERIC_ADD, parse_binary_expr);
         led(Plus, NUMERIC_ADD, parse_binary_expr);
