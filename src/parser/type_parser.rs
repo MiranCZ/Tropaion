@@ -1,4 +1,4 @@
-use crate::ast::ast_type::{ArrayType, AstType};
+use crate::ast::ast_type::{ArrayType, AstType, TupleType};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
 use crate::parser::binding_power::{Bp, DEFAULT};
@@ -59,4 +59,26 @@ pub fn parse_array_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserE
     }
 
     Err(ParserError::UnexpectedToken)
+}
+
+pub fn parse_tuple_type(parser: &mut Parser) -> Result<Box<dyn AstType>, ParserError> {
+    parser.expect_next(Token::SimpleTokenType(SimpleToken::OpenBracket))?;
+
+    let mut result = vec![];
+    loop {
+        let expr = parse_type(parser, DEFAULT)?;
+
+        result.push(expr);
+
+        if parser.peek()? == Token::SimpleTokenType(SimpleToken::CloseBracket) {
+            parser.next()?;
+            break;
+        }
+
+        parser.expect_next(Token::SimpleTokenType(SimpleToken::Comma))?;
+    }
+
+    Ok(Box::new(TupleType{
+        types: result
+    }))
 }

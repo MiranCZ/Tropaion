@@ -13,3 +13,8 @@ pub struct ArrayType {
     pub underlying: Box<dyn AstType>,
     pub count: u32
 }
+
+#[ast_type]
+pub struct TupleType {
+    pub types: Vec<Box<dyn AstType>>
+}
