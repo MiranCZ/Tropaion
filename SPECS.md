@@ -5,6 +5,7 @@
     - empty scope without any statement before it is always executed
 - comments start with `//`
 - multiline comments can be done using `/*` and `*/`
+- all logic must be inside some function (except for a `const`)
 
 # Datatypes
 
@@ -130,6 +131,41 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 - cannot be a result of a function call (at least right now)
 
 
+# Memory model
+*all of this is very WIP, for now all values might as well be stored on the heap and optimizations created later*
+
+quick definition: lets call a "simple struct" any struct without circular dependencies (graph of its values types forms a tree).
+
+=TODO= string specification
+
+- all primitives (`bool`, `int,` `float`) are **copied by value** by default
+- if you want to move a primitive by reference a `&` operator can be used (eq. `&int`)
+- all other types are **passed by reference** by default
+- a `.clone()` method gets generated for all **simple** `struct`s at compile-time, this method can be used to get a deep* copy of some value
+  - *deep copy means that `Struct(T, E, F).clone()` is evaluated to `Struct(T.clone(), E.clone(), F.clone())`
+- a `.copy()` method gets generated for **all** `struct`s at compile-time, this method can be used to get a shallow copy of some value
+
+```
+let x = 5;
+let y = x; // `x` gets copied to `y`
+```
+<br>
+
+```
+let v = Vec();
+let r = s; // `r` holds a reference to `v`
+```
+
+
+## Freeing memory
+None of this affects `const` variables, these are immutable and are present for the whole run of the program
+
+- all primitives, arrays (which have a known size at compile-time) and "simple structs" 
+are allocated on the stack which makes it trivial to free them
+  - if a function returns a reference to some of these values (`fn foo() -> &int`) the variable gets allocated on the heap upon creation (where it can be later garbage collated)
+- if the compiler cannot prove when an object stops being used it does not drop it and the object is later dropped by the GC
+
+
 # Functions
 
 - `fn`
@@ -139,12 +175,18 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 - can NOT be nested (for now I guess)
 - type of arguments must be defined
 - return type must be defined or is implicitly `void`
-- to pass an argument by reference you add `&` before the arg definition
+- to pass a primitive argument by reference you add `&` before the arg type definition
+- to pass a **non-primitive** argument by value you add the `*` operator before the arg type definition
+  - this is semantically the same as calling `.clone()` on the argument once it enters the function,
+but the `*` might get optimized by the compiler more easily (eq. not cloning when unnecessary)
+  - therefor the `*` **must** be used only on simple structs
 
 <br>
 
 ```rust
-fn foo(arg1: &int, arg2: string) -> float {
+// `arg1` is passed by reference
+// `arg2` is passed by value
+fn foo(arg1: &int, arg2: *string) -> float {
     // function definition
     // ...
 }
