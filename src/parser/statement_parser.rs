@@ -4,7 +4,7 @@ use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Return, Semicolon};
+use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, Return, Semicolon};
 use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
@@ -132,5 +132,36 @@ pub fn parse_fn_declaration_stmt(parser: &mut Parser) -> ReturnedStatement {
         params,
         return_type,
         body
+    })
+}
+
+pub fn parse_if_statement(parser: &mut Parser) -> ReturnedStatement {
+    parser.expect_next(If)?;
+
+    let parentheses = parser.consume_if_next(OpenBracket)?;
+
+    let condition = parse_expression(parser, DEFAULT)?;
+
+    if parentheses {
+        parser.expect_next(CloseBracket)?;
+    }
+
+    let body = _parse_block_stmt(parser)?;
+
+    let mut else_branch = None;
+
+    if parser.consume_if_next(Else)? {
+        // elif
+        if parser.is_next(If)? {
+            else_branch = Some(parse_if_statement(parser)?.boxed());
+        } else {
+            else_branch = Some(parse_block_stmt(parser)?.boxed());
+        }
+    }
+
+    Ok(IfStmt {
+        condition,
+        body,
+        else_branch
     })
 }

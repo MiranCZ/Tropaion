@@ -17,6 +17,12 @@ pub enum Statement {
         value: Expression,
         explicit_type: Option<AstType>
     },
+    IfStmt {
+        condition: Expression,
+        body: StatementBlock,
+        // either another `if_stmt` or `block_stmt`
+        else_branch: Option<Box<Statement>>  
+    },
     FunctionStmt {
         name: String,
         params: Vec<Parameter>,
@@ -28,6 +34,13 @@ pub enum Statement {
     MultilineCommentStmt(String)
 }
 
+impl Statement {
+    
+    pub fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
+    
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Parameter {
