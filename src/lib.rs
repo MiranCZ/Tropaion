@@ -34,12 +34,8 @@ pub fn main() {
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
     let text = r#"
-    if a > b {
-        let first = 1;
-    } else if (a > c) {
-        let second = "5";
-    } else {
-        let uh_oh = false;
+    while (a > c) {
+        let do_stuf = "haah";
     }
     "#;
 

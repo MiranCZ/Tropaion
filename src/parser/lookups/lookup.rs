@@ -4,7 +4,7 @@ use crate::lexer::token::SimpleToken::*;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMPARING, LOGICAL_ADD, LOGICAL_MULT, NUMERIC_ADD, NUMERIC_MULT};
 use crate::parser::expression_parser::{parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_decrement_expr, parse_increment_expr, parse_parenthesis_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
-use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_if_statement, parse_return_stmt, parse_var_declaration_stmnt};
+use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_if_statement, parse_return_stmt, parse_var_declaration_stmnt, parse_while_statement};
 
 type NudLookup = HashMap<SimpleToken, NudHandler>;
 type LedLookup = HashMap<SimpleToken, LedInfo>;
@@ -98,8 +98,9 @@ impl Lookup {
 
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);
-        
+
         statement(If, parse_if_statement);
+        statement(While, parse_while_statement);
 
         statement(Fn, parse_fn_declaration_stmt);
         statement(Return, parse_return_stmt);

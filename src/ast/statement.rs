@@ -23,6 +23,10 @@ pub enum Statement {
         // either another `if_stmt` or `block_stmt`
         else_branch: Option<Box<Statement>>  
     },
+    WhileStmt {
+        condition: Expression,
+        body: StatementBlock,
+    },
     FunctionStmt {
         name: String,
         params: Vec<Parameter>,

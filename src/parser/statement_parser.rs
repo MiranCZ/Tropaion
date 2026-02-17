@@ -4,7 +4,7 @@ use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, Return, Semicolon};
+use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, Return, Semicolon, While};
 use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
@@ -163,5 +163,24 @@ pub fn parse_if_statement(parser: &mut Parser) -> ReturnedStatement {
         condition,
         body,
         else_branch
+    })
+}
+
+pub fn parse_while_statement(parser: &mut Parser) -> ReturnedStatement {
+    parser.expect_next(While)?;
+
+    let parentheses = parser.consume_if_next(OpenBracket)?;
+
+    let condition = parse_expression(parser, DEFAULT)?;
+
+    if parentheses {
+        parser.expect_next(CloseBracket)?;
+    }
+
+    let body = _parse_block_stmt(parser)?;
+    
+    Ok(WhileStmt {
+        condition,
+        body
     })
 }
