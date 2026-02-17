@@ -21,7 +21,7 @@ pub enum Statement {
         condition: Expression,
         body: StatementBlock,
         // either another `if_stmt` or `block_stmt`
-        else_branch: Option<Box<Statement>>  
+        else_branch: Option<Box<Statement>>
     },
     WhileStmt {
         condition: Expression,
@@ -33,17 +33,22 @@ pub enum Statement {
         return_type: Option<AstType>,
         body: StatementBlock
     },
+    StructStmt {
+        name: String,
+        fields: Vec<Parameter>,
+        body: StatementBlock
+    },
     ReturnStmt(Expression),
     CommentStmt(String),
     MultilineCommentStmt(String)
 }
 
 impl Statement {
-    
+
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
-    
+
 }
 
 #[derive(Debug, PartialEq)]

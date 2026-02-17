@@ -34,6 +34,7 @@ pub enum SimpleToken {
     Continue,
     Fn,
     Return,
+    Struct,
 
     // symbols
     Semicolon,
@@ -108,6 +109,7 @@ impl SimpleToken {
             Continue => "continue",
             Fn => "fn",
             Return => "return",
+            Struct => "struct",
             Semicolon => ";",
             Colon => ":",
             Dot => ".",

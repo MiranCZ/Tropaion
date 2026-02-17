@@ -34,9 +34,19 @@ pub fn main() {
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
     let text = r#"
-    while (a > c) {
-        let do_stuf = "haah";
+    struct NameHolder(name: String);
+    
+    struct Rect(width: float, height: float) {
+
+        fn circumference() -> float {
+            return width + height;
+        }
+
+        fn area() -> float {
+            return width * height;
+        }
     }
+
     "#;
 
     let mut lexer = lexer::Lexer::new(text.to_string());

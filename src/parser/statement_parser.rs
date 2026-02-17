@@ -4,7 +4,7 @@ use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, Return, Semicolon, While};
+use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, OpenCurly, Return, Semicolon, Struct, While};
 use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
@@ -181,6 +181,50 @@ pub fn parse_while_statement(parser: &mut Parser) -> ReturnedStatement {
     
     Ok(WhileStmt {
         condition,
+        body
+    })
+}
+
+pub fn parse_struct_statement(parser: &mut Parser) -> ReturnedStatement {
+    parser.expect_next(Struct)?;
+
+    let struct_name = parser.expect_next_identifier()?;
+
+    parser.expect_next(SimpleToken::OpenBracket)?;
+
+    let mut fields = vec![];
+
+    loop {
+        if parser.consume_if_next(CloseBracket)? {
+            break;
+        }
+
+        let param_name = parser.expect_next_identifier()?;
+        parser.expect_next(Colon)?;
+        let param_type = parse_type(parser, DEFAULT)?;
+
+        fields.push(Parameter{name: param_name, param_type});
+
+        if !parser.consume_if_next(Comma)? {
+            parser.expect_next(CloseBracket)?;
+            break;
+        }
+    }
+    
+    let body;
+   
+    if parser.is_next(OpenCurly)? {
+        body = _parse_block_stmt(parser)?;
+    }  else {
+        
+        // a struct without methods
+        parser.expect_next(Semicolon)?;
+        body = vec![];
+    }
+
+    Ok(StructStmt {
+        name: struct_name,
+        fields,
         body
     })
 }
