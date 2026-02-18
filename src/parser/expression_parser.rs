@@ -1,4 +1,5 @@
-use crate::ast::expression::Expression;
+use crate::ast::expression;
+use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
@@ -51,15 +52,15 @@ pub fn parse_prefix_expr(parser: &mut Parser) -> ReturnedExpression {
 
     let expr = parse_expression(parser, UNARY)?;
 
-    Ok(PrefixExpr { operator, expr: expr.boxed() })
+    Ok(expression::prefix(operator, expr))
 }
 
-pub fn parse_binary_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_binary_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
 
     let right = parse_expression(parser, binding_power)?;
 
-    Ok(BinaryExpr { left: left.boxed(), operator, right: right.boxed() })
+    Ok(expression::binary(left, operator, right))
 }
 
 pub fn parse_bool_literal_expr(parser: &mut Parser) -> ReturnedExpression {
@@ -73,14 +74,14 @@ pub fn parse_bool_literal_expr(parser: &mut Parser) -> ReturnedExpression {
     panic!("Invalid call")
 }
 
-pub fn parse_increment_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> ReturnedExpression {
+pub fn parse_increment_expr(parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
-    Ok(IncrementExpr(left.boxed()))
+    Ok(expression::increment(left))
 }
 
-pub fn parse_decrement_expr(parser: &mut Parser, left: Expression, _bp: Bp) -> ReturnedExpression {
+pub fn parse_decrement_expr(parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
-    Ok(DecrementExpr(left.boxed()))
+    Ok(expression::decrement(left))
 }
 
 pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
@@ -104,7 +105,7 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
             }
         }
 
-        return Ok(TupleExpr {values});
+        return Ok(expression::tuple(values));
     }
 
     parser.expect_next(CloseBracket)?;
@@ -112,30 +113,23 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
     Ok(expr)
 }
 
-pub fn parse_member_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_member_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     parser.expect_next(Dot)?;
     
     let right = parse_expression(parser, binding_power)?;
 
-    Ok(MemberExpr {
-        member: left.boxed(),
-        property: right.boxed()
-    })
+    Ok(expression::member(left, right))
 }
 
-pub fn parse_assignment_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_assignment_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
     
     let value = parse_expression(parser, binding_power)?;
-    
-    Ok(AssignExpr{
-        assignee: left.boxed(),
-        operator,
-        value: value.boxed()
-    })
+   
+    Ok(expression::assign(left, operator, value))
 }
 
-pub fn parse_call_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_call_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     parser.expect_next(OpenBracket)?;
     
     let mut args = vec![];
@@ -148,9 +142,6 @@ pub fn parse_call_expr(parser: &mut Parser, left: Expression, binding_power: Bp)
             break;
         }
     }
-    
-    Ok(CallExpr {
-        func: left.boxed(),
-        args
-    })
+
+    Ok(expression::call(left, args))
 }

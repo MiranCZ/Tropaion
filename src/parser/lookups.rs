@@ -16,7 +16,7 @@ impl Token {
             let token = parser.next()?;
 
             Ok(match token {
-                Identifier(v) => IdentifierExpr(v.clone()),
+                Identifier(v) => IdentifierExpr((), v.clone()),
                 NumberIntLiteral(v) => IntLiteralExpr(v),
                 NumberFloatLiteral(v) => FloatLiteralExpr(v),
                 StringLiteral(v) => StringLiteralExpr(v.clone()),

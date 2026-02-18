@@ -1,3 +1,4 @@
+use crate::ast::ast_type::AstType::Void;
 use crate::ast::statement::{Parameter, StatementBlock};
 use crate::ast::statement::Statement::*;
 use crate::ast::statement::Statement::ExpressionStmt;
@@ -72,7 +73,7 @@ pub fn parse_block_stmt(parser: &mut Parser) -> ReturnedStatement {
     Ok(BlockStmt{body: _parse_block_stmt(parser)?})
 }
 
-fn _parse_block_stmt(parser: &mut Parser) -> Result<StatementBlock, ParserError> {
+fn _parse_block_stmt(parser: &mut Parser) -> Result<StatementBlock<()>, ParserError> {
     parser.expect_next(SimpleToken::OpenCurly)?;
 
     let mut statements = vec![];
@@ -120,9 +121,9 @@ pub fn parse_fn_declaration_stmt(parser: &mut Parser) -> ReturnedStatement {
         }
     }
 
-    let mut return_type = None;
+    let mut return_type = Void;
     if parser.consume_if_next(Arrow)? {
-        return_type = Some(parse_type(parser, DEFAULT)?);
+        return_type = parse_type(parser, DEFAULT)?;
     }
 
     let body = _parse_block_stmt(parser)?;

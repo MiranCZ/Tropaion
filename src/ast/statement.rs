@@ -3,47 +3,51 @@ use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 
 
-pub type StatementBlock = Vec<Statement>;
+
+pub type UntypedStmt = Statement<()>;
+pub type TypedStmt = Statement<AstType>;
+
+pub type StatementBlock<T> = Vec<Statement<T>>;
 
 #[derive(Debug, PartialEq)]
-pub enum Statement {
+pub enum Statement<T> {
     BlockStmt {
-        body: StatementBlock
+        body: StatementBlock<T>
     },
-    ExpressionStmt(Expression),
+    ExpressionStmt(Expression<T>),
     VarDeclarationStmt {
         name: String,
         is_const: bool,
-        value: Expression,
+        value: Expression<T>,
         explicit_type: Option<AstType>
     },
     IfStmt {
-        condition: Expression,
-        body: StatementBlock,
+        condition: Expression<T>,
+        body: StatementBlock<T>,
         // either another `if_stmt` or `block_stmt`
-        else_branch: Option<Box<Statement>>
+        else_branch: Option<Box<Statement<T>>>
     },
     WhileStmt {
-        condition: Expression,
-        body: StatementBlock,
+        condition: Expression<T>,
+        body: StatementBlock<T>,
     },
     FunctionStmt {
         name: String,
         params: Vec<Parameter>,
-        return_type: Option<AstType>,
-        body: StatementBlock
+        return_type: AstType,
+        body: StatementBlock<T>
     },
     StructStmt {
         name: String,
         fields: Vec<Parameter>,
-        body: StatementBlock
+        body: StatementBlock<T>
     },
-    ReturnStmt(Expression),
+    ReturnStmt(Expression<T>),
     CommentStmt(String),
     MultilineCommentStmt(String)
 }
 
-impl Statement {
+impl <T> Statement<T> {
 
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)

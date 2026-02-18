@@ -1,7 +1,12 @@
 use std::fmt::Debug;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AstType{
+    Void,
+    Bool,
+    Int,
+    Float,
+    StringType,
     SymbolType(String),
     ReferenceType {
         underlying: Box<AstType>
@@ -10,7 +15,16 @@ pub enum AstType{
         underlying: Box<AstType>,
         count: u32,
     },
-    TupleType(Vec<AstType>)
+    TupleType(Vec<AstType>),
+    Function {
+        name: String,
+        params: Vec<AstType>,
+        return_type: Box<AstType>
+    },
+    Struct {
+        name: String,
+        fields: Vec<AstType>
+    }
 }
 
 impl AstType {
