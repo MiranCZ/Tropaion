@@ -4,6 +4,7 @@ pub mod lexer;
 mod parser;
 mod ast;
 pub mod error;
+pub mod analysis;
 
 #[test]
 pub fn main() {
@@ -19,6 +20,7 @@ pub fn main() {
         z++;
 
         let check = x < z;
+        let p = check + 1; // should error
 
         x *= z;
 
@@ -33,9 +35,17 @@ pub fn main() {
 
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
-    let text = r#"
-    System.out.println("hello");
-    "#;
+    // let text = r#"
+    // const x = test() + call() + 1;
+    //
+    // fn call() -> int {
+    //     return 5;
+    // }
+    //
+    // fn test() -> int {
+    //     return 1;
+    // }
+    // "#;
 
     let mut lexer = lexer::Lexer::new(text.to_string());
 
@@ -58,6 +68,10 @@ pub fn main() {
     match res {
         Ok(v) => {
             println!("{v:#?}");
+
+            let mut analyzer = analysis::analyzer::Analyzer::new(v);
+
+            analyzer.analyze();
         }
         Err(e) => panic!("{e}")
     }

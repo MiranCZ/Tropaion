@@ -14,7 +14,18 @@ impl Token {
             let token = parser.next()?;
 
             Ok(match token {
-                Identifier(v) => SymbolType(v.clone()),
+                Identifier(v) => {
+                    if v == "int" {
+                        Int
+                    } else if v == "float" {
+                        Float
+                    } else if v == "bool" {
+                        Bool
+                    } else {
+                        SymbolType(v.clone())
+                    }
+
+                },
 
                 _ => panic!()
             })

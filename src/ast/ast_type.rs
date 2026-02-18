@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum AstType{
+pub enum AstType {
     Void,
     Bool,
     Int,
@@ -16,14 +17,16 @@ pub enum AstType{
         count: u32,
     },
     TupleType(Vec<AstType>),
-    Function {
+    FunctionType {
         name: String,
         params: Vec<AstType>,
         return_type: Box<AstType>
     },
-    Struct {
+    StructType {
         name: String,
-        fields: Vec<AstType>
+        
+        // fields and methods
+        children: HashMap<String, AstType>,
     }
 }
 
