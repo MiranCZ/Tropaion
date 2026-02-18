@@ -25,6 +25,10 @@ pub enum Expression {
     },
     TupleExpr {
         values: Vec<Expression>
+    },
+    MemberExpr {
+        member: Box<Expression>,
+        property: Box<Expression>
     }
 }
 

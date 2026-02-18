@@ -2,7 +2,7 @@ use crate::ast::expression::Expression;
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, False, OpenBracket, True};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, OpenBracket, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
@@ -110,6 +110,17 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
     parser.expect_next(CloseBracket)?;
 
     Ok(expr)
+}
+
+pub fn parse_member_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+    parser.expect_next(Dot)?;
+    
+    let right = parse_expression(parser, binding_power)?;
+
+    Ok(MemberExpr {
+        member: left.boxed(),
+        property: right.boxed()
+    })
 }
 
 pub fn parse_assignment_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {

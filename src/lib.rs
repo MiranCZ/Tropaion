@@ -39,7 +39,7 @@ pub fn main() {
     struct Rect(width: float, height: float) {
 
         fn circumference() -> float {
-            return width + height;
+            return this.width + this.height;
         }
 
         fn area() -> float {
