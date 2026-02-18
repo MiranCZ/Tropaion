@@ -29,6 +29,10 @@ pub enum Expression {
     MemberExpr {
         member: Box<Expression>,
         property: Box<Expression>
+    },
+    CallExpr {
+        func: Box<Expression>,
+        args: Vec<Expression>
     }
 }
 

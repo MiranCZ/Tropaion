@@ -5,7 +5,7 @@ use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, OpenBracket, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
-use crate::parser::binding_power::{Bp, DEFAULT, UNARY};
+use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 
@@ -132,5 +132,25 @@ pub fn parse_assignment_expr(parser: &mut Parser, left: Expression, binding_powe
         assignee: left.boxed(),
         operator,
         value: value.boxed()
+    })
+}
+
+pub fn parse_call_expr(parser: &mut Parser, left: Expression, binding_power: Bp) -> ReturnedExpression {
+    parser.expect_next(OpenBracket)?;
+    
+    let mut args = vec![];
+
+    while !parser.consume_if_next(CloseBracket)? {
+        args.push(parse_expression(parser, ASSIGNMENT)?);
+        
+        if !parser.consume_if_next(Comma)? {
+            parser.expect_next(CloseBracket)?;
+            break;
+        }
+    }
+    
+    Ok(CallExpr {
+        func: left.boxed(),
+        args
     })
 }
