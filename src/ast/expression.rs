@@ -60,9 +60,9 @@ impl <T> Expression<T> {
 impl UntypedExpr {
 
     pub fn resolve_type(self, symbol_table: &mut SymbolTable) -> TypedExpr {
-        fn try_get_resolve_type(symbol_table: &SymbolTable, symbol: &String) -> AstType {
+        let try_get_resolve_type = |symbol: &String| -> AstType {
             symbol_table.get_type(symbol.clone()).unwrap_or(SymbolType(symbol.clone()))
-        }
+        };
 
         match self {
             BoolLiteralExpr(b) => BoolLiteralExpr(b),
@@ -70,7 +70,7 @@ impl UntypedExpr {
             FloatLiteralExpr(f) => FloatLiteralExpr(f),
             StringLiteralExpr(s) => StringLiteralExpr(s),
             IdentifierExpr(_, identifier) => {
-                let t = try_get_resolve_type(symbol_table, &identifier);
+                let t = try_get_resolve_type(&identifier);
 
                 return IdentifierExpr(t, identifier);
             }
@@ -93,17 +93,25 @@ impl UntypedExpr {
                 let typed_left = left.resolve_type(symbol_table);
                 let typed_right = right.resolve_type(symbol_table);
 
-                // FIXME this is wrong, should instead record operator and type combinations (eq. `int + int` => `int`, `int < int` => `bool`)
-                if typed_left.get_type() != typed_right.get_type() {
-                    panic!("Binary expr arms do not match {:?} vs {:?}",typed_right, typed_left);
+                let result_type = symbol_table.op_table.get_op_result(typed_left.get_type(), operator, typed_right.get_type());
+
+                if result_type.is_none() {
+                    panic!("Not a valid binary expression {:?} {:?} {:?}",typed_left.get_type(), operator, typed_right.get_type());
                 }
-                let t = typed_left.get_type();
+                let t = result_type.unwrap();
 
                 return BinaryExpr {t, left: typed_left.boxed(), operator, right:typed_right.boxed()};
             }
             AssignExpr {assignee, operator, value, .. } => {
                 let typed_assignee = assignee.resolve_type(symbol_table);
                 let typed_value = value.resolve_type(symbol_table);
+
+                // this is in the form `assignee <op>= value`
+                let result_type = symbol_table.op_table.get_op_result(typed_assignee.get_type(), operator, typed_value.get_type());
+
+                if result_type.is_none() {
+                    panic!("Not a valid assignment {:?} {:?} {:?}",typed_assignee.get_type(), operator, typed_value.get_type());
+                }
 
                 if typed_assignee.get_type() != typed_value.get_type() {
                     panic!("Assignment expr arms do not match {:?} vs {:?}",typed_assignee, typed_value);

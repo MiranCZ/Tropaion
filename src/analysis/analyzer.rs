@@ -49,7 +49,8 @@ impl Analyzer {
                         })
                     },
 
-                    Statement::StructStmt {name, fields, .. } => {
+                    Statement::StructStmt {name, fields, body } => {
+
                         self.symbol_table.record_type(name.clone(), StructType {
                             name: name.clone(),
                             children: todo!()

@@ -20,7 +20,7 @@ pub fn main() {
         z++;
 
         let check = x < z;
-        let p = check + 1; // should error
+        // let p = check + 1; // should error - it now does
 
         x *= z;
 

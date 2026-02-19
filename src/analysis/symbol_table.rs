@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use crate::analysis::operator_table::OperatorTable;
 use crate::ast::ast_type::AstType;
 
 #[derive(Debug)]
 pub struct SymbolTable {
+    pub op_table: OperatorTable,
     symbols: Vec<HashMap<String, AstType>>
 }
 
@@ -10,6 +12,7 @@ impl SymbolTable {
     
     pub fn new() -> Self {
         let mut new = Self {
+            op_table: OperatorTable::new(),
             symbols: vec![]
         };
         new.push();

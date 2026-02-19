@@ -70,8 +70,8 @@ impl Lookup {
         led(LeftLeft, LOGICAL_MULT, parse_binary_expr);
         led(RightRight, LOGICAL_MULT, parse_binary_expr);
 
-        led(BitOr, LOGICAL_ADD, parse_binary_expr);
-        led(BitAnd, LOGICAL_MULT, parse_binary_expr);
+        led(BoolOr, LOGICAL_ADD, parse_binary_expr);
+        led(BoolAnd, LOGICAL_MULT, parse_binary_expr);
         led(BitXor, LOGICAL_MULT, parse_binary_expr);
 
         led(Dot, MEMBER, parse_member_expr);
@@ -96,8 +96,8 @@ impl Lookup {
         led(PercentAssign, ASSIGNMENT, parse_assignment_expr);
         led(RightRightAssign, ASSIGNMENT, parse_assignment_expr);
         led(LeftLeftAssign, ASSIGNMENT, parse_assignment_expr);
-        led(BitOrAssign, ASSIGNMENT, parse_assignment_expr);
-        led(BitAndAssign, ASSIGNMENT, parse_assignment_expr);
+        led(VertBarAssign, ASSIGNMENT, parse_assignment_expr);
+        led(AmpersandAssign, ASSIGNMENT, parse_assignment_expr);
         led(BitXorAssign, ASSIGNMENT, parse_assignment_expr);
 
         statement(Let, parse_var_declaration_stmnt);

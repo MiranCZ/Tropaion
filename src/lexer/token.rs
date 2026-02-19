@@ -57,6 +57,7 @@ pub enum SimpleToken {
     Tilde, // ~
     Ampersand,
     VerticalBar,
+    BitXor,
     Arrow, // ->
 
     PlusPlus,
@@ -64,9 +65,8 @@ pub enum SimpleToken {
     RightRight,
     LeftLeft,
 
-    BitAnd,
-    BitOr,
-    BitXor,
+    BoolAnd,
+    BoolOr,
 
     Assign, //=
 
@@ -78,8 +78,8 @@ pub enum SimpleToken {
     PercentAssign,
     RightRightAssign,
     LeftLeftAssign,
-    BitOrAssign,
-    BitAndAssign,
+    VertBarAssign,
+    AmpersandAssign,
     BitXorAssign,
 
     // comparisons
@@ -134,8 +134,8 @@ impl SimpleToken {
             MinusMinus => "--",
             RightRight => ">>",
             LeftLeft => "<<",
-            BitAnd => "&&",
-            BitOr => "||",
+            BoolAnd => "&&",
+            BoolOr => "||",
             BitXor => "^",
             Assign => "=",
             PlusAssign => "+=",
@@ -145,8 +145,8 @@ impl SimpleToken {
             PercentAssign => "%=",
             RightRightAssign => ">>=",
             LeftLeftAssign => "<<=",
-            BitOrAssign => "|=",
-            BitAndAssign => "&=",
+            VertBarAssign => "|=",
+            AmpersandAssign => "&=",
             BitXorAssign => "^=",
             Equals => "==",
             NotEquals => "!=",
