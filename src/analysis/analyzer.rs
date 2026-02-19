@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
+use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{FunctionType, StructType};
 use crate::ast::statement::Statement::BlockStmt;
 use crate::ast::statement::{Statement, UntypedStmt};
@@ -50,11 +52,28 @@ impl Analyzer {
                     },
 
                     Statement::StructStmt {name, fields, body } => {
+                        let mut children = HashMap::new();
+
+                        for f in fields {
+                            children.insert(f.name.clone(), f.param_type.clone());
+                        }
+
+                        for x in body {
+                            match x {
+                                Statement::FunctionStmt {name, return_type, params, .. } => {
+                                    children.insert(name.clone(), AstType::FunctionType {
+                                        name: name.clone(),
+                                        return_type: return_type.clone().boxed(),
+                                        params: params.iter().map(|p| p.clone().param_type).collect()
+                                    });
+                                },
+                                _ => panic!("invalid statement inside struct {x:?}")
+                            }
+                        }
 
                         self.symbol_table.record_type(name.clone(), StructType {
                             name: name.clone(),
-                            children: todo!()
-                            // children: fields.iter().map(|p| p.param_type.clone()).collect(),
+                            children
                         })
                     },
                     _ => panic!("Invalid statement {x:?}")

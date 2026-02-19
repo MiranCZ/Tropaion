@@ -61,7 +61,12 @@ impl UntypedExpr {
 
     pub fn resolve_type(self, symbol_table: &mut SymbolTable) -> TypedExpr {
         let try_get_resolve_type = |symbol: &String| -> AstType {
-            symbol_table.get_type(symbol.clone()).unwrap_or(SymbolType(symbol.clone()))
+            let v = symbol_table.get_type(symbol.clone());
+
+            if let Some(t) = v{
+                return t;
+            }
+            panic!("Failed to resolve symbol {symbol}")
         };
 
         match self {
@@ -168,7 +173,6 @@ impl UntypedExpr {
                         resolved_args.push(arg.resolve_type(symbol_table));
                     }
 
-
                     return CallExpr {
                         t: *return_type,
                         func: resolved_func.boxed(),
@@ -176,7 +180,22 @@ impl UntypedExpr {
                     };
                 }
 
-                panic!("Calling something else than a function! {:?}", resolved_func);
+                // calling constructor of a struct
+                if let AstType::StructType {..} = resolved_func.get_type() {
+                    let mut resolved_args = vec![];
+
+                    for arg in args {
+                        resolved_args.push(arg.resolve_type(symbol_table));
+                    }
+
+                    return CallExpr {
+                        t: resolved_func.get_type(),
+                        func: resolved_func.boxed(),
+                        args: resolved_args
+                    };
+                }
+
+                panic!("Calling something else than a function or a struct constructor! {:?}", resolved_func);
             }
         }
     }

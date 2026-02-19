@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::Bool;
+use crate::ast::ast_type::AstType::{Bool, StructType};
 use crate::ast::expression::Expression;
 use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, IfStmt, MultilineCommentStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::lexer::token::SimpleToken::If;
@@ -121,7 +121,24 @@ impl UntypedStmt {
                 FunctionStmt {name, params, return_type, body: resolve_smt_block(body, symbol_table)}
             }
             StructStmt { name, fields, body } => {
-                StructStmt {name, fields, body: resolve_smt_block(body, symbol_table)}
+
+                symbol_table.push();
+                let struct_type = symbol_table.get_type(name.clone()).unwrap();
+                symbol_table.record_type(String::from("this"), struct_type.clone());
+
+                if let StructType {children,..} = struct_type {
+                    for p in children {
+                        symbol_table.record_type(p.0, p.1);
+                    }
+                } else {
+                    panic!("WTH type mismatch, got {struct_type:?}");
+                }
+
+                let body = resolve_smt_block(body, symbol_table);
+
+                symbol_table.pop();
+
+                StructStmt {name, fields, body}
             }
             ReturnStmt(expr) => {
                 ReturnStmt(expr.resolve_type(symbol_table))

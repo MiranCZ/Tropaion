@@ -35,17 +35,24 @@ pub fn main() {
 
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
-    // let text = r#"
-    // const x = test() + call() + 1;
-    //
-    // fn call() -> int {
-    //     return 5;
-    // }
-    //
-    // fn test() -> int {
-    //     return 1;
-    // }
-    // "#;
+    let text = r#"
+    fn main() {
+        let r = Rect(5, 10);
+        let area = r.area();
+    }
+
+    struct Rect(width: float, height: float) {
+
+        fn circumference() -> float {
+            return width + height;
+        }
+
+        fn area() -> float {
+            return this.width * this.height;
+        }
+
+    }
+    "#;
 
     let mut lexer = lexer::Lexer::new(text.to_string());
 

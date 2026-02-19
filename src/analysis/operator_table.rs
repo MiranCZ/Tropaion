@@ -80,7 +80,7 @@ impl OperatorTable {
         for bool_op in [BoolOr, BoolAnd] {
             self.add(Bool, bool_op, Bool, Bool);
         }
-        
+
         for t in [Bool, Int, Float] {
             self.add(t, Assign, t, t);
         }
