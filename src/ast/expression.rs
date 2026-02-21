@@ -5,6 +5,7 @@ use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{Bool, Float, Int, StringType, SymbolType, TupleType};
 use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
+use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, PercentAssign, Plus, RightRight, Slash, Star, VerticalBar};
 
 pub type UntypedExpr = Expression<()>;
 pub type TypedExpr = Expression<AstType>;
@@ -32,7 +33,6 @@ pub enum Expression<T> {
     AssignExpr {
         t: T,
         assignee: Box<Expression<T>>,
-        operator: SimpleToken,
         value: Box<Expression<T>>
     },
     TupleExpr {
@@ -107,23 +107,16 @@ impl UntypedExpr {
 
                 return BinaryExpr {t, left: typed_left.boxed(), operator, right:typed_right.boxed()};
             }
-            AssignExpr {assignee, operator, value, .. } => {
+            AssignExpr {assignee, value, .. } => {
                 let typed_assignee = assignee.resolve_type(symbol_table);
                 let typed_value = value.resolve_type(symbol_table);
-
-                // this is in the form `assignee <op>= value`
-                let result_type = symbol_table.op_table.get_op_result(typed_assignee.get_type(), operator, typed_value.get_type());
-
-                if result_type.is_none() {
-                    panic!("Not a valid assignment {:?} {:?} {:?}",typed_assignee.get_type(), operator, typed_value.get_type());
-                }
 
                 if typed_assignee.get_type() != typed_value.get_type() {
                     panic!("Assignment expr arms do not match {:?} vs {:?}",typed_assignee, typed_value);
                 }
                 let t = typed_assignee.get_type();
 
-                return AssignExpr {t, assignee: typed_assignee.boxed(), operator, value: typed_value.boxed()};
+                return AssignExpr {t, assignee: typed_assignee.boxed(), value: typed_value.boxed()};
             }
             TupleExpr {values, .. } => {
                 let mut types = vec![];
@@ -268,11 +261,29 @@ pub fn binary(left: UntypedExpr, operator: SimpleToken, right: UntypedExpr) -> U
 }
 
 pub fn assign(assignee: UntypedExpr, operator: SimpleToken, value: UntypedExpr) -> UntypedExpr {
-    AssignExpr {
-        t: (),
-        assignee: assignee.boxed(),
-        operator,
-        value: value.boxed()
+    let binary = |op| {
+        assign(assignee.clone(), Assign, binary(assignee.clone(),op,value.clone()))
+    };
+
+    match operator {
+        Assign => {
+            AssignExpr {
+                t: (),
+                assignee: assignee.boxed(),
+                value: value.boxed()
+            }
+        }
+        SimpleToken::PlusAssign => binary(Plus),
+        SimpleToken::DashAssign => binary(Dash),
+        SimpleToken::StarAssign => binary(Star),
+        SimpleToken::SlashAssign => binary(Slash),
+        SimpleToken::PercentAssign => binary(Percent),
+        SimpleToken::RightRightAssign => binary(RightRight),
+        SimpleToken::LeftLeftAssign => binary(LeftLeft),
+        SimpleToken::VertBarAssign => binary(VerticalBar),
+        SimpleToken::AmpersandAssign => binary(Ampersand),
+        SimpleToken::BitXorAssign => binary(BitXor),
+        _ => panic!("Not an implement assignment operator! {operator:?}")
     }
 }
 

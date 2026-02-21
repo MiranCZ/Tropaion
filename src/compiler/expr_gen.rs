@@ -109,14 +109,9 @@ impl TypedExpr {
                     _ => panic!("Invalid operator {:?}", operator)
                 }
             }
-            TypedExpr::AssignExpr {assignee, operator, value, .. } => {
-                if let SimpleToken::Assign = operator {
-                    value.generate_bytecode(generator, Load);
-                    assignee.generate_bytecode(generator, Store);
-                    return;
-                }
-
-                todo!();
+            TypedExpr::AssignExpr {assignee, value, .. } => {
+                value.generate_bytecode(generator, Load);
+                assignee.generate_bytecode(generator, Store);
             }
             TypedExpr::TupleExpr { values, .. } => {
                 for x in values {

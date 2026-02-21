@@ -39,7 +39,9 @@ pub fn main() {
     let text = r#"
     fn main() -> (int, float) {
         let a = 1 + 2;
-        let b = a + 5;
+        let b = 5;
+
+        b += a;
 
         return (a,b);
     }
