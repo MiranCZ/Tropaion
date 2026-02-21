@@ -2,13 +2,15 @@ use std::collections::HashMap;
 use crate::analysis::operator_table::OperatorTable;
 use crate::ast::ast_type::AstType;
 
+pub type TypeSymTable = SymbolTable<AstType>;
+
 #[derive(Debug)]
-pub struct SymbolTable {
+pub struct SymbolTable<T: Clone> {
     pub op_table: OperatorTable,
-    symbols: Vec<HashMap<String, AstType>>
+    symbols: Vec<HashMap<String, T>>
 }
 
-impl SymbolTable {
+impl <T: Clone> SymbolTable<T> {
     
     pub fn new() -> Self {
         let mut new = Self {
@@ -27,8 +29,18 @@ impl SymbolTable {
     pub fn pop(&mut self) {
         self.symbols.pop();
     }
-    
-    pub fn get_type(&self, symbol: String) -> Option<AstType> {
+
+    pub fn contains(&self, symbol: &String) -> bool {
+        for map in self.symbols.iter() {
+            if map.contains_key(symbol) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn get(&self, symbol: String) -> Option<T> {
         let mut t = None;
         
         for map in self.symbols.iter() {
@@ -42,7 +54,7 @@ impl SymbolTable {
         t
     }
     
-    pub fn record_type(&mut self, symbol: String, t: AstType) {
+    pub fn record(&mut self, symbol: String, t: T) {
         self.symbols.last_mut().unwrap().insert(symbol, t);
     }
     

@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use crate::analysis::symbol_table::SymbolTable;
+use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{Bool, StructType};
 use crate::ast::expression::Expression;
@@ -66,8 +66,8 @@ pub struct Parameter {
 
 impl UntypedStmt {
 
-    pub fn resolve_type(self, symbol_table: &mut SymbolTable) -> TypedStmt {
-        fn resolve_smt_block(body: StatementBlock<()>, symbol_table: &mut SymbolTable) -> StatementBlock<AstType> {
+    pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> TypedStmt {
+        fn resolve_smt_block(body: StatementBlock<()>, symbol_table: &mut TypeSymTable) -> StatementBlock<AstType> {
             let mut typed_body = vec![];
 
             symbol_table.push();
@@ -91,7 +91,7 @@ impl UntypedStmt {
             VarDeclarationStmt { name, is_const, value, explicit_type } => {
                 let typed_value = value.resolve_type(symbol_table);
 
-                symbol_table.record_type(name.clone(), typed_value.get_type());
+                symbol_table.record(name.clone(), typed_value.get_type());
 
                 VarDeclarationStmt {name, is_const, value: typed_value, explicit_type}
             }
@@ -123,12 +123,12 @@ impl UntypedStmt {
             StructStmt { name, fields, body } => {
 
                 symbol_table.push();
-                let struct_type = symbol_table.get_type(name.clone()).unwrap();
-                symbol_table.record_type(String::from("this"), struct_type.clone());
+                let struct_type = symbol_table.get(name.clone()).unwrap();
+                symbol_table.record(String::from("this"), struct_type.clone());
 
                 if let StructType {children,..} = struct_type {
                     for p in children {
-                        symbol_table.record_type(p.0, p.1);
+                        symbol_table.record(p.0, p.1);
                     }
                 } else {
                     panic!("WTH type mismatch, got {struct_type:?}");

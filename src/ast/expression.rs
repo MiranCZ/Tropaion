@@ -1,6 +1,6 @@
 use std::process::id;
 use std::string::String;
-use crate::analysis::symbol_table::SymbolTable;
+use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{Bool, Float, Int, StringType, SymbolType, TupleType};
 use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
@@ -59,9 +59,9 @@ impl <T> Expression<T> {
 
 impl UntypedExpr {
 
-    pub fn resolve_type(self, symbol_table: &mut SymbolTable) -> TypedExpr {
+    pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> TypedExpr {
         let try_get_resolve_type = |symbol: &String| -> AstType {
-            let v = symbol_table.get_type(symbol.clone());
+            let v = symbol_table.get(symbol.clone());
 
             if let Some(t) = v{
                 return t;
@@ -146,7 +146,7 @@ impl UntypedExpr {
                     struct_scope = true;
                     symbol_table.push();
                     for x in children {
-                        symbol_table.record_type(x.0, x.1);
+                        symbol_table.record(x.0, x.1);
                     }
                 }
 

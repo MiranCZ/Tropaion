@@ -1,13 +1,14 @@
 use std::collections::HashMap;
-use crate::analysis::symbol_table::SymbolTable;
+use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{FunctionType, StructType};
 use crate::ast::statement::Statement::BlockStmt;
-use crate::ast::statement::{Statement, UntypedStmt};
+use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
+use crate::compiler::codegen::BytecodeGen;
 
 pub struct Analyzer {
     root: UntypedStmt,
-    symbol_table: SymbolTable
+    symbol_table: TypeSymTable
 }
 
 
@@ -28,8 +29,25 @@ impl Analyzer {
         println!("{:?}", self.symbol_table);
         println!();
         println!();
+        let resolved_root: TypedStmt = self.root.clone().resolve_type(&mut self.symbol_table);
 
-        println!("{:#?}", self.root.clone().resolve_type(&mut self.symbol_table));
+        // TODO semantic analysis would probs be nice xd
+
+        println!("{:#?}", resolved_root);
+
+        let mut g = BytecodeGen::new();
+        resolved_root.gen_bytecode(&mut g);
+
+        println!();
+        println!();
+        println!("-------------------");
+        println!();
+        println!();
+
+        for i in g.instructions {
+            println!("{i:?}")
+        }
+
     }
 
 
@@ -44,7 +62,7 @@ impl Analyzer {
                     },
 
                     Statement::FunctionStmt {name, params, return_type, .. } => {
-                        self.symbol_table.record_type(name.clone(), FunctionType {
+                        self.symbol_table.record(name.clone(), FunctionType {
                             name: name.clone(),
                             params: params.iter().map(|p| p.param_type.clone()).collect(),
                             return_type: return_type.clone().boxed()
@@ -71,8 +89,9 @@ impl Analyzer {
                             }
                         }
 
-                        self.symbol_table.record_type(name.clone(), StructType {
+                        self.symbol_table.record(name.clone(), StructType {
                             name: name.clone(),
+                            fields: fields.iter().map(|f| f.clone().param_type).collect(),
                             children
                         })
                     },
@@ -105,7 +124,7 @@ impl Analyzer {
                             // TODO assignable from
                         }
 
-                        self.symbol_table.record_type(name, inferred_type.get_type());
+                        self.symbol_table.record(name, inferred_type.get_type());
                     },
 
                     _ => {}

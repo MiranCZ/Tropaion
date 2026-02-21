@@ -5,6 +5,7 @@ mod parser;
 mod ast;
 pub mod error;
 pub mod analysis;
+mod compiler;
 
 #[test]
 pub fn main() {
@@ -36,21 +37,11 @@ pub fn main() {
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
     let text = r#"
-    fn main() {
-        let r = Rect(5, 10);
-        let area = r.area();
-    }
+    fn main() -> (int, float) {
+        let a = 1 + 2;
+        let b = a + 5;
 
-    struct Rect(width: float, height: float) {
-
-        fn circumference() -> float {
-            return width + height;
-        }
-
-        fn area() -> float {
-            return this.width * this.height;
-        }
-
+        return (a,b);
     }
     "#;
 
