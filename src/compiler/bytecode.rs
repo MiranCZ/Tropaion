@@ -39,7 +39,7 @@ pub enum ByteCode {
     IfEq(i32),
 
     StackFrame(u16),
-    Call(u32),
+    Call(u16),
     Ret(u16),
     RetLong(u32)
 }

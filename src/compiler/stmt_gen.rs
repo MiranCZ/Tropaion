@@ -60,9 +60,19 @@ impl TypedStmt {
 
                 generator.end_scope();
             }
-            TypedStmt::FunctionStmt {name, body, return_type, .. } => {
+            TypedStmt::FunctionStmt {name, body, params, return_type, .. } => {
                 generator.comment(format!("fn {name} -- START"));
-                generator.fn_start();
+                generator.fn_start(name.clone());
+
+                for param in params {
+                    let name = param.name.clone();
+                    match param.param_type {
+                        AstType::Bool => generator.i_store(name),
+                        AstType::Int => generator.i_store(name),
+                        AstType::Float => generator.f_store(name),
+                        _ => panic!("Unsupported parameter type! {:?}",param.param_type)
+                    }
+                }
 
                 for b in body {
                     b.gen_bytecode(generator);
@@ -72,12 +82,14 @@ impl TypedStmt {
                 // (this is here if no explicit return statement was inserted)
                 generator.ret(0);
 
-                generator.fn_end();
+                generator.fn_end(name.clone());
 
 
                 generator.comment(format!("return of {name} -- END"));
             }
-            TypedStmt::StructStmt { .. } => {}
+            TypedStmt::StructStmt {name, fields, body, .. } => {
+                todo!()
+            }
             TypedStmt::ReturnStmt(e) => {
                  e.generate_bytecode(generator, Load);
 

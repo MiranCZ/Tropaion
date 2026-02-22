@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{FunctionType, StructType};
-use crate::ast::statement::Statement::BlockStmt;
-use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
+use crate::ast::expression::Expression;
+use crate::ast::expression::Expression::IdentifierExpr;
+use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, StructStmt};
+use crate::ast::statement::{Parameter, Statement, TypedStmt, UntypedStmt};
 use crate::compiler::codegen::BytecodeGen;
+use crate::compiler::compiler::Compiler;
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -35,8 +38,8 @@ impl Analyzer {
 
         println!("{:#?}", resolved_root);
 
-        let mut g = BytecodeGen::new();
-        resolved_root.gen_bytecode(&mut g);
+        let mut comp = Compiler::new(resolved_root);
+
 
         println!();
         println!();
@@ -44,10 +47,7 @@ impl Analyzer {
         println!();
         println!();
 
-        for i in g.instructions {
-            println!("{i:?}")
-        }
-
+        comp.compile();
     }
 
 

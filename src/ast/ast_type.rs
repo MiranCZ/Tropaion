@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{format, Debug};
 use std::mem::swap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -38,7 +38,29 @@ impl AstType {
 }
 
 impl AstType {
-   
+    pub fn get_type_name(&self) -> String {
+        match self {
+            AstType::Void => "V".to_string(),
+            AstType::Bool => "b".to_string(),
+            AstType::Int => "i".to_string(),
+            AstType::Float => "f".to_string(),
+            AstType::StringType => "s".to_string(),
+            AstType::SymbolType(n) => format!("L{n};"),
+            AstType::ReferenceType { underlying } => underlying.get_type_name(), // references do not affect method signature
+            AstType::ArrayType {underlying, .. } => format!("A{};",underlying.get_type_name()),
+            AstType::TupleType(types) => {
+                let mut name = "T".to_string();
+                for t in types {
+                    name += t.get_type_name().as_str();
+                }
+
+                name + ";"
+            }
+            AstType::FunctionType { .. } => panic!("Functions do not have names!"),
+            AstType::StructType {name, .. } => format!("L{name};")
+        }
+    }
+
     pub fn word_size(&self) -> u32 {
         match self {
             AstType::Void => 0,

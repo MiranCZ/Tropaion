@@ -118,7 +118,17 @@ impl UntypedStmt {
                 WhileStmt {condition: typed_condition, body: resolve_smt_block(body, symbol_table)}
             }
             FunctionStmt { name, params, return_type, body } => {
-                FunctionStmt {name, params, return_type, body: resolve_smt_block(body, symbol_table)}
+
+                symbol_table.push();
+                for p in params.clone() {
+                    symbol_table.record(p.name, p.param_type);
+                }
+
+                let body = resolve_smt_block(body, symbol_table);
+
+                symbol_table.pop();
+
+                FunctionStmt {name, params, return_type, body}
             }
             StructStmt { name, fields, body } => {
 

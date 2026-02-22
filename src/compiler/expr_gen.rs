@@ -1,3 +1,4 @@
+use crate::ast::ast_type::AstType;
 use crate::ast::expression::TypedExpr;
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::{Load, Store};
@@ -121,8 +122,19 @@ impl TypedExpr {
             TypedExpr::MemberExpr { member, property, .. } => {
                 todo!()
             }
-            TypedExpr::CallExpr { .. } => {
-                todo!()
+            TypedExpr::CallExpr {func, args, .. } => {
+                let t = func.get_type();
+
+                for a in args {
+                    a.generate_bytecode(generator, Load);
+                }
+
+                match t {
+                    AstType::FunctionType {name, .. } => {
+                        generator.call(&name);
+                    }
+                    _ => panic!("Cannot call {t:?}")
+                }
             }
         }
     }

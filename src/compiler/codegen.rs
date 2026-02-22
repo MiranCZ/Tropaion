@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{Add, Comment, Div, Dup, FConst, FLoad, FStore, Goto, IConst, ILoad, IStore, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{Add, Call, Comment, Div, Dup, FConst, FLoad, FStore, Goto, IConst, ILoad, IStore, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -32,11 +33,18 @@ impl ScopeInfo {
 }
 
 #[derive(Debug)]
+pub struct FunctionInfo {
+    index: u16
+}
+
+#[derive(Debug)]
 pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
     scopes: Vec<ScopeInfo>,
     local_count: u16,
-    symbol_table: SymbolTable<u16>
+    symbol_table: SymbolTable<u16>,
+    functions: HashMap<String, FunctionInfo>,
+    func_count: u16
 }
 
 impl BytecodeGen {
@@ -46,7 +54,9 @@ impl BytecodeGen {
             instructions: vec![],
             scopes: vec![],
             local_count: 0,
-            symbol_table: SymbolTable::new()
+            symbol_table: SymbolTable::new(),
+            functions: HashMap::new(),
+            func_count: 0
         }
     }
 
@@ -108,12 +118,12 @@ impl BytecodeGen {
         last.start_index - self.index() - 1
     }
 
-    pub fn fn_start(&mut self) {
+    pub fn fn_start(&mut self, name: String) {
         self.new_scope();
         self.push_insn(StackFrame(0));
     }
 
-    pub fn fn_end(&mut self) {
+    pub fn fn_end(&mut self, name: String) {
         let scope = self.scopes.last().unwrap();
 
         let frame_ind = scope.start_index ;
@@ -125,6 +135,12 @@ impl BytecodeGen {
         self.end_scope();
     }
 
+    pub fn register_func(&mut self, name: String) {
+        self.functions.insert(name, FunctionInfo{
+            index: self.func_count
+        });
+        self.func_count += 1;
+    }
 
     fn push_insn(&mut self, insn: ByteCode) {
         self.instructions.push(insn);
@@ -228,6 +244,12 @@ impl BytecodeGen {
         self.push_insn(FLoad(ind));
     }
 
+    pub fn call(&mut self, name: &String) {
+        let info = self.functions.get(name).unwrap();
+        
+        self.push_insn(Call(info.index));
+    }
+    
     pub fn ret(&mut self, amount: u32) {
         if amount < (u16::MAX as u32) {
             self.push_insn(Ret(amount as u16));

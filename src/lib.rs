@@ -37,13 +37,12 @@ pub fn main() {
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
     let text = r#"
-    fn main() -> (int, float) {
-        let a = 1 + 2;
-        let b = 5;
+    fn second(num: int) -> int {
+        return num;
+    }
 
-        b += a;
-
-        return (a,b);
+    fn main() {
+        let a = 1 + second(2);
     }
     "#;
 
