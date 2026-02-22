@@ -1,13 +1,10 @@
-use std::collections::HashMap;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{FunctionType, StructType};
-use crate::ast::expression::Expression;
-use crate::ast::expression::Expression::IdentifierExpr;
-use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, StructStmt};
-use crate::ast::statement::{Parameter, Statement, TypedStmt, UntypedStmt};
-use crate::compiler::codegen::BytecodeGen;
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
+use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
+use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
 use crate::compiler::compiler::Compiler;
+use std::collections::HashMap;
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -36,6 +33,8 @@ impl Analyzer {
 
         // TODO semantic analysis would probs be nice xd
 
+        let resolved_root = resolved_root.mangle_functions();
+
         println!("{:#?}", resolved_root);
 
         let mut comp = Compiler::new(resolved_root);
@@ -53,7 +52,7 @@ impl Analyzer {
 
     /// record all top-level structs and functions which can be used everywhere
     fn record_top_level(&mut self) {
-        if let BlockStmt{ body } = &self.root {
+        if let BlockStmt{ body } = &self.root.clone() {
             for x in body {
                 match x {
                     Statement::CommentStmt(_) | Statement::MultilineCommentStmt(_) => {},
@@ -61,15 +60,15 @@ impl Analyzer {
                         // will resolve after functions and structs
                     },
 
-                    Statement::FunctionStmt {name, params, return_type, .. } => {
-                        self.symbol_table.record(name.clone(), FunctionType {
+                    FunctionStmt {name, params, return_type, .. } => {
+                        self.record_function(FunctionType {
                             name: name.clone(),
                             params: params.iter().map(|p| p.param_type.clone()).collect(),
                             return_type: return_type.clone().boxed()
                         })
                     },
 
-                    Statement::StructStmt {name, fields, body } => {
+                    StructStmt {name, fields, body } => {
                         let mut children = HashMap::new();
 
                         for f in fields {
@@ -135,6 +134,29 @@ impl Analyzer {
         }
 
         panic!("not a block statement? {:?}",self.root)
+    }
+
+    fn record_function(&mut self, func: AstType) {
+        if let FunctionType {name, ..} = func.clone() {
+            let t = self.symbol_table.get(name.clone());
+
+            if t.is_none() {
+                let mut overloads = vec![];
+                overloads.push(func);
+                self.symbol_table.record(name.clone(), FunctionsType {
+                    name,
+                    overloads
+                })
+            } else if let Some(t) = t {
+                if let FunctionsType { mut overloads, ..} = t {
+                    overloads.push(func);
+                } else {
+                    panic!("Invalid overload {name}")
+                }
+            }
+        } else {
+            panic!("{func:?}")
+        }
     }
 
 }

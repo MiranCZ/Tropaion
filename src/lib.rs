@@ -41,6 +41,10 @@ pub fn main() {
         return num;
     }
 
+    fn second(num: float) -> float {
+        return num;
+    }
+
     fn main() {
         let a = 1 + second(2);
     }

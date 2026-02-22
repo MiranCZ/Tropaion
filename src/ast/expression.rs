@@ -1,11 +1,10 @@
-use std::process::id;
-use std::string::String;
-use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
+use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{Bool, Float, Int, StringType, SymbolType, TupleType};
+use crate::ast::ast_type::AstType::{Bool, Float, FunctionsType, Int, StringType, TupleType, Void};
 use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, PercentAssign, Plus, RightRight, Slash, Star, VerticalBar};
+use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
+use std::string::String;
 
 pub type UntypedExpr = Expression<()>;
 pub type TypedExpr = Expression<AstType>;
@@ -157,20 +156,48 @@ impl UntypedExpr {
                 };
             }
             CallExpr {func, args, .. } => {
-                let resolved_func = func.resolve_type(symbol_table);
+                let mut resolved_func = func.resolve_type(symbol_table);
 
-                if let AstType::FunctionType {return_type, ..} = resolved_func.get_type() {
+                if let FunctionsType {overloads, ..} = resolved_func.get_type() {
                     let mut resolved_args = vec![];
 
-                    for arg in args {
+                    for arg in args.clone() {
                         resolved_args.push(arg.resolve_type(symbol_table));
                     }
 
-                    return CallExpr {
-                        t: *return_type,
-                        func: resolved_func.boxed(),
-                        args: resolved_args
-                    };
+                    let mut func = Void;
+
+                    'overloadLoop:
+                    for overload in overloads.iter() {
+                        if let AstType::FunctionType {name, params, ..} = overload {
+                            if params.len() != resolved_args.len() {
+                                continue;
+                            }
+
+                            for i in 0..resolved_args.len() {
+                                if params[i] != resolved_args[i].get_type() {
+                                    continue 'overloadLoop;
+                                }
+                            }
+
+                            func = overload.clone();
+                            break;
+                        } else {
+                            panic!();
+                        }
+                    }
+
+
+
+                    if let AstType::FunctionType {return_type, ..} = func.clone() {
+                        resolved_func.set_type(func);
+
+                        return CallExpr {
+                            t: *return_type,
+                            func: resolved_func.boxed(),
+                            args: resolved_args
+                        };
+                    }
                 }
 
                 // calling constructor of a struct
@@ -211,6 +238,44 @@ impl TypedExpr {
             TupleExpr {t, .. } => t.clone(),
             MemberExpr {t, .. } => t.clone(),
             CallExpr {t, .. } => t.clone()
+        }
+    }
+}
+
+impl TypedExpr {
+    pub fn set_type(&mut self, typ: AstType) {
+        match self {
+            BoolLiteralExpr(_) => panic!(),
+            IntLiteralExpr(_) => panic!(),
+            FloatLiteralExpr(_) => panic!(),
+            StringLiteralExpr(_) => panic!(),
+            IdentifierExpr(t, _) =>  {
+                *t = typ
+            }
+            IncrementExpr(t, _) =>  {
+                *t = typ
+            }
+            DecrementExpr(t, _) =>  {
+                *t = typ
+            },
+            PrefixExpr {t, .. } => {
+                *t = typ
+            },
+            BinaryExpr {t, .. } => {
+                *t = typ
+            },
+            AssignExpr {t, .. } => {
+                *t = typ
+            },
+            TupleExpr {t, .. } => {
+                *t = typ
+            },
+            MemberExpr {t, .. } => {
+                *t = typ
+            },
+            CallExpr {t, .. } => {
+                *t = typ
+            }
         }
     }
 }

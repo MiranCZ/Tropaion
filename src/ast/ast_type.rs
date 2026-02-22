@@ -18,6 +18,10 @@ pub enum AstType {
         count: u32,
     },
     TupleType(Vec<AstType>),
+    FunctionsType {
+        name: String,
+        overloads: Vec<AstType> // these should be only function types
+    },
     FunctionType {
         name: String,
         params: Vec<AstType>,
@@ -57,7 +61,8 @@ impl AstType {
                 name + ";"
             }
             AstType::FunctionType { .. } => panic!("Functions do not have names!"),
-            AstType::StructType {name, .. } => format!("L{name};")
+            AstType::StructType {name, .. } => format!("L{name};"),
+            _ => panic!()
         }
     }
 
@@ -89,7 +94,8 @@ impl AstType {
                 }
 
                 size
-            }
+            },
+            _ => panic!()
         }
     }
     

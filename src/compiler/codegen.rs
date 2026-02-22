@@ -246,10 +246,10 @@ impl BytecodeGen {
 
     pub fn call(&mut self, name: &String) {
         let info = self.functions.get(name).unwrap();
-        
+
         self.push_insn(Call(info.index));
     }
-    
+
     pub fn ret(&mut self, amount: u32) {
         if amount < (u16::MAX as u32) {
             self.push_insn(Ret(amount as u16));
