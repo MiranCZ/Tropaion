@@ -26,6 +26,7 @@ impl TypedStmt {
                 match value.get_type() {
                     AstType::Bool | AstType::Int => generator.i_store(name.clone()),
                     AstType::Float => generator.f_store(name.clone()),
+                    AstType::StructType {..} => generator.a_store(name.clone()),
                     _ => panic!("Not yet supported type {:?}",value.get_type())
                 };
             }
@@ -88,7 +89,10 @@ impl TypedStmt {
                 generator.comment(format!("return of {name} -- END"));
             }
             TypedStmt::StructStmt {name, fields, body, .. } => {
-                todo!()
+
+                for b in body {
+                    b.gen_bytecode(generator);
+                }
             }
             TypedStmt::ReturnStmt(e) => {
                  e.generate_bytecode(generator, Load);

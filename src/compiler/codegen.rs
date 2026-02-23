@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{Add, Call, Comment, Div, Dup, FConst, FLoad, FStore, Goto, IConst, ILoad, IStore, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, Add, Call, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, Goto, IConst, ILoad, ILoadOffset, IStore, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -43,7 +43,7 @@ pub struct BytecodeGen {
     scopes: Vec<ScopeInfo>,
     local_count: u16,
     symbol_table: SymbolTable<u16>,
-    functions: HashMap<String, FunctionInfo>,
+    pub functions: HashMap<String, FunctionInfo>,
     func_count: u16
 }
 
@@ -201,14 +201,26 @@ impl BytecodeGen {
     }
 
     pub fn i_store(&mut self, name: String) {
+        self.store(name, |i| IStore(i))
+    }
+
+    pub fn f_store(&mut self, name: String) {
+        self.store(name, |i| FStore(i))
+    }
+
+    pub fn a_store(&mut self, name: String) {
+        self.store(name, |i| AStore(i))
+    }
+
+    fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
         if self.symbol_table.contains(&name) {
             let ind = self.symbol_table.get(name).unwrap();
 
-            self.push_insn(IStore(ind));
+            self.push_insn(create_store(ind));
             return;
         }
 
-        self.push_insn(IStore(self.local_count));
+        self.push_insn(create_store(self.local_count));
 
         self.local_count += 1;
 
@@ -216,20 +228,8 @@ impl BytecodeGen {
         self.symbol_table.record(name, ind);
     }
 
-    pub fn f_store(&mut self, name: String) {
-        if self.symbol_table.contains(&name) {
-            let ind = self.symbol_table.get(name).unwrap();
-
-            self.push_insn(FStore(ind));
-            return;
-        }
-
-        self.push_insn(FStore(self.local_count));
-
-        self.local_count += 1;
-
-        let ind = self.local_count - 1;
-        self.symbol_table.record(name, ind);
+    pub fn create_stack_ptr(&mut self, consume_words: u32) {
+        self.push_insn(CreateStackPtr {consume_words});
     }
 
     pub fn i_load(&mut self, name: String) {
@@ -242,6 +242,24 @@ impl BytecodeGen {
         let ind = self.symbol_table.get(name).unwrap();
 
         self.push_insn(FLoad(ind));
+    }
+
+    pub fn a_load(&mut self, name: String) {
+        let ind = self.symbol_table.get(name).unwrap();
+
+        self.push_insn(ALoad(ind));
+    }
+
+    pub fn i_load_offset(&mut self, offset: u16) {
+        self.push_insn(ILoadOffset(offset));
+    }
+
+    pub fn f_load_offset(&mut self, offset: u16) {
+        self.push_insn(FLoadOffset(offset));
+    }
+
+    pub fn a_load_offset(&mut self, offset: u16) {
+        self.push_insn(ALoadOffset(offset));
     }
 
     pub fn call(&mut self, name: &String) {

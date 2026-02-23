@@ -1,5 +1,5 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::ast::ast_type::AstType;
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
@@ -71,26 +71,47 @@ impl Analyzer {
                     StructStmt {name, fields, body } => {
                         let mut children = HashMap::new();
 
+                        let mut field_infos = vec![];
+
+                        let mut i = 0;
                         for f in fields {
-                            children.insert(f.name.clone(), f.param_type.clone());
+                            let info = MemberInfo(f.param_type.clone(), f.name.clone(), i);
+                            children.insert(f.name.clone(), info.clone());
+
+                            field_infos.push(info);
+
+                            i += 1;
                         }
+                        let mut table = SymbolTable::new();
 
                         for x in body {
                             match x {
-                                Statement::FunctionStmt {name, return_type, params, .. } => {
-                                    children.insert(name.clone(), AstType::FunctionType {
+                                FunctionStmt {name, return_type, params, .. } => {
+                                    let t = FunctionType {
                                         name: name.clone(),
                                         return_type: return_type.clone().boxed(),
                                         params: params.iter().map(|p| p.clone().param_type).collect()
-                                    });
+                                    };
+                                    Self::_record_function(&mut table, t);
                                 },
                                 _ => panic!("invalid statement inside struct {x:?}")
                             }
                         }
 
+                        for e in table.last().unwrap().iter() {
+                            let t = e.1;
+                            let name = e.0;
+
+                            // functions don't have order
+                            let info = MemberInfo(t.clone(), name.clone(), u16::MAX);
+
+                            children.insert(name.clone(), info);
+                        }
+
+
                         self.symbol_table.record(name.clone(), StructType {
                             name: name.clone(),
-                            fields: fields.iter().map(|f| f.clone().param_type).collect(),
+                            fields: field_infos,
                             children
                         })
                     },
@@ -136,14 +157,19 @@ impl Analyzer {
         panic!("not a block statement? {:?}",self.root)
     }
 
+
     fn record_function(&mut self, func: AstType) {
+        Self::_record_function(&mut self.symbol_table, func)
+    }
+
+    fn _record_function(symbol_table: &mut TypeSymTable, func: AstType) {
         if let FunctionType {name, ..} = func.clone() {
-            let t = self.symbol_table.get(name.clone());
+            let t = symbol_table.get(name.clone());
 
             if t.is_none() {
                 let mut overloads = vec![];
                 overloads.push(func);
-                self.symbol_table.record(name.clone(), FunctionsType {
+                symbol_table.record(name.clone(), FunctionsType {
                     name,
                     overloads
                 })

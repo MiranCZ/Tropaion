@@ -1,78 +1,58 @@
-use crate::ast::ast_type::AstType;
-use crate::ast::expression::TypedExpr;
+use std::collections::HashMap;
+use crate::ast::ast_type::{AstType, MemberInfo};
+use crate::ast::expression::{call, member, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, Store};
+use crate::compiler::expr_gen::Operation::{Load, LoadField, Store};
 use crate::lexer::token::SimpleToken;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum Operation {
     Load, // loads the expression on top of the stack
-    Store // stores value on top of the stack into the expression
-}
-impl Operation {
-
-    pub fn is_load(&self) -> bool {
-        match self {
-            Load => true,
-            Store => false
-        }
+    Store, // stores value on top of the stack into the expression
+    LoadField {
+        fields: Vec<MemberInfo>,
+        // fields and methods
+        children: HashMap<String, MemberInfo>,
     }
-
-    pub fn is_store(&self) -> bool {
-        match self {
-            Load => false,
-            Store => true
-        }
-    }
-
 }
-
 impl TypedExpr {
 
+
     pub fn generate_bytecode(&self, generator: &mut BytecodeGen, operation: Operation) {
+        match operation {
+            Load => self.load(generator),
+            Store => self.store(generator),
+            LoadField {fields, children} => {
+                self.load_field(fields, children, generator);
+            }
+        }
+    }
+
+    pub fn load(&self, generator: &mut BytecodeGen) {
         match self {
             TypedExpr::BoolLiteralExpr(b) => {
-                if operation.is_store() {
-                    panic!("Invalid STORE for {self:?}")
-                }
-
                 if *b {
                     generator.i_const(1);
                 } else {
                     generator.i_const(0);
                 }
             }
-            TypedExpr::IntLiteralExpr(i) => {
-                if operation.is_store() {
-                    panic!("Invalid STORE for {self:?}")
-                }
-
-                generator.i_const(*i);
+            TypedExpr::IntLiteralExpr(i) => generator.i_const(*i),
+            TypedExpr::FloatLiteralExpr(f) => generator.f_const(*f),
+            TypedExpr::StringLiteralExpr(_) => {
+                todo!()
             }
-            TypedExpr::FloatLiteralExpr(f) => {
-                if operation.is_store() {
-                    panic!("Invalid STORE for {self:?}")
-                }
-
-                generator.f_const(*f)
-            }
-            TypedExpr::StringLiteralExpr(_) => {}
             TypedExpr::IdentifierExpr(t, name) => {
-                match operation {
-                    Load => {
-                        generator.i_load(name.clone());
-                    }
-                    Store => {
-                        generator.i_store(name.clone())
-                    }
-                }
+                match t {
+                    AstType::Bool |
+                    AstType::Int => generator.i_load(name.clone()),
+                    AstType::Float => generator.f_load(name.clone()),
+                    AstType::StructType { .. } => generator.a_load(name.clone()),
 
+                    _ => panic!("Invalid load type! {self:?}")
+                }
             }
             TypedExpr::IncrementExpr(_, e) => {
-                if operation.is_store() {
-                    panic!("Store not yet implement for {self:?}")
-                }
-
                 e.generate_bytecode(generator, Load);
 
                 generator.i_const(1);
@@ -81,10 +61,6 @@ impl TypedExpr {
                 e.generate_bytecode(generator, Store);
             }
             TypedExpr::DecrementExpr(_, e) => {
-                if operation.is_store() {
-                    panic!("Store not yet implement for {self:?}")
-                }
-
                 e.generate_bytecode(generator, Load);
 
                 generator.i_const(1);
@@ -92,12 +68,10 @@ impl TypedExpr {
 
                 e.generate_bytecode(generator, Store);
             }
-            TypedExpr::PrefixExpr { .. } => {}
+            TypedExpr::PrefixExpr { .. } => {
+                todo!()
+            }
             TypedExpr::BinaryExpr {left, operator, right, .. } => {
-                if operation.is_store() {
-                    panic!("Invalid STORE for {self:?}")
-                }
-
                 left.generate_bytecode(generator, Load);
                 right.generate_bytecode(generator, Load);
 
@@ -116,26 +90,111 @@ impl TypedExpr {
             }
             TypedExpr::TupleExpr { values, .. } => {
                 for x in values {
-                    x.generate_bytecode(generator, operation);
+                    x.generate_bytecode(generator, Load);
                 }
             }
             TypedExpr::MemberExpr { member, property, .. } => {
-                todo!()
+                if let AstType::StructType {fields, children, ..} = member.get_type() {
+                    member.generate_bytecode(generator, Load);
+
+                    property.generate_bytecode(generator, LoadField {
+                         fields, children
+                    });
+                } else {
+                    panic!("Invalid member access for {:?}", member.get_type())
+                }
             }
             TypedExpr::CallExpr {func, args, .. } => {
                 let t = func.get_type();
 
+                let mut size = 0;
                 for a in args {
                     a.generate_bytecode(generator, Load);
+                    size += a.get_type().word_size();
                 }
+
 
                 match t {
                     AstType::FunctionType {name, .. } => {
                         generator.call(&name);
                     }
+                    AstType::StructType {name, fields, ..} => {
+                        generator.create_stack_ptr(size);
+                    }
+                    _ => panic!("Cannot call {t:?}")
+                }
+            },
+            _ => panic!("Invalid LOAD for {self:?}")
+        }
+    }
+
+    pub fn store(&self, generator: &mut BytecodeGen) {
+        match self {
+            TypedExpr::IdentifierExpr(_, name) => generator.i_store(name.clone()),
+            TypedExpr::IncrementExpr(_, e) => {
+                todo!()
+            }
+            TypedExpr::DecrementExpr(_, e) => {
+                todo!()
+            }
+            TypedExpr::PrefixExpr { .. } => {
+                todo!()
+            }
+            TypedExpr::TupleExpr { values, .. } => {
+                panic!("Tuples are immutable!");
+            }
+            TypedExpr::MemberExpr { member, property, .. } => {
+                todo!()
+            }
+            _ => panic!("Invalid STORE for {self:?}")
+        }
+    }
+
+    pub fn load_field(&self, fields: Vec<MemberInfo>, children: HashMap<String, MemberInfo>, generator: &mut BytecodeGen) {
+        match self {
+            TypedExpr::IdentifierExpr(t, name) => {
+                for f in fields.clone() {
+                    if f.1 == *name {
+                        return match t {
+                            AstType::Bool |
+                            AstType::Int => generator.i_load_offset(f.2),
+                            AstType::Float => generator.f_load_offset(f.2),
+                            AstType::StructType { .. } => generator.a_load_offset(f.2),
+
+
+                            _ => panic!("Cannot LOAD_FIELD for {self:?}")
+                        };
+                    }
+                }
+
+                let value = children.get(name);
+
+                if let Some(member) = value {
+                    generator.call(&member.1);
+                } else {
+                    panic!("Member not found {name}")
+                }
+            }
+            TypedExpr::CallExpr { func, args, .. } => {
+                let mut size = 0;
+                for a in args {
+                    a.generate_bytecode(generator, Load);
+                    size += a.get_type().word_size();
+                }
+
+                let t = func.get_type();
+                match t {
+                    AstType::FunctionType {name, .. } => {
+                        generator.call(&name);
+                    }
+                    AstType::StructType {..} => {
+                        generator.create_stack_ptr(size);
+                    }
                     _ => panic!("Cannot call {t:?}")
                 }
             }
+
+            _ => panic!("Cannot call LOAD_FIELD on {self:?}")
         }
     }
 

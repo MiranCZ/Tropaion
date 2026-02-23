@@ -1,5 +1,6 @@
-use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{FunctionType, FunctionsType};
+use std::collections::HashMap;
+use crate::ast::ast_type::{AstType, MemberInfo};
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
 use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, PrefixExpr, TupleExpr};
 use crate::ast::expression::TypedExpr;
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
@@ -68,8 +69,6 @@ impl TypedStmt {
             }
             StructStmt { name, fields, body } => {
                 let mut mangled_body = vec![];
-
-
 
                 let owner = if owner.is_empty() {
                     name.clone()
@@ -142,6 +141,20 @@ impl TypedExpr {
             MemberExpr { t, member, property } => {
                 let t = t.mangle_function(owner.clone());
                 let member = member.mangle_functions(owner.clone()).boxed();
+
+                let mut repl = owner.clone();
+
+                // println!("MEMBER {:?}",member.get_type());
+                
+                if let StructType {name, ..} = member.get_type() {
+                    repl = if owner.is_empty() {
+                        name.clone()
+                    } else {
+                        owner + "_" + name.as_str()
+                    };
+                }
+                let owner = repl;
+
                 let property = property.mangle_functions(owner.clone()).boxed();
 
                 MemberExpr {t, member, property}
@@ -181,6 +194,33 @@ impl AstType {
             let name = mangle_name_type(name, &params);
 
             FunctionType {name, params, return_type}
+        } else if let FunctionsType {name, overloads} = self {
+            let mut mangled = vec![];
+
+            for t in overloads {
+                mangled.push(t.mangle_function(owner.clone()));
+            }
+
+            FunctionsType {name, overloads:mangled}
+        } else if let StructType{name, fields, children} = self {
+            let mut mangled_children = HashMap::new();
+
+            let owner = if owner.is_empty() {
+                name.clone()
+            } else {
+                owner + "_" + name.as_str()
+            };
+
+            for entry in children.iter() {
+                let name = entry.0;
+                let info = entry.1.clone();
+
+                let mangled = info.0.mangle_function(owner.clone());
+
+                mangled_children.insert(name.clone(), MemberInfo(mangled, info.1,info.2));
+            }
+
+            StructType {name, fields, children: mangled_children}
         } else {
             self
         }

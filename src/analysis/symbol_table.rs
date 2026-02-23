@@ -54,6 +54,10 @@ impl <T: Clone> SymbolTable<T> {
         t
     }
     
+    pub fn last(&self) -> Option<&HashMap<String, T>> {
+        self.symbols.last()
+    }
+    
     pub fn record(&mut self, symbol: String, t: T) {
         self.symbols.last_mut().unwrap().insert(symbol, t);
     }

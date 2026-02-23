@@ -37,16 +37,22 @@ pub fn main() {
     // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
 
     let text = r#"
-    fn second(num: int) -> int {
-        return num;
+    struct Test(a: int, b: int) {
+        fn sum() -> int {
+            return 1;
+        }
+
     }
 
-    fn second(num: float) -> float {
-        return num;
+    fn sum() -> int {
+        return 1;
     }
 
     fn main() {
-        let a = 1 + second(2);
+        let t = Test(1, 2);
+
+        let x = sum();
+        let y = t.sum();
     }
     "#;
 

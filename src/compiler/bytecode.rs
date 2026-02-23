@@ -25,15 +25,23 @@ pub enum ByteCode {
 
     IStore(u16),
     FStore(u16),
+    AStore(u16),
+
     ILoad(u16),
     FLoad(u16),
+    ALoad(u16),
 
-    Addr(u16), // loads an address pointer and pushes it onto the stack
+    CreateStackPtr{
+        consume_words: u32
+    },
 
     // loads from address on top of the stack + offset
     ILoadOffset(u16),
     FLoadOffset(u16),
+    ALoadOffset(u16),
 
+    IStoreOffset(u16),
+    FStoreOffset(u16),
 
     Goto(i32),
     IfEq(i32),

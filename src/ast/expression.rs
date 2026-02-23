@@ -138,7 +138,7 @@ impl UntypedExpr {
                     struct_scope = true;
                     symbol_table.push();
                     for x in children {
-                        symbol_table.record(x.0, x.1);
+                        symbol_table.record(x.0, x.1.0);
                     }
                 }
 
@@ -156,7 +156,7 @@ impl UntypedExpr {
                 };
             }
             CallExpr {func, args, .. } => {
-                let mut resolved_func = func.resolve_type(symbol_table);
+                let mut resolved_func = func.clone().resolve_type(symbol_table);
 
                 if let FunctionsType {overloads, ..} = resolved_func.get_type() {
                     let mut resolved_args = vec![];
@@ -215,7 +215,7 @@ impl UntypedExpr {
                     };
                 }
 
-                panic!("Calling something else than a function or a struct constructor! {:?}", resolved_func);
+                panic!("Calling something else than a function or a struct constructor! {:?} {:?}", func, resolved_func);
             }
         }
     }

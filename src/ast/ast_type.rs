@@ -29,11 +29,15 @@ pub enum AstType {
     },
     StructType {
         name: String,
-        fields: Vec<AstType>, 
+        fields: Vec<MemberInfo>, 
         // fields and methods
-        children: HashMap<String, AstType>,
+        children: HashMap<String, MemberInfo>,
     }
 }
+
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct MemberInfo(pub AstType, pub String, pub u16);
 
 impl AstType {
     pub fn boxed(self) -> Box<Self> {
@@ -90,7 +94,7 @@ impl AstType {
                 let mut size = 0;
 
                 for x in fields {
-                    size += x.word_size();
+                    size += x.0.word_size();
                 }
 
                 size
