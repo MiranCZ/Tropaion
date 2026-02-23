@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::{call, member, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, LoadField, Store};
+use crate::compiler::expr_gen::Operation::{Load, LoadField, Store, StoreField};
 use crate::lexer::token::SimpleToken;
 
 #[derive(Clone)]
@@ -13,7 +13,10 @@ pub enum Operation {
         fields: Vec<MemberInfo>,
         // fields and methods
         children: HashMap<String, MemberInfo>,
-    }
+    },
+    StoreField {
+        fields: Vec<MemberInfo>
+    },
 }
 impl TypedExpr {
 
@@ -24,6 +27,9 @@ impl TypedExpr {
             Store => self.store(generator),
             LoadField {fields, children} => {
                 self.load_field(fields, children, generator);
+            }
+            StoreField {fields} => {
+                self.store_field(fields, generator);
             }
         }
     }
@@ -144,7 +150,15 @@ impl TypedExpr {
                 panic!("Tuples are immutable!");
             }
             TypedExpr::MemberExpr { member, property, .. } => {
-                todo!()
+                if let AstType::StructType {fields, ..} = member.get_type() {
+                    member.generate_bytecode(generator, Load);
+
+                    property.generate_bytecode(generator, StoreField {
+                        fields
+                    });
+                } else {
+                    panic!("Invalid member access for {:?}", member.get_type())
+                }
             }
             _ => panic!("Invalid STORE for {self:?}")
         }
@@ -160,7 +174,6 @@ impl TypedExpr {
                             AstType::Int => generator.i_load_offset(f.2),
                             AstType::Float => generator.f_load_offset(f.2),
                             AstType::StructType { .. } => generator.a_load_offset(f.2),
-
 
                             _ => panic!("Cannot LOAD_FIELD for {self:?}")
                         };
@@ -195,6 +208,29 @@ impl TypedExpr {
             }
 
             _ => panic!("Cannot call LOAD_FIELD on {self:?}")
+        }
+    }
+
+    pub fn store_field(&self, fields: Vec<MemberInfo>, generator: &mut BytecodeGen) {
+        match self {
+            TypedExpr::IdentifierExpr(t, name) => {
+                for f in fields.clone() {
+                    if f.1 == *name {
+                        return match t {
+                            AstType::Bool |
+                            AstType::Int => generator.i_store_offset(f.2),
+                            AstType::Float => generator.f_store_offset(f.2),
+                            AstType::StructType { .. } => generator.a_store_offset(f.2),
+
+                            _ => panic!("Cannot STORE_FIELD for {self:?}")
+                        };
+                    }
+                }
+
+                panic!("Invalid STORE_FIELD {name} for {self:?}");
+            }
+
+            _ => panic!("Cannot call STORE_FIELD on {self:?}")
         }
     }
 

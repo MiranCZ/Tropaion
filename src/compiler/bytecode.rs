@@ -42,6 +42,7 @@ pub enum ByteCode {
 
     IStoreOffset(u16),
     FStoreOffset(u16),
+    AStoreOffset(u16),
 
     Goto(i32),
     IfEq(i32),

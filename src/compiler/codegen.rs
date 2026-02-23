@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, Add, Call, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, Goto, IConst, ILoad, ILoadOffset, IStore, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -210,6 +210,18 @@ impl BytecodeGen {
 
     pub fn a_store(&mut self, name: String) {
         self.store(name, |i| AStore(i))
+    }
+    
+    pub fn i_store_offset(&mut self, offset: u16) {
+        self.push_insn(IStoreOffset(offset));
+    }
+
+    pub fn f_store_offset(&mut self, offset: u16) {
+        self.push_insn(FStoreOffset(offset));
+    }
+
+    pub fn a_store_offset(&mut self, offset: u16) {
+        self.push_insn(AStoreOffset(offset));
     }
 
     fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {

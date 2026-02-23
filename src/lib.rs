@@ -52,7 +52,8 @@ pub fn main() {
         let t = Test(1, 2);
 
         let x = sum();
-        let y = t.sum();
+
+        t.a = 2;
     }
     "#;
 
