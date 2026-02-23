@@ -71,6 +71,7 @@ impl TypedStmt {
                         AstType::Bool => generator.i_store(name),
                         AstType::Int => generator.i_store(name),
                         AstType::Float => generator.f_store(name),
+                        AstType::StructType {..} => generator.a_store(name),
                         _ => panic!("Unsupported parameter type! {:?}",param.param_type)
                     }
                 }

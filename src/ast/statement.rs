@@ -93,7 +93,13 @@ impl UntypedStmt {
 
                 symbol_table.record(name.clone(), typed_value.get_type());
 
-                VarDeclarationStmt {name, is_const, value: typed_value, explicit_type}
+                let mut resolved_expl_type = None;
+
+                if let Some(t) = explicit_type {
+                    resolved_expl_type = Some(t.resolve_type(symbol_table));
+                }
+
+                VarDeclarationStmt {name, is_const, value: typed_value, explicit_type: resolved_expl_type}
             }
             IfStmt { condition, body, else_branch } => {
                 let typed_condition = condition.resolve_type(symbol_table);
@@ -118,9 +124,16 @@ impl UntypedStmt {
                 WhileStmt {condition: typed_condition, body: resolve_smt_block(body, symbol_table)}
             }
             FunctionStmt { name, params, return_type, body } => {
+                let return_type = return_type.resolve_type(symbol_table);
+
+                let mut resolved_params = vec![];
+
+                for p in params.clone() {
+                    resolved_params.push(Parameter{name: p.name, param_type: p.param_type.resolve_type(symbol_table)});
+                }
 
                 symbol_table.push();
-                for p in params.clone() {
+                for p in params {
                     symbol_table.record(p.name, p.param_type);
                 }
 
@@ -128,9 +141,15 @@ impl UntypedStmt {
 
                 symbol_table.pop();
 
-                FunctionStmt {name, params, return_type, body}
+                FunctionStmt {name, params: resolved_params, return_type, body}
             }
             StructStmt { name, fields, body } => {
+
+                let mut resolved_fields = vec![];
+
+                for p in fields {
+                    resolved_fields.push(Parameter{name: p.name, param_type: p.param_type.resolve_type(symbol_table)});
+                }
 
                 symbol_table.push();
                 let struct_type = symbol_table.get(name.clone()).unwrap();
@@ -148,7 +167,7 @@ impl UntypedStmt {
 
                 symbol_table.pop();
 
-                StructStmt {name, fields, body}
+                StructStmt {name, fields: resolved_fields, body}
             }
             ReturnStmt(expr) => {
                 ReturnStmt(expr.resolve_type(symbol_table))

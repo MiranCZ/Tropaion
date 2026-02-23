@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{format, Debug};
 use std::mem::swap;
+use crate::analysis::symbol_table::TypeSymTable;
+use crate::ast::statement::TypedStmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -43,6 +45,23 @@ impl AstType {
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
+}
+
+impl AstType {
+    
+    pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> AstType {
+        if let AstType::SymbolType(name) = self {
+            let opt = symbol_table.get(name.clone());
+
+            if let Some(t) = opt {
+                return t;
+            }
+            panic!("Failed to resolve symbol {name}")
+        } else {
+            self
+        }
+    }
+    
 }
 
 impl AstType {
