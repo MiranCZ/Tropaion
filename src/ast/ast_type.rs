@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{format, Debug};
 use std::mem::swap;
 use crate::analysis::symbol_table::TypeSymTable;
+use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, ReferenceType, StructType, TupleType};
 use crate::ast::statement::TypedStmt;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -50,15 +51,80 @@ impl AstType {
 impl AstType {
     
     pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> AstType {
-        if let AstType::SymbolType(name) = self {
-            let opt = symbol_table.get(name.clone());
+        println!("Resovling {self:?}");
 
-            if let Some(t) = opt {
-                return t;
+
+        match self {
+            AstType::SymbolType(name) => {
+                let opt = symbol_table.get(name.clone());
+
+                if let Some(t) = opt {
+                    return t;
+                }
+                panic!("Failed to resolve symbol {name}")
             }
-            panic!("Failed to resolve symbol {name}")
-        } else {
-            self
+            ReferenceType {underlying, .. } => {
+                let resolved = underlying.resolve_type(symbol_table);
+
+                ReferenceType {underlying: resolved.boxed()}
+            }
+            ArrayType {underlying, count } => {
+                let resolved = underlying.resolve_type(symbol_table);
+
+                ArrayType {underlying: resolved.boxed(), count}
+            }
+            TupleType(arr) => {
+                let mut resolved = vec![];
+
+                for a in arr {
+                    resolved.push(a.resolve_type(symbol_table));
+                }
+
+                TupleType(resolved)
+            }
+            FunctionsType { name, overloads } => {
+                let mut resolved = vec![];
+
+                for a in overloads {
+                    resolved.push(a.resolve_type(symbol_table));
+                }
+
+                FunctionsType {name, overloads: resolved}
+            }
+            FunctionType { name, params, return_type } => {
+                let return_type = return_type.resolve_type(symbol_table).boxed();
+
+                let mut resolved = vec![];
+
+                for a in params {
+                    resolved.push(a.resolve_type(symbol_table));
+                }
+
+                FunctionType {name, params: resolved, return_type}
+            }
+            StructType {name, fields, children} => {
+
+                println!("CALLED {name:?} {fields:?} {children:?}");
+                let mut resolved_fields = vec![];
+
+                for f in fields {
+                    resolved_fields.push(MemberInfo(f.0.resolve_type(symbol_table), f.1, f.2));
+                }
+
+                let mut resolved_children = HashMap::new();
+
+                for e in children {
+                    let name = e.0;
+                    let mem = e.1;
+
+                    resolved_children.insert(name, MemberInfo(mem.0.resolve_type(symbol_table), mem.1, mem.2));
+                }
+
+                StructType {name, fields: resolved_fields, children: resolved_children}
+            }
+
+
+            _ => self
         }
     }
     

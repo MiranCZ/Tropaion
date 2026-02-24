@@ -39,7 +39,7 @@ pub fn main() {
     let text = r#"
     struct Test(a: int, b: int) {
         fn sum(this: Test) -> int {
-            return 1;
+            return this.a + this.b;
         }
 
     }
