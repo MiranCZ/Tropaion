@@ -33,7 +33,7 @@ impl Analyzer {
 
         // TODO semantic analysis would probs be nice xd
 
-        let resolved_root = resolved_root.mangle_functions();
+        let resolved_root = resolved_root.mangle_functions().transform_methods(&self.symbol_table);
 
         println!("{:#?}", resolved_root);
 
@@ -103,7 +103,7 @@ impl Analyzer {
                             let name = e.0;
 
                             // functions don't have order
-                            let info = MemberInfo(t.clone(), name.clone(), u16::MAX);
+                            let info = MemberInfo(t.0.clone(), name.clone(), u16::MAX);
 
                             children.insert(name.clone(), info);
                         }

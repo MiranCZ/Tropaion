@@ -38,14 +38,16 @@ pub fn main() {
 
     let text = r#"
     struct Test(a: int, b: int) {
-        fn sum(this: Test) -> int {
-            return this.a + this.b;
+        fn sum() -> int {
+            return a + this.b;
         }
 
     }
 
     fn main() {
         let t: Test = Test(1, 2);
+
+        let x = t.sum();
     }
     "#;
 

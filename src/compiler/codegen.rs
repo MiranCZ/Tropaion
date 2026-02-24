@@ -42,7 +42,7 @@ pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
     scopes: Vec<ScopeInfo>,
     local_count: u16,
-    symbol_table: SymbolTable<u16>,
+    symbol_table: SymbolTable<u16, ()>,
     pub functions: HashMap<String, FunctionInfo>,
     func_count: u16
 }

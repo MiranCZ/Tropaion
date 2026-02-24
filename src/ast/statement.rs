@@ -157,7 +157,7 @@ impl UntypedStmt {
 
                 if let StructType {children,..} = struct_type {
                     for p in children {
-                        symbol_table.record(p.0, p.1.0);
+                        symbol_table.record_with_info(p.0, p.1.0, true);
                     }
                 } else {
                     panic!("WTH type mismatch, got {struct_type:?}");
