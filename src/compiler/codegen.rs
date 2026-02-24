@@ -34,7 +34,10 @@ impl ScopeInfo {
 
 #[derive(Debug)]
 pub struct FunctionInfo {
-    index: u16
+    index: u16,
+    params_len: u32,
+    start: u32,
+    end: u32
 }
 
 #[derive(Debug)]
@@ -119,11 +122,27 @@ impl BytecodeGen {
     }
 
     pub fn fn_start(&mut self, name: String) {
+        let fun = self.functions.get(&name).unwrap();
+        self.functions.insert(name, FunctionInfo{
+            index: fun.index,
+            params_len: fun.params_len,
+            start: (self.instructions.len() as u32),
+            end: 0
+        });
+
         self.new_scope();
         self.push_insn(StackFrame(0));
     }
 
     pub fn fn_end(&mut self, name: String) {
+        let fun = self.functions.get(&name).unwrap();
+        self.functions.insert(name, FunctionInfo{
+            index: fun.index,
+            params_len: fun.params_len,
+            start: fun.start,
+            end: (self.instructions.len() as u32)
+        });
+
         let scope = self.scopes.last().unwrap();
 
         let frame_ind = scope.start_index ;
@@ -135,9 +154,12 @@ impl BytecodeGen {
         self.end_scope();
     }
 
-    pub fn register_func(&mut self, name: String) {
+    pub fn register_func(&mut self, name: String, params_len: u32) {
         self.functions.insert(name, FunctionInfo{
-            index: self.func_count
+            index: self.func_count,
+            params_len,
+            start: 0,
+            end: 0
         });
         self.func_count += 1;
     }

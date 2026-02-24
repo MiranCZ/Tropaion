@@ -175,15 +175,7 @@ impl AstType {
                 size
             }
             AstType::FunctionType { .. } => 1,
-            AstType::StructType {fields, .. } => {
-                let mut size = 0;
-
-                for x in fields {
-                    size += x.0.word_size();
-                }
-
-                size
-            },
+            AstType::StructType {.. } => 1,
             _ => panic!()
         }
     }

@@ -39,8 +39,14 @@ impl Compiler {
                     self.collect_functions(b)
                 }
             }
-            Statement::FunctionStmt {name, ..} => {
-                self.generator.register_func(name.clone());
+            Statement::FunctionStmt {name,params ,..} => {
+                let mut size = 0;
+
+                for p in params {
+                    size += p.param_type.word_size();
+                }
+
+                self.generator.register_func(name.clone(), size);
             }
 
 
