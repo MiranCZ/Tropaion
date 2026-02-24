@@ -1,6 +1,7 @@
 # General
 
 - statements must end with `;`
+  - this might get dropped depending on how hard it is to parse it without
 - scope is defined with `{}`
     - empty scope without any statement before it is always executed
 - comments start with `//`
@@ -9,21 +10,8 @@
 
 # Datatypes
 
-`bool`, `int` (32 bits), `float` (32 bits), `tuple`, `array`* ,`string`
+`bool`, `int` (32 bits, signed), `float` (32 bits), `tuple`, `array`* ,`string`
 
-
-```rust
-const ARR: [int; 5] = [0, 1, 2, 3, 4];
-
-fn main() {
-    ARR.pop(); // error
-    ARR.push(10); // error
-
-    ARR[3] = 10; // error
-
-    print(ARR[4]); // inline `4`
-}
-```
 
 ## Overflows
 - `int.MAX + 1` is wrapped to `int.MIN`
@@ -35,11 +23,15 @@ fn main() {
 
 # Tuples
 - declared using `()`
-- =TODO= mutabble/immutable?
+- immutable
 - can have values of different types
 - indexed using `[]`
-- `let my_tuple: (string, int) = ("hello", 5);`
-- `let value = my_tuple[0];`
+
+
+```
+let my_tuple: (string, int) = ("hello", 5);
+let value: string = my_tuple[0];
+```
 
 # Arrays
 - need to have the SAME type
@@ -52,17 +44,22 @@ fn main() {
 so maybe dynamically allocate arrays with comp-time unknown sizes?
 Downside of this is someone making a mistake, allocating on heap, and not realizing
 
+=TODO= 
+about the one element thing, specify how the values are copied (or just drop the idea entirely)
+
 # Control flow
 
 `if`, `while`, `for`
 
-- do NOT have to include `()`
+- do NOT have to include `()` (except `for(let ...)` I guess? that seems it would be messy)
+
+=TODO= decide how `fori` is syntaxed, not a fan of ranges, but it being the only one with parentheses also seems weird
 
 ## For
 
 ``for (let i = 0; i < 10; i++)``
 
-``for (let x in arr)``
+``for x in arr``
 
 
 # Math ops
@@ -91,7 +88,7 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 
 ## Bitwise ops
 
-`&` (AND), `|` (OR), `^` (XOR), `>>` (SHR*), `<<` (SHR), `~` (NOT)
+`&` (AND), `|` (OR), `^` (XOR), `>>` (SHR*), `<<` (SHL), `~` (NOT)
 
 \* =TODO= does right shift include sign in the shift??
 
@@ -101,7 +98,7 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 
 - `let x: <type> = ...`
 
-- function arg types are explicit
+- function arg types must be explicit and struct field types
 
 ## Conversion
 
@@ -111,7 +108,7 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 
 # Naming
 
-- function and variable names can contain alphanumeric symbols and '_'.
+- function and variable names can contain alphanumeric symbols and '_'
 - the name must not start with a number
 
 # Variables
@@ -120,7 +117,7 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 - must be scoped
 - always mutable
 - gets dropped after scope end
-- can be reassigned with new `let`
+- can be shadowed with new `let`
 
 
 # Constants
@@ -128,11 +125,24 @@ Downside of this is someone making a mistake, allocating on heap, and not realiz
 - `const`
 - immutable
 - can be in global scope
-- cannot be a result of a function call (at least right now)
+- cannot be a result of a function call (at least for now)
+
+```rust
+const ARR: [int; 5] = [0, 1, 2, 3, 4];
+
+fn main() {
+    ARR.pop(); // error
+    ARR.push(10); // error
+
+    ARR[3] = 10; // error
+
+    print(ARR[4]);
+}
+```
 
 
 # Memory model
-*all of this is very WIP, for now all values might as well be stored on the heap and optimizations created later*
+*all of this is very WIP, really need to think about all of this more*
 
 quick definition: lets call a "simple struct" any struct without circular dependencies (graph of its values types forms a tree).
 
@@ -165,6 +175,11 @@ are allocated on the stack which makes it trivial to free them
   - if a function returns a reference to some of these values (`fn foo() -> &int`) the variable gets allocated on the heap upon creation (where it can be later garbage collated)
 - if the compiler cannot prove when an object stops being used it does not drop it and the object is later dropped by the GC
 
+## Notes
+
+Still not entirely sure how much I want to care about references in a god-damn scripting language, most of this might get dropped...
+
+- also would like some operator/keyword to copy "simple structs" by value? sth like `cpy Struct` or maybe `*Struct` in function definitions?
 
 # Functions
 
@@ -176,19 +191,16 @@ are allocated on the stack which makes it trivial to free them
 - type of arguments must be defined
 - return type must be defined or is implicitly `void`
 - to pass a primitive argument by reference you add `&` before the arg type definition
-- to pass a **non-primitive** argument by value you add the `*` operator before the arg type definition
-  - this is semantically the same as calling `.clone()` on the argument once it enters the function,
-but the `*` might get optimized by the compiler more easily (eq. not cloning when unnecessary)
-  - therefor the `*` **must** be used only on simple structs
 
 <br>
 
 ```rust
-// `arg1` is passed by reference
-// `arg2` is passed by value
-fn foo(arg1: &int, arg2: *string) -> float {
-    // function definition
-    // ...
+// `arg1` is passed by value
+// `arg2` is passed by reference
+fn foo(arg1: int, arg2: string) -> float {
+    // ... code 
+  
+    return some_float;
 }
 ```
 
@@ -203,29 +215,35 @@ fn foo(arg1: &int, arg2: *string) -> float {
 - fields are ordered and type must be specified
 - fields are declared in `()` after the struct name
 - struct methods can be then declared in `{}`
-  - =TODO= do the methods get passed `self`?
-  - would probably rather like java-style with optional `this` to reference self params
+
+- all functions inside a struct are instance-methods (for now)
+- can access fields and methods of the struct either implicitly or by explicitly using `this.<statement>`
 
 - structs with methods do not need a `;` after
 - struct without methods do need `;`
 
 - =TODO= can structs hold references?
+
+- =TODO= some keyword/way of defining secondary constructors?
+  - the `constructor` keyword from Kotlin seems rather long
+
 ```
+// a struct without methods
 struct NameHolder(name: String);
 
 let holder = NameHolder("jeff");
 holder.name = "tom";
 
-print(holder.name);
+print(holder.name); // tom
 ```
 
 
 ```
-
+// a struct with methods
 struct Rect(width: float, height: float) {
  
   fn circumference() -> float {
-    return width + height; 
+    return 2 * (width + height); 
   } 
   
   fn area() -> float {
