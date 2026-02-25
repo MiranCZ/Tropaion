@@ -34,7 +34,7 @@ macro_rules! math_op {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-enum Value {
+pub enum Value {
     Null,
     IntValue(i32),
     FloatValue(f32),
@@ -47,6 +47,21 @@ enum ValueType {
     Int,
     Float,
     Address
+}
+
+impl ValueType {
+
+    pub fn assignable(&self, value: &Value) -> bool {
+        match (self, value) {
+            (ValueType::Null, Null) |
+            (Int, IntValue(_)) |
+            (Float, FloatValue(_)) |
+            (Address, RefValue(_)) => true,
+
+            _ => false
+        }
+    }
+
 }
 
 impl Value {
@@ -80,6 +95,7 @@ const STACK_SIZE: usize = 1_000_000;
 pub struct Interpreter {
     instructions: Vec<ByteCode>,
     functions: Vec<FunctionInfo>,
+    function_mapping: HashMap<String, FunctionInfo>,
 
     insn_addr: usize,
     pointer: usize,
@@ -108,27 +124,27 @@ impl Interpreter {
         let mut stack = Vec::with_capacity(STACK_SIZE);
         stack.resize(STACK_SIZE, Null);
 
-        let call_stack = vec![instructions.len()];
-
         Self {
             instructions, functions,
+            function_mapping: functions_map,
 
-            insn_addr: start_addr as usize,
+            insn_addr: 0,
             pointer: 0,
             stack,
             stack_frames: vec![],
-            call_stack
+            call_stack: vec![]
         }
     }
 
-    pub fn run(&mut self) {
-        let first = &self.instructions[self.insn_addr];
-
-        if let ByteCode::StackFrame(size) = first {
-            self.push_stack_frame(*size);
-        } else {
-            panic!("Expected STACK_FRAME after CALL!")
+    pub fn run_function(&mut self, function: String) -> Vec<Value> {
+        let fun = self.function_mapping.get(&function);
+        if fun.is_none() {
+            panic!("Trying to call non-existant function {function}!");
         }
+        let fun = fun.unwrap();
+
+        self.insn_addr = self.instructions.len();
+        self.call(fun.index);
         self.insn_addr += 1;
 
         while self.insn_addr < self.instructions.len() {
@@ -141,6 +157,14 @@ impl Interpreter {
 
             self.insn_addr += 1;
         }
+
+        let mut result = vec![];
+
+        for v in self.stack[0..self.pointer].iter() {
+            result.push(*v);
+        }
+
+        result
     }
 
     fn execute(&mut self, insn: ByteCode) {
@@ -250,14 +274,11 @@ impl Interpreter {
 
         let absolute_index = self.get_stack_frame_start() + (index as usize);
 
-        self.stack[absolute_index] = match (typ, top) {
-            (ValueType::Null, Null) |
-            (Int, IntValue(_)) |
-            (Float, FloatValue(_)) |
-            (Address, Value::RefValue(_)) => top,
-
-            _ => panic!("Invalid store {typ:?} {top:?}")
+        if !typ.assignable(&top) {
+            panic!("Invalid store {typ:?} {top:?}")
         }
+
+        self.stack[absolute_index] = top;
     }
 
     fn load_local(&mut self, index: u16, typ: ValueType) {
@@ -265,7 +286,10 @@ impl Interpreter {
 
         let value = self.stack[absolute_index];
 
-        Self::check_types_match(typ, value);
+
+        if !typ.assignable(&value) {
+            panic!("Invalid LOAD {typ:?} {value:?}")
+        }
 
         self.push(value);
     }
@@ -277,18 +301,16 @@ impl Interpreter {
         if let RefValue(addr) = top {
             let absolute_index = (addr as usize) + (offset as usize);
 
-                let prev = self.stack[absolute_index];
+            let prev = self.stack[absolute_index];
 
-                match (typ, prev) {
-                    (ValueType::Null, Null) |
-                    (Int, IntValue(_)) |
-                    (Float, FloatValue(_)) |
-                    (Address, RefValue(_)) => {},
 
-                    _ => panic!("Invalid STORE_OFFSET {typ:?} {prev:?}")
-                };
+            let new = self.pop();
 
-                self.stack[absolute_index] = prev;
+            if !typ.assignable(&prev) || !typ.assignable(&new) {
+                panic!("Invalid STORE_OFFSET expected: {typ:?} previous: {prev:?} new: {new:?}");
+            }
+
+            self.stack[absolute_index] = new;
         }
     }
 
@@ -300,24 +322,15 @@ impl Interpreter {
 
             let value = self.stack[absolute_index];
 
-            Self::check_types_match(typ, value);
+            if !typ.assignable(&value) {
+                panic!("Invalid LOAD_OFFSET {typ:?} {value:?}")
+            }
 
             self.push(value);
         } else {
             panic!("Tried to call LOAD_OFFSET with {top:?}")
         }
 
-    }
-
-    fn check_types_match(typ: ValueType, value: Value) {
-        match (typ, value) {
-            (ValueType::Null, Null) |
-            (Int, IntValue(_)) |
-            (Float, FloatValue(_)) |
-            (Address, Value::RefValue(_)) => {}
-
-            _ => panic!("Invalid type combination {typ:?} {value:?}")
-        }
     }
 
     fn create_stack_ptr(&mut self, size: u32) {

@@ -45,16 +45,18 @@ pub fn main() {
 
     }
 
-    fn main() {
+    fn main() -> int {
         let t: Test = Test(100, 200);
 
         let y = true;
-        
+
         if y {
-            t.a = 77; 
+            t.a = 77;
         }
 
         let x = t.sum();
+
+        return x;
     }
     "#;
 
@@ -104,7 +106,9 @@ fn interpret(text: &str) {
 
             let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
 
-            interpret.run();
+            let result = interpret.run_function("main_".to_string());
+
+            println!("RESULT: {result:?}")
         }
         Err(e) => panic!("{e}")
     }
