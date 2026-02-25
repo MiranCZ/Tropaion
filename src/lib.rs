@@ -1,3 +1,5 @@
+use crate::compiler::compiler::Compiler;
+use crate::interpreter::interpreter::Interpreter;
 use crate::parser::Parser;
 
 pub mod lexer;
@@ -35,8 +37,6 @@ pub fn main() {
         */
     "#;
 
-    // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
-
     let text = r#"
     struct Test(a: int, b: int) {
         fn sum() -> int {
@@ -58,6 +58,11 @@ pub fn main() {
     }
     "#;
 
+    interpret(text);
+
+}
+
+fn interpret(text: &str) {
     let mut lexer = lexer::Lexer::new(text.to_string());
 
     println!("Tokenization of: \n{text}");
@@ -82,20 +87,27 @@ pub fn main() {
 
             let mut analyzer = analysis::analyzer::Analyzer::new(v);
 
-            analyzer.analyze();
+            let resolved_root = analyzer.analyze();
+
+            println!("{:#?}", resolved_root);
+
+            let mut comp = Compiler::new(resolved_root);
+
+
+            println!();
+            println!();
+            println!("-------------------");
+            println!();
+            println!();
+
+            comp.compile();
+
+            let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
+
+            interpret.run();
         }
         Err(e) => panic!("{e}")
     }
-
-    // loop {
-    //     let token = lexer.read_next();
-    //
-    //     println!("\t{token:?}");
-    //
-    //     if token == lexer::token::Token::EOF {
-    //         break;
-    //     }
-    // }
 }
 
 

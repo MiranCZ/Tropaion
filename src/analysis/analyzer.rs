@@ -1,11 +1,9 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
-use crate::compiler::compiler::Compiler;
 use std::collections::HashMap;
-use crate::interpreter::interpreter::Interpreter;
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -22,7 +20,7 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self) {
+    pub fn analyze(&mut self) -> TypedStmt {
         self.record_top_level();
         self.record_consts();
 
@@ -36,23 +34,7 @@ impl Analyzer {
 
         let resolved_root = resolved_root.mangle_functions().transform_methods(&self.symbol_table);
 
-        println!("{:#?}", resolved_root);
-
-        let mut comp = Compiler::new(resolved_root);
-
-
-        println!();
-        println!();
-        println!("-------------------");
-        println!();
-        println!();
-
-        comp.compile();
-
-
-        let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
-
-        interpret.run();
+        resolved_root
     }
 
 
