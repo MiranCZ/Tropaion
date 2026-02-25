@@ -2,10 +2,11 @@ use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::codegen::BytecodeGen;
+use crate::interpreter::interpreter::Interpreter;
 
 pub struct Compiler {
     root: TypedStmt,
-    generator: BytecodeGen
+    pub generator: BytecodeGen
 }
 
 

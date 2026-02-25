@@ -32,12 +32,12 @@ impl ScopeInfo {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct FunctionInfo {
-    index: u16,
-    params_len: u32,
-    start: u32,
-    end: u32
+    pub index: u16,
+    pub params_len: u32,
+    pub start: u32,
+    pub end: u32
 }
 
 #[derive(Debug)]

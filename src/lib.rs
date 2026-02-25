@@ -6,6 +6,7 @@ mod ast;
 pub mod error;
 pub mod analysis;
 mod compiler;
+mod interpreter;
 
 #[test]
 pub fn main() {
@@ -45,7 +46,13 @@ pub fn main() {
     }
 
     fn main() {
-        let t: Test = Test(1, 2);
+        let t: Test = Test(100, 200);
+
+        let y = true;
+        
+        if y {
+            t.a = 77; 
+        }
 
         let x = t.sum();
     }

@@ -5,6 +5,7 @@ use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
 use crate::compiler::compiler::Compiler;
 use std::collections::HashMap;
+use crate::interpreter::interpreter::Interpreter;
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -47,6 +48,11 @@ impl Analyzer {
         println!();
 
         comp.compile();
+
+
+        let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
+
+        interpret.run();
     }
 
 
