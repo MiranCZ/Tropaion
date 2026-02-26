@@ -2,25 +2,13 @@ use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
-use crate::interpreter::interpreter::Value::{FloatValue, IntValue, Null, RefValue};
-use crate::interpreter::interpreter::ValueType::{Address, Float, Int};
+use crate::interpreter::heap::Heap;
+use crate::interpreter::value::Value;
+use crate::interpreter::value::ValueType;
+use crate::interpreter::value::Value::{FloatValue, IntValue, Null, RefValue};
+use crate::interpreter::value::ValueType::{Address, Float, Int};
 
-macro_rules! impl_math_op {
-    ($trait:ident, $method:ident) => {
-        impl $trait for Value {
-            type Output = Self;
 
-            fn $method(self, rhs: Self) -> Self::Output {
-                match self {
-                    Value::IntValue(v) => Value::IntValue(v.$method(rhs.try_as_int())),
-                    Value::FloatValue(v) => Value::FloatValue(v.$method(rhs.try_as_float())),
-                    Value::RefValue(_) => panic!("Cannot apply {} to references", stringify!($method)),
-                    Value::Null => panic!("Cannot write operations with null!")
-                }
-            }
-        }
-    };
-}
 
 macro_rules! math_op {
     ($method:ident) => {
@@ -33,62 +21,6 @@ macro_rules! math_op {
     };
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Value {
-    Null,
-    IntValue(i32),
-    FloatValue(f32),
-    RefValue(u32)
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ValueType {
-    Null,
-    Int,
-    Float,
-    Address
-}
-
-impl ValueType {
-
-    pub fn assignable(&self, value: &Value) -> bool {
-        match (self, value) {
-            (ValueType::Null, Null) |
-            (Int, IntValue(_)) |
-            (Float, FloatValue(_)) |
-            (Address, RefValue(_)) => true,
-
-            _ => false
-        }
-    }
-
-}
-
-impl Value {
-
-    pub fn try_as_int(&self) -> i32 {
-        if let IntValue(v) = self {
-            return *v;
-        }
-
-        panic!("Attempting to get {self:?} as int!");
-    }
-
-    pub fn try_as_float(&self) -> f32 {
-        if let FloatValue(v) = self {
-            return *v;
-        }
-
-        panic!("Attempting to get {self:?} as float!");
-    }
-
-}
-
-impl_math_op!(Add, add);
-impl_math_op!(Sub, sub);
-impl_math_op!(Mul, mul);
-impl_math_op!(Div, div);
-impl_math_op!(Rem, rem);
 
 const STACK_SIZE: usize = 1_000_000;
 
@@ -101,7 +33,8 @@ pub struct Interpreter {
     pointer: usize,
     stack: Vec<Value>,
     stack_frames: Vec<usize>,
-    call_stack: Vec<usize>
+    call_stack: Vec<usize>,
+    heap: Heap
 }
 
 impl Interpreter {
@@ -110,17 +43,13 @@ impl Interpreter {
         let mut functions = Vec::with_capacity(functions_map.len());
         functions.resize(functions_map.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
 
-        let mut start_addr = 0;
 
         for e in functions_map.iter() {
             let f = e.1;
 
             functions[f.index as usize] = *f;
-
-            if e.0 == "main_" {
-                start_addr = f.start;
-            }
         }
+
         let mut stack = Vec::with_capacity(STACK_SIZE);
         stack.resize(STACK_SIZE, Null);
 
@@ -132,7 +61,8 @@ impl Interpreter {
             pointer: 0,
             stack,
             stack_frames: vec![],
-            call_stack: vec![]
+            call_stack: vec![],
+            heap: Heap::new(STACK_SIZE)
         }
     }
 
@@ -163,6 +93,8 @@ impl Interpreter {
         for v in self.stack[0..self.pointer].iter() {
             result.push(*v);
         }
+
+        println!("{:?}",self.heap);
 
         result
     }
@@ -298,8 +230,12 @@ impl Interpreter {
     fn store_offset_local(&mut self, offset: u16, typ: ValueType) {
         let top = self.pop();
 
-        if let RefValue(addr) = top {
-            let absolute_index = (addr as usize) + (offset as usize);
+        if let RefValue{ptr, len} = top {
+            if len < (offset as u32) {
+                panic!("Reference offest is bigger than its length!")
+            }
+
+            let absolute_index = (ptr as usize) + (offset as usize);
 
             let prev = self.stack[absolute_index];
 
@@ -317,8 +253,12 @@ impl Interpreter {
     fn load_offset_local(&mut self, offset: u16, typ: ValueType) {
         let top = self.pop();
 
-        if let Value::RefValue(addr) = top {
-            let absolute_index = (addr as usize) + (offset as usize);
+        if let RefValue{ptr, len} = top {
+            if len < (offset as u32) {
+                panic!("Reference offest is bigger than its length!")
+            }
+
+            let absolute_index = (ptr as usize) + (offset as usize);
 
             let value = self.stack[absolute_index];
 
@@ -334,9 +274,9 @@ impl Interpreter {
     }
 
     fn create_stack_ptr(&mut self, size: u32) {
-        let addr = (self.pointer as u32) - (size);
+        let ptr = (self.pointer as u32) - (size);
 
-        self.push(RefValue(addr));
+        self.push(RefValue{ptr, len: size});
     }
 
     fn get_stack_frame_start(&self) -> usize {
@@ -392,12 +332,21 @@ impl Interpreter {
     }
 
     fn ret(&mut self, size: u32) {
+        let new_ptr = self.get_stack_frame_start() as u32;
+
         let size = size as usize;
 
         let mut values = Vec::with_capacity(size);
 
-        for v in  self.stack[(self.pointer-size)..self.pointer].iter() {
-            values.push(*v);
+
+        for v in self.stack[(self.pointer-size)..self.pointer].iter() {
+            let mut v = *v;
+
+            if let RefValue {ptr, len} = v && ptr > new_ptr {
+                v = Self::promote_ref(ptr, len, new_ptr, &mut self.heap, &self.stack);
+            }
+
+            values.push(v);
         }
 
         self.pop_stack_frame();
@@ -414,6 +363,30 @@ impl Interpreter {
             panic!("Returned called on an empty callstack!")
         }
 
+    }
+
+    fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>) -> Value {
+        let mut values = Vec::with_capacity(len as usize);
+
+        for i in ptr..(ptr + len) {
+            let i = i as usize;
+
+            let mut v = stack[i];
+
+            if let RefValue {ptr, len} = v && ptr > new_ptr {
+                v = Self::promote_ref(ptr, len, new_ptr, heap, stack);
+            }
+
+            values.push(v);
+        }
+
+        let ptr = heap.alloc(len);
+
+        for i in 0..len {
+            heap.store(ptr, i, values[i as usize]);
+        }
+
+        RefValue { ptr, len }
     }
 
     fn if_eq(&mut self, offset: i32) {

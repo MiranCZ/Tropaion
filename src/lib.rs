@@ -38,7 +38,9 @@ pub fn main() {
     "#;
 
     let text = r#"
-    struct Test(a: int, b: int) {
+    struct Another(x: float);
+    
+    struct Test(a: int, b: int, c: Another) {
         fn sum() -> int {
             return a + this.b;
         }
@@ -46,7 +48,8 @@ pub fn main() {
     }
 
     fn main() -> int {
-        let t: Test = Test(100, 200);
+        let a = Another(6.7);
+        let t: Test = Test(100, 200, a);
 
         let y = true;
 
@@ -56,7 +59,7 @@ pub fn main() {
 
         let x = t.sum();
 
-        return x;
+        return t;
     }
     "#;
 
