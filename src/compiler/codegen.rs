@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -220,6 +220,30 @@ impl BytecodeGen {
 
     pub fn modulo(&mut self) {
         self.push_insn(Mod);
+    }
+
+    pub fn cmp_eq(&mut self) {
+        self.push_insn(CmpEq);
+    }
+
+    pub fn cmp_ne(&mut self) {
+        self.push_insn(CmpNotEq);
+    }
+
+    pub fn cmp_gt(&mut self) {
+        self.push_insn(CmpGreater);
+    }
+
+    pub fn cmp_ge(&mut self) {
+        self.push_insn(CmpEqGreater);
+    }
+
+    pub fn cmp_lt(&mut self) {
+        self.push_insn(CmpLess);
+    }
+
+    pub fn cmp_le(&mut self) {
+        self.push_insn(CmpEqLess);
     }
 
     pub fn i_store(&mut self, name: String) {

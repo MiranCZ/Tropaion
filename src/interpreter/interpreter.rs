@@ -21,6 +21,21 @@ macro_rules! math_op {
     };
 }
 
+macro_rules! cmp_op {
+    ($method:ident, $op: tt) => {
+        fn $method(&mut self) {
+            let b = self.pop();
+            let a = self.pop();
+
+            if a $op b {
+                self.push(IntValue(1));
+            } else {
+                self.push(IntValue(0));
+            }
+        }
+    };
+}
+
 
 const STACK_SIZE: usize = 1_000_000;
 
@@ -81,7 +96,6 @@ impl Interpreter {
             let insn = self.instructions[self.insn_addr].clone();
 
             self.execute(insn);
-
             self.insn_addr += 1;
         }
 
@@ -111,10 +125,10 @@ impl Interpreter {
 
             ByteCode::CmpEq => {}
             ByteCode::CmpNotEq => {}
-            ByteCode::CmpGreater => {}
-            ByteCode::CmpEqGreater => {}
-            ByteCode::CmpLess => {}
-            ByteCode::CmpEqLess => {}
+            ByteCode::CmpGreater => self.gt(),
+            ByteCode::CmpEqGreater => self.ge(),
+            ByteCode::CmpLess => self.lt(),
+            ByteCode::CmpEqLess => self.le(),
 
             ByteCode::IStore(i) => self.store_local(i, Int),
             ByteCode::FStore(i) => self.store_local(i, Float),
@@ -296,6 +310,11 @@ impl Interpreter {
     math_op!(div);
     math_op!(rem);
 
+    cmp_op!(gt, >);
+    cmp_op!(ge, >=);
+    cmp_op!(lt, <);
+    cmp_op!(le, <=);
+
     fn call(&mut self, fn_index: u16) {
         let info = self.functions[fn_index as usize];
 
@@ -415,15 +434,17 @@ impl Interpreter {
     }
 
     fn goto(&mut self, offset: i32) {
-        if (offset as usize) > self.insn_addr {
-            panic!("Goto instruction pointer underflow!")
+        if offset < 0 {
+            if (offset as i64) > (self.insn_addr as i64) {
+                panic!("Goto instruction pointer underflow!")
+            }
+        } else {
+            if (offset as usize) + self.insn_addr >= self.instructions.len() {
+                panic!("Goto instruction pointer overflow!")
+            }
         }
 
-        if (offset as usize) + self.insn_addr >= self.instructions.len() {
-            panic!("Goto instruction pointer overflow!")
-        }
-
-        self.insn_addr += (offset as usize);
+        self.insn_addr = ((self.insn_addr as i64) + (offset as i64)) as usize;
     }
 
 }

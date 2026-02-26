@@ -64,7 +64,6 @@ pub fn test_if() {
     test_simple_code("main", if_stmt, -5);
 }
 
-#[ignore] // comparison operators not implement yet ._.
 #[test]
 pub fn test_loops() {
     let loop_stmt = r#"
@@ -75,6 +74,8 @@ pub fn test_loops() {
 
         while i < 10 {
             x += i;
+
+            i++;
         }
 
         return x;

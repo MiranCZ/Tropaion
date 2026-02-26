@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use crate::interpreter::value::Value::*;
 use crate::interpreter::value::ValueType::*;
@@ -81,4 +82,15 @@ impl_math_op!(Div, div);
 impl_math_op!(Rem, rem);
 
 
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self {
+            IntValue(v) => v.partial_cmp(&other.try_as_int()),
+            FloatValue(v) => v.partial_cmp(&other.try_as_float()),
+
+            RefValue{..} => panic!("Cannot compare references"),
+            Value::Null => panic!("Cannot make operations with null!")
+        }
+    }
+}
 

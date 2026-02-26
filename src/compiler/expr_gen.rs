@@ -97,6 +97,14 @@ impl TypedExpr {
                     SimpleToken::Star => generator.mul(),
                     SimpleToken::Slash => generator.div(),
                     SimpleToken::Percent => generator.modulo(),
+                   
+                    SimpleToken::Equals => generator.cmp_eq(),
+                    SimpleToken::NotEquals => generator.cmp_ne(),
+                    SimpleToken::Greater => generator.cmp_gt(),
+                    SimpleToken::GreaterEquals => generator.cmp_ge(),
+                    SimpleToken::Less => generator.cmp_lt(),
+                    SimpleToken::LessEquals => generator.cmp_le(),
+                    
                     _ => panic!("Invalid operator {:?}", operator)
                 }
             }
