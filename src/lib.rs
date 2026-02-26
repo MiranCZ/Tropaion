@@ -1,3 +1,5 @@
+use crate::compiler::compiler::Compiler;
+use crate::interpreter::interpreter::Interpreter;
 use crate::parser::Parser;
 
 pub mod lexer;
@@ -6,6 +8,7 @@ mod ast;
 pub mod error;
 pub mod analysis;
 mod compiler;
+mod interpreter;
 
 #[test]
 pub fn main() {
@@ -34,21 +37,37 @@ pub fn main() {
         */
     "#;
 
-    // let text = "let x: &[[(int, &float); 12]; 50] = -1 + 2 * 3;";
-
     let text = r#"
-    struct Test(a: int, b: int) {
-        fn sum(this: Test) -> int {
-            return 1;
+    struct Another(x: float);
+    
+    struct Test(a: int, b: int, c: Another) {
+        fn sum() -> int {
+            return a + this.b;
         }
 
     }
 
-    fn main() {
-        let t: Test = Test(1, 2);
+    fn main() -> int {
+        let a = Another(6.7);
+        let t: Test = Test(100, 200, a);
+
+        let y = true;
+
+        if y {
+            t.a = 77;
+        }
+
+        let x = t.sum();
+
+        return t;
     }
     "#;
 
+    interpret(text);
+
+}
+
+fn interpret(text: &str) {
     let mut lexer = lexer::Lexer::new(text.to_string());
 
     println!("Tokenization of: \n{text}");
@@ -73,20 +92,29 @@ pub fn main() {
 
             let mut analyzer = analysis::analyzer::Analyzer::new(v);
 
-            analyzer.analyze();
+            let resolved_root = analyzer.analyze();
+
+            println!("{:#?}", resolved_root);
+
+            let mut comp = Compiler::new(resolved_root);
+
+
+            println!();
+            println!();
+            println!("-------------------");
+            println!();
+            println!();
+
+            comp.compile();
+
+            let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
+
+            let result = interpret.run_function("main_".to_string());
+
+            println!("RESULT: {result:?}")
         }
         Err(e) => panic!("{e}")
     }
-
-    // loop {
-    //     let token = lexer.read_next();
-    //
-    //     println!("\t{token:?}");
-    //
-    //     if token == lexer::token::Token::EOF {
-    //         break;
-    //     }
-    // }
 }
 
 

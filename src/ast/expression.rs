@@ -5,6 +5,7 @@ use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
+use crate::lexer::token::Token::Identifier;
 
 pub type UntypedExpr = Expression<()>;
 pub type TypedExpr = Expression<AstType>;
@@ -59,24 +60,30 @@ impl <T> Expression<T> {
 impl UntypedExpr {
 
     pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> TypedExpr {
-        let try_get_resolve_type = |symbol: &String| -> AstType {
-            let v = symbol_table.get(symbol.clone());
-
-            if let Some(t) = v{
-                return t;
-            }
-            panic!("Failed to resolve symbol {symbol}")
-        };
-
         match self {
             BoolLiteralExpr(b) => BoolLiteralExpr(b),
             IntLiteralExpr(i) => IntLiteralExpr(i),
             FloatLiteralExpr(f) => FloatLiteralExpr(f),
             StringLiteralExpr(s) => StringLiteralExpr(s),
             IdentifierExpr(_, identifier) => {
-                let t = try_get_resolve_type(&identifier);
+                let v = symbol_table.get_with_info(identifier.clone());
 
-                return IdentifierExpr(t, identifier);
+                if let Some(tuple) = v{
+                    let t = tuple.0;
+                    let info = tuple.1;
+
+                    if let Some(v) = info && v {
+                        return MemberExpr {
+                            t: t.clone(),
+                            member: IdentifierExpr((), "this".to_string()).resolve_type(symbol_table).boxed(),
+                            property: IdentifierExpr(t, identifier).boxed()
+                        };
+                    } else {
+                        return IdentifierExpr(t, identifier);
+                    }
+                }
+                panic!("Failed to resolve symbol {identifier}");
+
             }
             IncrementExpr(_, expr) => {
                 let typed = expr.resolve_type(symbol_table);

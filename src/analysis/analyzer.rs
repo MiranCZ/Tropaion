@@ -1,9 +1,8 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
-use crate::compiler::compiler::Compiler;
 use std::collections::HashMap;
 
 pub struct Analyzer {
@@ -21,7 +20,7 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self) {
+    pub fn analyze(&mut self) -> TypedStmt {
         self.record_top_level();
         self.record_consts();
 
@@ -33,20 +32,9 @@ impl Analyzer {
 
         // TODO semantic analysis would probs be nice xd
 
-        let resolved_root = resolved_root.mangle_functions();
+        let resolved_root = resolved_root.mangle_functions().transform_methods(&self.symbol_table);
 
-        println!("{:#?}", resolved_root);
-
-        let mut comp = Compiler::new(resolved_root);
-
-
-        println!();
-        println!();
-        println!("-------------------");
-        println!();
-        println!();
-
-        comp.compile();
+        resolved_root
     }
 
 
@@ -103,7 +91,7 @@ impl Analyzer {
                             let name = e.0;
 
                             // functions don't have order
-                            let info = MemberInfo(t.clone(), name.clone(), u16::MAX);
+                            let info = MemberInfo(t.0.clone(), name.clone(), u16::MAX);
 
                             children.insert(name.clone(), info);
                         }

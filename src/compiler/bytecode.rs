@@ -46,6 +46,7 @@ pub enum ByteCode {
 
     Goto(i32),
     IfEq(i32),
+    IfNe(i32),
 
     StackFrame(u16),
     Call(u16),

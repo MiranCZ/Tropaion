@@ -2,15 +2,15 @@ use std::collections::HashMap;
 use crate::analysis::operator_table::OperatorTable;
 use crate::ast::ast_type::AstType;
 
-pub type TypeSymTable = SymbolTable<AstType>;
+pub type TypeSymTable = SymbolTable<AstType, bool>;
 
 #[derive(Debug)]
-pub struct SymbolTable<T: Clone> {
+pub struct SymbolTable<T: Clone, E: Clone> {
     pub op_table: OperatorTable,
-    symbols: Vec<HashMap<String, T>>
+    symbols: Vec<HashMap<String, (T, Option<E>)>>
 }
 
-impl <T: Clone> SymbolTable<T> {
+impl <T: Clone, E: Clone> SymbolTable<T, E> {
     
     pub fn new() -> Self {
         let mut new = Self {
@@ -40,9 +40,9 @@ impl <T: Clone> SymbolTable<T> {
         false
     }
 
-    pub fn get(&self, symbol: String) -> Option<T> {
+    pub fn get_with_info(&self, symbol: String) -> Option<(T, Option<E>)> {
         let mut t = None;
-        
+
         for map in self.symbols.iter() {
             if let Some(result) = map.get(&symbol) {
                 // IMPORTANT: do not break here, we should also check lower symbols
@@ -54,12 +54,26 @@ impl <T: Clone> SymbolTable<T> {
         t
     }
     
-    pub fn last(&self) -> Option<&HashMap<String, T>> {
+    pub fn get(&self, symbol: String) -> Option<T> {
+        let t = self.get_with_info(symbol);
+        
+        if let Some(value) = t {
+           return Some(value.0);
+        }
+
+        None
+    }
+    
+    pub fn last(&self) -> Option<&HashMap<String, (T, Option<E>)>> {
         self.symbols.last()
     }
     
     pub fn record(&mut self, symbol: String, t: T) {
-        self.symbols.last_mut().unwrap().insert(symbol, t);
+        self.symbols.last_mut().unwrap().insert(symbol, (t, None));
+    }
+
+    pub fn record_with_info(&mut self, symbol: String, t: T, info: E) {
+        self.symbols.last_mut().unwrap().insert(symbol, (t, Some(info)));
     }
     
 }

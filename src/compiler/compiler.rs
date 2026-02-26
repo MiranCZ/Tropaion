@@ -2,10 +2,11 @@ use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::codegen::BytecodeGen;
+use crate::interpreter::interpreter::Interpreter;
 
 pub struct Compiler {
     root: TypedStmt,
-    generator: BytecodeGen
+    pub generator: BytecodeGen
 }
 
 
@@ -39,8 +40,14 @@ impl Compiler {
                     self.collect_functions(b)
                 }
             }
-            Statement::FunctionStmt {name, ..} => {
-                self.generator.register_func(name.clone());
+            Statement::FunctionStmt {name,params ,..} => {
+                let mut size = 0;
+
+                for p in params {
+                    size += p.param_type.word_size();
+                }
+
+                self.generator.register_func(name.clone(), size);
             }
 
 

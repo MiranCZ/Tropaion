@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::ast::ast_type::AstType;
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{Bool, StructType};
 use crate::ast::expression::Expression;
 use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, IfStmt, MultilineCommentStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
@@ -128,12 +129,12 @@ impl UntypedStmt {
 
                 let mut resolved_params = vec![];
 
-                for p in params.clone() {
+                for p in params {
                     resolved_params.push(Parameter{name: p.name, param_type: p.param_type.resolve_type(symbol_table)});
                 }
 
                 symbol_table.push();
-                for p in params {
+                for p in resolved_params.clone() {
                     symbol_table.record(p.name, p.param_type);
                 }
 
@@ -144,7 +145,6 @@ impl UntypedStmt {
                 FunctionStmt {name, params: resolved_params, return_type, body}
             }
             StructStmt { name, fields, body } => {
-
                 let mut resolved_fields = vec![];
 
                 for p in fields {
@@ -157,7 +157,7 @@ impl UntypedStmt {
 
                 if let StructType {children,..} = struct_type {
                     for p in children {
-                        symbol_table.record(p.0, p.1.0);
+                        symbol_table.record_with_info(p.0, p.1.0, true);
                     }
                 } else {
                     panic!("WTH type mismatch, got {struct_type:?}");

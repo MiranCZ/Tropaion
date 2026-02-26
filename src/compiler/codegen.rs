@@ -32,9 +32,12 @@ impl ScopeInfo {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct FunctionInfo {
-    index: u16
+    pub index: u16,
+    pub params_len: u32,
+    pub start: u32,
+    pub end: u32
 }
 
 #[derive(Debug)]
@@ -42,7 +45,7 @@ pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
     scopes: Vec<ScopeInfo>,
     local_count: u16,
-    symbol_table: SymbolTable<u16>,
+    symbol_table: SymbolTable<u16, ()>,
     pub functions: HashMap<String, FunctionInfo>,
     func_count: u16
 }
@@ -119,11 +122,27 @@ impl BytecodeGen {
     }
 
     pub fn fn_start(&mut self, name: String) {
+        let fun = self.functions.get(&name).unwrap();
+        self.functions.insert(name, FunctionInfo{
+            index: fun.index,
+            params_len: fun.params_len,
+            start: (self.instructions.len() as u32),
+            end: 0
+        });
+
         self.new_scope();
         self.push_insn(StackFrame(0));
     }
 
     pub fn fn_end(&mut self, name: String) {
+        let fun = self.functions.get(&name).unwrap();
+        self.functions.insert(name, FunctionInfo{
+            index: fun.index,
+            params_len: fun.params_len,
+            start: fun.start,
+            end: (self.instructions.len() as u32)
+        });
+
         let scope = self.scopes.last().unwrap();
 
         let frame_ind = scope.start_index ;
@@ -135,9 +154,12 @@ impl BytecodeGen {
         self.end_scope();
     }
 
-    pub fn register_func(&mut self, name: String) {
+    pub fn register_func(&mut self, name: String, params_len: u32) {
         self.functions.insert(name, FunctionInfo{
-            index: self.func_count
+            index: self.func_count,
+            params_len,
+            start: 0,
+            end: 0
         });
         self.func_count += 1;
     }
