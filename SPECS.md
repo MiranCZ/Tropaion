@@ -52,6 +52,32 @@ fn main() {
 so maybe dynamically allocate arrays with comp-time unknown sizes?
 Downside of this is someone making a mistake, allocating on heap, and not realizing
 
+# Strings
+
+Indexing, slicing and adding strings is not supported.
+(this might be added in the future, not a priority atm tho)
+
+To add a string representation of some variable into a string the `$` character can be used
+
+to format evaluated expressions `${<expr>}` can be used.
+
+`"${1+2}"` = `"3"`
+
+Structs are formatted as `Name(name1: value1, name2: value2...)`
+
+```
+let n: int = 5;
+let text = "$n is cool!"; // "5 is cool"
+```
+
+```
+let obj = Rect(1, 2);
+
+let str = "rectangle: $obj omg"; // "rectangle: Rect(a: 1, b: 2) omg"
+```
+
+
+
 # Control flow
 
 `if`, `while`, `for`
