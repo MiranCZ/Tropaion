@@ -1,3 +1,3 @@
 pub mod interpreter;
-mod heap;
-mod value;
+pub mod heap;
+pub mod value;

@@ -51,9 +51,6 @@ impl AstType {
 impl AstType {
     
     pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> AstType {
-        println!("Resovling {self:?}");
-
-
         match self {
             AstType::SymbolType(name) => {
                 let opt = symbol_table.get(name.clone());

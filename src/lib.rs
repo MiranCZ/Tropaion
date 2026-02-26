@@ -1,5 +1,7 @@
 use crate::compiler::compiler::Compiler;
+use crate::interpreter::heap::Heap;
 use crate::interpreter::interpreter::Interpreter;
+use crate::interpreter::value::Value;
 use crate::parser::Parser;
 
 pub mod lexer;
@@ -8,7 +10,7 @@ mod ast;
 pub mod error;
 pub mod analysis;
 mod compiler;
-mod interpreter;
+pub mod interpreter;
 
 #[test]
 pub fn main() {
@@ -67,6 +69,40 @@ pub fn main() {
 
 }
 
+pub fn get_interpreter_for(text: String) -> Interpreter {
+    let mut lexer = lexer::Lexer::new(text.to_string());
+
+    let tokens = lexer.parse();
+
+    if let Err(e) = tokens {
+        panic!("{e}");
+    }
+    
+    let tokens = tokens.unwrap();
+    
+    let mut parser = Parser::new(tokens);
+
+    let parsed = parser.parse();
+
+    if let Err(e) = parsed {
+        panic!("{e}");
+    }
+
+    let parsed = parsed.unwrap();
+
+    let mut analyzer = analysis::analyzer::Analyzer::new(parsed);
+
+    let resolved_root = analyzer.analyze();
+
+    let mut comp = Compiler::new(resolved_root);
+
+    let (instructions, functions) = comp.compile();
+
+    let interpret = Interpreter::new(instructions, functions);
+
+    interpret
+}
+
 fn interpret(text: &str) {
     let mut lexer = lexer::Lexer::new(text.to_string());
 
@@ -105,9 +141,9 @@ fn interpret(text: &str) {
             println!();
             println!();
 
-            comp.compile();
+            let (instructions, functions) = comp.compile();
 
-            let mut interpret = Interpreter::new(comp.generator.instructions, comp.generator.functions);
+            let mut interpret = Interpreter::new(instructions, functions);
 
             let result = interpret.run_function("main_".to_string());
 

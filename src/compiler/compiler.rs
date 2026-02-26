@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
-use crate::compiler::codegen::BytecodeGen;
+use crate::compiler::bytecode::ByteCode;
+use crate::compiler::codegen::{BytecodeGen, FunctionInfo};
 use crate::interpreter::interpreter::Interpreter;
 
 pub struct Compiler {
@@ -18,16 +20,12 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self) {
+    pub fn compile(mut self) -> (Vec<ByteCode>, HashMap<String, FunctionInfo>) {
         self.collect_functions(&self.root.clone());
 
         self.root.gen_bytecode(&mut self.generator);
 
-        println!("Table: {:?}",self.generator.functions);
-
-        for i in self.generator.instructions.iter() {
-            println!("{i:?}")
-        }
+        (self.generator.instructions, self.generator.functions)
     }
 
     fn collect_functions(&mut self, stmt: &TypedStmt) {

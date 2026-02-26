@@ -13,8 +13,8 @@ use crate::interpreter::value::ValueType::{Address, Float, Int};
 macro_rules! math_op {
     ($method:ident) => {
         fn $method(&mut self) {
-            let a = self.pop();
             let b = self.pop();
+            let a = self.pop();
 
             self.push(a.$method(b));
         }
@@ -66,7 +66,7 @@ impl Interpreter {
         }
     }
 
-    pub fn run_function(&mut self, function: String) -> Vec<Value> {
+    pub fn run_function(&mut self, function: String) -> (Vec<Value>, &Heap) {
         let fun = self.function_mapping.get(&function);
         if fun.is_none() {
             panic!("Trying to call non-existant function {function}!");
@@ -80,9 +80,6 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            println!("\tVALUES: {:?}", &self.stack[0..self.pointer]);
-            println!("Executing {insn:?}\n");
-
             self.execute(insn);
 
             self.insn_addr += 1;
@@ -94,9 +91,7 @@ impl Interpreter {
             result.push(*v);
         }
 
-        println!("{:?}",self.heap);
-
-        result
+        (result, &self.heap)
     }
 
     fn execute(&mut self, insn: ByteCode) {

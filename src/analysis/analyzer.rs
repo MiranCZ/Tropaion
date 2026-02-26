@@ -25,9 +25,6 @@ impl Analyzer {
         self.record_consts();
 
 
-        println!("{:?}", self.symbol_table);
-        println!();
-        println!();
         let resolved_root: TypedStmt = self.root.clone().resolve_type(&mut self.symbol_table);
 
         // TODO semantic analysis would probs be nice xd

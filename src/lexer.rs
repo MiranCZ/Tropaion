@@ -28,8 +28,6 @@ impl Lexer {
         loop {
             let next = self.read_next()?;
 
-            println!("{next:?}");
-
             if next == EOF {
                 res.push(EOF);
                 break;
