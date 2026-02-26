@@ -74,8 +74,18 @@ impl TypedExpr {
 
                 e.generate_bytecode(generator, Store);
             }
-            TypedExpr::PrefixExpr { .. } => {
-                todo!()
+            TypedExpr::PrefixExpr { operator, expr, .. } => {
+                match operator {
+                    SimpleToken::Dash => {
+                        generator.i_const(0);
+                        expr.generate_bytecode(generator, Load);
+                        generator.sub();
+                    },
+                    SimpleToken::Tilde => todo!(),
+                    SimpleToken::Exclamation => todo!(),
+
+                    _ => panic!("Invalid operator {operator:?}")
+                }
             }
             TypedExpr::BinaryExpr {left, operator, right, .. } => {
                 left.generate_bytecode(generator, Load);

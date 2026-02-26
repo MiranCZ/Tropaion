@@ -31,6 +31,8 @@ fn test_math_expr(expr: &str, expected: i32) {
 pub fn test_math() {
     test_math_expr("1 + 1", 2);
     test_math_expr("1 - 1", 0);
+    test_math_expr("-10", -10);
+    test_math_expr("1 - -1", 2);
     test_math_expr("1 - 3", -2);
     test_math_expr("1 * 2", 2);
     test_math_expr("1 + 2 * 3", 7);
