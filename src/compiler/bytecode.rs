@@ -4,6 +4,8 @@ pub enum ByteCode {
     Comment(String),
     Nop,
 
+    Null,
+    
     IConst(i32),
     FConst(f32),
 

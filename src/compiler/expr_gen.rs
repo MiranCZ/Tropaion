@@ -36,6 +36,9 @@ impl TypedExpr {
 
     pub fn load(&self, generator: &mut BytecodeGen) {
         match self {
+            TypedExpr::NullLiteralExpr(t) => {
+                generator.null_const();
+            }
             TypedExpr::BoolLiteralExpr(b) => {
                 if *b {
                     generator.i_const(1);

@@ -1,7 +1,7 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{Bool, Float, FunctionsType, Int, StringType, TupleType, Void};
-use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::ast::ast_type::AstType::{Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
+use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullLiteralExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
@@ -12,6 +12,7 @@ pub type TypedExpr = Expression<AstType>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<T> {
+    NullLiteralExpr(T),
     BoolLiteralExpr(bool),
     IntLiteralExpr(i32),
     FloatLiteralExpr(f32),
@@ -61,6 +62,11 @@ impl UntypedExpr {
 
     pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> TypedExpr {
         match self {
+            NullLiteralExpr(_) => NullLiteralExpr(
+                NullableType {
+                    underlying: UnknownType.boxed()
+                }
+            ),
             BoolLiteralExpr(b) => BoolLiteralExpr(b),
             IntLiteralExpr(i) => IntLiteralExpr(i),
             FloatLiteralExpr(f) => FloatLiteralExpr(f),
@@ -114,12 +120,15 @@ impl UntypedExpr {
                 return BinaryExpr {t, left: typed_left.boxed(), operator, right:typed_right.boxed()};
             }
             AssignExpr {assignee, value, .. } => {
-                let typed_assignee = assignee.resolve_type(symbol_table);
+                let mut typed_assignee = assignee.resolve_type(symbol_table);
                 let typed_value = value.resolve_type(symbol_table);
 
-                if typed_assignee.get_type() != typed_value.get_type() {
-                    panic!("Assignment expr arms do not match {:?} vs {:?}",typed_assignee, typed_value);
+                if let Some(t) = typed_assignee.get_type().try_assign(typed_value.get_type()) {
+                    typed_assignee.set_type(t);
+                } else {
+                    panic!("Assignment expr arms do not match {:?} vs {:?}",typed_assignee.get_type(), typed_value.get_type());
                 }
+
                 let t = typed_assignee.get_type();
 
                 return AssignExpr {t, assignee: typed_assignee.boxed(), value: typed_value.boxed()};
@@ -232,6 +241,7 @@ impl UntypedExpr {
 impl TypedExpr {
     pub fn get_type(&self) -> AstType {
         match self {
+            NullLiteralExpr(t) => t.clone(),
             BoolLiteralExpr(_) => Bool,
             IntLiteralExpr(_) => Int,
             FloatLiteralExpr(_) => Float,
@@ -253,9 +263,18 @@ impl TypedExpr {
     pub fn set_type(&mut self, typ: AstType) {
         match self {
             BoolLiteralExpr(_) => panic!(),
-            IntLiteralExpr(_) => panic!(),
             FloatLiteralExpr(_) => panic!(),
             StringLiteralExpr(_) => panic!(),
+            IntLiteralExpr(v) => {
+                *self = FloatLiteralExpr(*v as f32)
+            },
+            NullLiteralExpr(t) => {
+                if let NullableType {..} = typ {
+                    *t = typ
+                } else {
+                    panic!()
+                }
+            }
             IdentifierExpr(t, _) =>  {
                 *t = typ
             }

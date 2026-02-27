@@ -26,6 +26,7 @@ impl TypedStmt {
                 match value.get_type() {
                     AstType::Bool | AstType::Int => generator.i_store(name.clone()),
                     AstType::Float => generator.f_store(name.clone()),
+                    AstType::NullableType {..} => generator.a_store(name.clone()),
                     AstType::StructType {..} => generator.a_store(name.clone()),
                     _ => panic!("Not yet supported type {:?}",value.get_type())
                 };

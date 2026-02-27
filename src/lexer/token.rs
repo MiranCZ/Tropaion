@@ -20,6 +20,8 @@ pub enum Token {
 
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Ord, PartialOrd, Eq, EnumIter)]
 pub enum SimpleToken {
+    Null,
+
     True,
     False,
 
@@ -60,6 +62,8 @@ pub enum SimpleToken {
     BitXor,
     Arrow, // ->
 
+    Question,
+
     PlusPlus,
     MinusMinus,
     RightRight,
@@ -97,6 +101,7 @@ impl SimpleToken {
 
     pub fn string_representation(&self) -> &'static str {
         match self {
+            Null => "null",
             True => "true",
             False => "false",
             Const => "const",
@@ -137,6 +142,7 @@ impl SimpleToken {
             BoolAnd => "&&",
             BoolOr => "||",
             BitXor => "^",
+            Question => "?",
             Assign => "=",
             PlusAssign => "+=",
             DashAssign => "-=",

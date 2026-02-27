@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Null, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -184,6 +184,10 @@ impl BytecodeGen {
 
     pub fn nop(&mut self) {
         self.push_insn(Nop);
+    }
+
+    pub fn null_const(&mut self) {
+        self.push_insn(Null);
     }
 
     pub fn i_const(&mut self, c: i32) {

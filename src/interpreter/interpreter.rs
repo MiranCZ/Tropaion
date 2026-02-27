@@ -82,6 +82,10 @@ impl Interpreter {
     }
 
     pub fn run_function(&mut self, function: String) -> (Vec<Value>, &Heap) {
+        // for null-ptr
+        self.push(Null);
+
+
         let fun = self.function_mapping.get(&function);
         if fun.is_none() {
             panic!("Trying to call non-existant function {function}!");
@@ -112,6 +116,8 @@ impl Interpreter {
         match insn {
             ByteCode::Comment(_) => {}
             ByteCode::Nop => {}
+
+            ByteCode::Null => self.push(RefValue {ptr: 0, len: 1}),
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),

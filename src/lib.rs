@@ -1,3 +1,6 @@
+use crate::analysis::symbol_table::SymbolTable;
+use crate::ast::ast_type::AstType;
+use crate::ast::ast_type::AstType::SymbolType;
 use crate::compiler::compiler::Compiler;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::interpreter::Interpreter;
@@ -40,28 +43,16 @@ pub fn main() {
     "#;
 
     let text = r#"
-    struct Another(x: float);
-    
-    struct Test(a: int, b: int, c: Another) {
-        fn sum() -> int {
-            return a + this.b;
+    struct A();
+
+    fn main() {
+        let x = null;
+
+        if true {
+            x = 5;
+        } else {
+            x = A();
         }
-
-    }
-
-    fn main() -> int {
-        let a = Another(6.7);
-        let t: Test = Test(100, 200, a);
-
-        let y = true;
-
-        if y {
-            t.a = 77;
-        }
-
-        let x = t.sum();
-
-        return t;
     }
     "#;
 
@@ -139,9 +130,14 @@ fn interpret(text: &str) {
             println!();
             println!("-------------------");
             println!();
-            println!();
 
             let (instructions, functions) = comp.compile();
+
+            for i in instructions.iter() {
+                println!("{i:?}");
+            }
+
+            println!();
 
             let mut interpret = Interpreter::new(instructions, functions);
 

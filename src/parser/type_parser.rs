@@ -2,7 +2,7 @@ use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
-use crate::lexer::token::SimpleToken::CloseBracket;
+use crate::lexer::token::SimpleToken::{CloseBracket, Question};
 use crate::parser::binding_power::{Bp, DEFAULT};
 use crate::parser::handlers::ReturnedType;
 use crate::parser::Parser;
@@ -86,4 +86,12 @@ pub fn parse_tuple_type(parser: &mut Parser) -> ReturnedType {
     }
 
     Ok(TupleType(result))
+}
+
+pub fn parse_nullable_type(parser: &mut Parser, left: AstType, _bp: u32) -> ReturnedType {
+    parser.expect_next(Question)?;
+
+    Ok(NullableType {
+        underlying: left.boxed()
+    })
 }

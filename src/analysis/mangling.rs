@@ -94,6 +94,7 @@ impl TypedStmt {
 impl TypedExpr {
     fn mangle_functions(self, owner: String) -> TypedExpr {
         match self {
+            TypedExpr::NullLiteralExpr(_) |
             TypedExpr::BoolLiteralExpr(_) |
             TypedExpr::IntLiteralExpr(_) |
             TypedExpr::FloatLiteralExpr(_) |

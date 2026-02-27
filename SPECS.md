@@ -165,6 +165,13 @@ fn main() {
 }
 ```
 
+# Null
+
+the `null` keyword can be used to represent the absence of something.
+If a type can be null a `?` suffix must be used after its type (eq. `int?`).
+
+at this moment, there are no guardrails for working with types that could be `null`
+and can be used as a normal value.
 
 # Memory model
 *all of this is very WIP, really need to think about all of this more*

@@ -90,15 +90,24 @@ impl UntypedStmt {
                 ExpressionStmt(typed)
             }
             VarDeclarationStmt { name, is_const, value, explicit_type } => {
-                let typed_value = value.resolve_type(symbol_table);
+                let mut typed_value = value.resolve_type(symbol_table);
 
                 symbol_table.record(name.clone(), typed_value.get_type());
 
                 let mut resolved_expl_type = None;
 
                 if let Some(t) = explicit_type {
-                    resolved_expl_type = Some(t.resolve_type(symbol_table));
+                    let resolved_t = t.resolve_type(symbol_table);
+
+                    if let Some(new_t) = resolved_t.try_assign(typed_value.get_type()) {
+                        typed_value.set_type(new_t)
+                    } else {
+                        panic!("Explicit type does not match! {:?} vs {:?}", typed_value.get_type(), resolved_t);
+                    }
+
+                    resolved_expl_type = Some(resolved_t);
                 }
+
 
                 VarDeclarationStmt {name, is_const, value: typed_value, explicit_type: resolved_expl_type}
             }

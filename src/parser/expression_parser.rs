@@ -3,7 +3,7 @@ use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, OpenBracket, True};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT, UNARY};
@@ -72,6 +72,13 @@ pub fn parse_bool_literal_expr(parser: &mut Parser) -> ReturnedExpression {
     }
     
     panic!("Invalid call")
+}
+
+
+pub fn parse_null_expr(parser: &mut Parser) -> ReturnedExpression {
+    parser.expect_next(Null)?;
+    
+    Ok(NullLiteralExpr(()))
 }
 
 pub fn parse_increment_expr(parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {

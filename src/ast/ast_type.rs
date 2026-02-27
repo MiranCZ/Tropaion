@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::fmt::{format, Debug};
 use std::mem::swap;
 use crate::analysis::symbol_table::TypeSymTable;
-use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, ReferenceType, StructType, TupleType};
+use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, NullableType, ReferenceType, StructType, TupleType};
 use crate::ast::statement::TypedStmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
+    UnknownType,
     Void,
     Bool,
     Int,
@@ -14,6 +15,9 @@ pub enum AstType {
     StringType,
     SymbolType(String),
     ReferenceType {
+        underlying: Box<AstType>
+    },
+    NullableType {
         underlying: Box<AstType>
     },
     ArrayType {
@@ -46,6 +50,38 @@ impl AstType {
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
+}
+
+impl AstType {
+
+    pub fn try_assign(&self, other: Self) -> Option<Self> {
+        match (self, other) {
+            (AstType::Float, AstType::Int) => {
+                Some(AstType::Float)
+            },
+            (NullableType {underlying}, AstType::NullableType {underlying: other_underlying}) => {
+                if let AstType::UnknownType = **underlying {
+                    Some(AstType::NullableType {underlying: other_underlying})
+                } else {
+                    if let AstType::UnknownType = *other_underlying {
+                        Some(self.clone())
+                    } else {
+                        None
+                    }
+                }
+            },
+            (NullableType {underlying}, other) => {
+                if let AstType::UnknownType = **underlying {
+                    Some(NullableType {underlying: other.boxed()})
+                } else {
+                    None
+                }
+            }
+
+            _ => None
+        }
+    }
+
 }
 
 impl AstType {
