@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{format, Debug};
 use std::mem::swap;
 use crate::analysis::symbol_table::TypeSymTable;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, NullableType, ReferenceType, StructType, TupleType};
 use crate::ast::statement::TypedStmt;
 
@@ -15,24 +16,24 @@ pub enum AstType {
     StringType,
     SymbolType(String),
     ReferenceType {
-        underlying: Box<AstType>
+        underlying: TypeEntry
     },
     NullableType {
-        underlying: Box<AstType>
+        underlying: TypeEntry
     },
     ArrayType {
-        underlying: Box<AstType>,
+        underlying: TypeEntry,
         count: u32,
     },
-    TupleType(Vec<AstType>),
+    TupleType(Vec<TypeEntry>),
     FunctionsType {
         name: String,
-        overloads: Vec<AstType> // these should be only function types
+        overloads: Vec<TypeEntry> // these should be only function types
     },
     FunctionType {
         name: String,
-        params: Vec<AstType>,
-        return_type: Box<AstType>
+        params: Vec<TypeEntry>,
+        return_type: TypeEntry
     },
     StructType {
         name: String,
@@ -44,7 +45,7 @@ pub enum AstType {
 
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MemberInfo(pub AstType, pub String, pub u16);
+pub struct MemberInfo(pub TypeEntry, pub String, pub u16);
 
 impl AstType {
     pub fn boxed(self) -> Box<Self> {
@@ -54,16 +55,64 @@ impl AstType {
 
 impl AstType {
 
-    pub fn try_assign(&self, other: Self) -> Option<Self> {
+    pub fn equals(&self, other: &Self, registry: &TypeRegistry) -> bool {
         match (self, other) {
+            (AstType::UnknownType, AstType::UnknownType) => true,
+            (AstType::Void, AstType::Void) => true,
+            (AstType::Bool, AstType::Bool) => true,
+            (AstType::Int, AstType::Int) => true,
+            (AstType::Float, AstType::Float) => true,
+            (AstType::StringType, AstType::StringType) => true,
+            (AstType::SymbolType(s1), AstType::SymbolType(s2)) => *s1 == *s2,
+            (ReferenceType {underlying: u1}, ReferenceType {underlying: u2}) |
+            (NullableType {underlying: u1}, NullableType {underlying: u2}) => {
+                u1.get(registry).equals(&u2.get(registry), registry)
+            }
+            (ArrayType {underlying: u1, count: c1}, ArrayType {underlying: u2, count: c2}) => {
+                *c1 == *c2 && u1.get(registry).equals(&u2.get(registry), registry)
+            }
+            (TupleType(arr1), TupleType(arr2)) => {
+                if arr1.len() != arr2.len() {
+                    return false;
+                }
+
+                for i in 0..arr1.len() {
+                    let a = arr1[i];
+                    let b = arr2[i];
+
+                    if !a.get(registry).equals(&b.get(registry), registry) {
+                        return false;
+                    }
+                }
+
+                true
+            }
+
+
+
+            _ => false
+        }
+    }
+
+}
+
+impl AstType {
+
+    pub fn get_assign_result(&self, other: Self, registry: &mut TypeRegistry) -> Option<Self> {
+        if self.equals(&other, registry) {
+            return Some(other);
+        }
+
+        match (self, other) {
+            // let x: float = 1;
             (AstType::Float, AstType::Int) => {
                 Some(AstType::Float)
             },
-            (NullableType {underlying}, AstType::NullableType {underlying: other_underlying}) => {
-                if let AstType::UnknownType = **underlying {
-                    Some(AstType::NullableType {underlying: other_underlying})
+            (NullableType {underlying}, NullableType {underlying: other_underlying}) => {
+                if let AstType::UnknownType = underlying.get(registry) {
+                    Some(NullableType {underlying: other_underlying})
                 } else {
-                    if let AstType::UnknownType = *other_underlying {
+                    if let AstType::UnknownType = other_underlying.get(registry) {
                         Some(self.clone())
                     } else {
                         None
@@ -71,9 +120,17 @@ impl AstType {
                 }
             },
             (NullableType {underlying}, other) => {
-                if let AstType::UnknownType = **underlying {
-                    Some(NullableType {underlying: other.boxed()})
+                if let AstType::UnknownType = underlying.get(registry) {
+                    let underlying_type = registry.register(other);
+                    
+                    Some(NullableType {underlying: underlying_type})
                 } else {
+                    let assign_res = underlying.get(registry).get_assign_result(other, registry);
+
+                    if let Some(res) = assign_res {
+                        return Some(NullableType {underlying: registry.register(res)})
+                    }
+
                     None
                 }
             }
@@ -86,74 +143,61 @@ impl AstType {
 
 impl AstType {
     
-    pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> AstType {
+    pub fn resolve_type(self,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> AstType {
         match self {
             AstType::SymbolType(name) => {
                 let opt = symbol_table.get(name.clone());
 
                 if let Some(t) = opt {
-                    return t;
+                    return t.get(registry);
                 }
                 panic!("Failed to resolve symbol {name}")
             }
             ReferenceType {underlying, .. } => {
-                let resolved = underlying.resolve_type(symbol_table);
+                underlying.resolve_type(registry, symbol_table);
 
-                ReferenceType {underlying: resolved.boxed()}
+                ReferenceType {underlying}
             }
             ArrayType {underlying, count } => {
-                let resolved = underlying.resolve_type(symbol_table);
+                underlying.resolve_type(registry, symbol_table);
 
-                ArrayType {underlying: resolved.boxed(), count}
+                ArrayType {underlying, count}
             }
-            TupleType(arr) => {
-                let mut resolved = vec![];
-
-                for a in arr {
-                    resolved.push(a.resolve_type(symbol_table));
+            TupleType(mut arr) => {
+                for a in arr.iter_mut() {
+                    a.resolve_type(registry, symbol_table);
                 }
 
-                TupleType(resolved)
+                TupleType(arr)
             }
-            FunctionsType { name, overloads } => {
-                let mut resolved = vec![];
-
-                for a in overloads {
-                    resolved.push(a.resolve_type(symbol_table));
+            FunctionsType { name, mut overloads } => {
+                for a in overloads.iter_mut() {
+                    a.resolve_type(registry, symbol_table);
                 }
 
-                FunctionsType {name, overloads: resolved}
+                FunctionsType {name, overloads}
             }
-            FunctionType { name, params, return_type } => {
-                let return_type = return_type.resolve_type(symbol_table).boxed();
+            FunctionType { name, mut params, return_type } => {
+                return_type.resolve_type(registry, symbol_table);
 
-                let mut resolved = vec![];
-
-                for a in params {
-                    resolved.push(a.resolve_type(symbol_table));
+                for a in params.iter_mut() {
+                    a.resolve_type(registry, symbol_table);
                 }
 
-                FunctionType {name, params: resolved, return_type}
+                FunctionType {name, params, return_type}
             }
-            StructType {name, fields, children} => {
-
-                println!("CALLED {name:?} {fields:?} {children:?}");
-                let mut resolved_fields = vec![];
-
-                for f in fields {
-                    resolved_fields.push(MemberInfo(f.0.resolve_type(symbol_table), f.1, f.2));
+            StructType {name, mut fields, mut children} => {
+                for f in fields.iter_mut() {
+                    f.0.resolve_type(registry, symbol_table);
                 }
 
-                let mut resolved_children = HashMap::new();
-
-                for e in children {
-                    let name = e.0;
+                for e in children.iter_mut() {
                     let mem = e.1;
-
-                    resolved_children.insert(name, MemberInfo(mem.0.resolve_type(symbol_table), mem.1, mem.2));
+                    
+                    mem.0.resolve_type(registry, symbol_table);
                 }
 
-                StructType {name, fields: resolved_fields, children: resolved_children}
+                StructType {name, fields, children}
             }
 
 
@@ -164,7 +208,7 @@ impl AstType {
 }
 
 impl AstType {
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self, registry: &TypeRegistry) -> String {
         match self {
             AstType::Void => "V".to_string(),
             AstType::Bool => "b".to_string(),
@@ -172,12 +216,12 @@ impl AstType {
             AstType::Float => "f".to_string(),
             AstType::StringType => "s".to_string(),
             AstType::SymbolType(n) => format!("L{n};"),
-            AstType::ReferenceType { underlying } => underlying.get_type_name(), // references do not affect method signature
-            AstType::ArrayType {underlying, .. } => format!("A{};",underlying.get_type_name()),
+            AstType::ReferenceType { underlying } => underlying.get(registry).get_type_name(registry), // references do not affect method signature
+            AstType::ArrayType {underlying, .. } => format!("A{};",underlying.get(registry).get_type_name(registry)),
             AstType::TupleType(types) => {
                 let mut name = "T".to_string();
                 for t in types {
-                    name += t.get_type_name().as_str();
+                    name += t.get(registry).get_type_name(registry).as_str();
                 }
 
                 name + ";"
@@ -188,7 +232,7 @@ impl AstType {
         }
     }
 
-    pub fn word_size(&self) -> u32 {
+    pub fn word_size(&self, registry: &TypeRegistry) -> u32 {
         match self {
             AstType::Void => 0,
             AstType::Bool | AstType::Int | AstType::Float | AstType::StringType | AstType::ReferenceType {..} => 1,
@@ -196,20 +240,21 @@ impl AstType {
                 panic!("Size not known for unresolved symbol {self:?}")  
             },
             AstType::ArrayType {count, underlying} => {
-                underlying.word_size() * *count
+                underlying.get(registry).word_size(registry) * *count
             },
             AstType::TupleType(types) => {
                 let mut size = 0;
 
                 for x in types {
-                    size += x.word_size();
+                    size += x.get(registry).word_size(registry);
                 }
                 
                 size
             }
             AstType::FunctionType { .. } => 1,
             AstType::StructType {.. } => 1,
-            _ => panic!()
+            NullableType {underlying} => underlying.get(registry).word_size(registry),
+            _ => panic!("Word size not implemented for {self:?}")
         }
     }
     

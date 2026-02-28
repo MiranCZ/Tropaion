@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use crate::analysis::operator_table::OperatorTable;
+use crate::analysis::type_registry::TypeEntry;
 use crate::ast::ast_type::AstType;
 
-pub type TypeSymTable = SymbolTable<AstType, bool>;
+pub type TypeSymTable = SymbolTable<TypeEntry, bool>;
 
 #[derive(Debug)]
 pub struct SymbolTable<T: Clone, E: Clone> {

@@ -1,3 +1,4 @@
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression;
 use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
@@ -10,7 +11,7 @@ use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 
-pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_expression(registry: &mut TypeRegistry,parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
     let token = parser.peek()?;
 
     let nud_fn = token.nud(&parser.lookup);
@@ -21,7 +22,7 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> ReturnedExpre
 
     let nud_fn = nud_fn.unwrap();
 
-    let mut left = nud_fn(parser)?;
+    let mut left = nud_fn(registry, parser)?;
 
     loop {
         let token = parser.peek()?;
@@ -43,58 +44,58 @@ pub fn parse_expression(parser: &mut Parser, binding_power: Bp) -> ReturnedExpre
             return Ok(left);
         }
 
-        left = led_fn(parser, left, rbp)?;
+        left = led_fn(registry,parser, left, rbp)?;
     }
 }
 
-pub fn parse_prefix_expr(parser: &mut Parser) -> ReturnedExpression {
+pub fn parse_prefix_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
 
-    let expr = parse_expression(parser, UNARY)?;
+    let expr = parse_expression(registry,parser, UNARY)?;
 
     Ok(expression::prefix(operator, expr))
 }
 
-pub fn parse_binary_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_binary_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
 
-    let right = parse_expression(parser, binding_power)?;
+    let right = parse_expression(registry,parser, binding_power)?;
 
     Ok(expression::binary(left, operator, right))
 }
 
-pub fn parse_bool_literal_expr(parser: &mut Parser) -> ReturnedExpression {
+pub fn parse_bool_literal_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedExpression {
     if parser.consume_if_next(True)? {
-        return Ok(BoolLiteralExpr(true));
+        return Ok(BoolLiteralExpr((), true));
     }
     if parser.consume_if_next(False)? {
-        return Ok(BoolLiteralExpr(false));
+        return Ok(BoolLiteralExpr((), false));
     }
     
     panic!("Invalid call")
 }
 
 
-pub fn parse_null_expr(parser: &mut Parser) -> ReturnedExpression {
+pub fn parse_null_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedExpression {
     parser.expect_next(Null)?;
     
     Ok(NullLiteralExpr(()))
 }
 
-pub fn parse_increment_expr(parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
+pub fn parse_increment_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
     Ok(expression::increment(left))
 }
 
-pub fn parse_decrement_expr(parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
+pub fn parse_decrement_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
     Ok(expression::decrement(left))
 }
 
-pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
+pub fn parse_parenthesis_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedExpression {
     parser.expect_next(OpenBracket)?;
 
-    let expr = parse_expression(parser, DEFAULT)?;
+    let expr = parse_expression(registry,parser, DEFAULT)?;
 
     // we are defining a tuple
     if parser.consume_if_next(Comma)? {
@@ -102,7 +103,7 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
         values.push(expr);
 
         loop {
-            let value = parse_expression(parser, DEFAULT)?;
+            let value = parse_expression(registry,parser, DEFAULT)?;
 
             values.push(value);
 
@@ -120,29 +121,29 @@ pub fn parse_parenthesis_expr(parser: &mut Parser) -> ReturnedExpression {
     Ok(expr)
 }
 
-pub fn parse_member_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_member_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     parser.expect_next(Dot)?;
     
-    let right = parse_expression(parser, binding_power)?;
+    let right = parse_expression(registry,parser, binding_power)?;
 
     Ok(expression::member(left, right))
 }
 
-pub fn parse_assignment_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_assignment_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     let operator = parser.expect_next_simple()?;
     
-    let value = parse_expression(parser, binding_power)?;
+    let value = parse_expression(registry, parser, binding_power)?;
    
     Ok(expression::assign(left, operator, value))
 }
 
-pub fn parse_call_expr(parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+pub fn parse_call_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     parser.expect_next(OpenBracket)?;
     
     let mut args = vec![];
 
     while !parser.consume_if_next(CloseBracket)? {
-        args.push(parse_expression(parser, ASSIGNMENT)?);
+        args.push(parse_expression(registry,parser, ASSIGNMENT)?);
         
         if !parser.consume_if_next(Comma)? {
             parser.expect_next(CloseBracket)?;

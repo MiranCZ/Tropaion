@@ -1,3 +1,4 @@
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
 use crate::error::parser_error::ParserError;
@@ -7,7 +8,7 @@ use crate::parser::binding_power::{Bp, DEFAULT};
 use crate::parser::handlers::ReturnedType;
 use crate::parser::Parser;
 
-pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> ReturnedType {
+pub fn parse_type(registry: &mut TypeRegistry,parser: &mut Parser, binding_power: Bp) -> ReturnedType {
     let token = parser.peek()?;
 
     let nud_fn = token.type_nud(&parser.type_lookup);
@@ -18,7 +19,7 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> ReturnedType {
 
     let nud_fn = nud_fn.unwrap();
 
-    let mut left = nud_fn(parser)?;
+    let mut left = nud_fn(registry, parser)?;
 
     loop {
         let token = parser.peek()?;
@@ -39,22 +40,22 @@ pub fn parse_type(parser: &mut Parser, binding_power: Bp) -> ReturnedType {
             return Ok(left);
         }
 
-        left = led_fn(parser, left, rbp)?;
+        left = led_fn(registry, parser, left, rbp)?;
     }
 }
 
-pub fn parse_reference_type(parser: &mut Parser) -> ReturnedType {
+pub fn parse_reference_type(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::Ampersand)?;
 
-    let expr = parse_type(parser, DEFAULT)?;
+    let expr = parse_type(registry, parser, DEFAULT)?;
 
-    Ok(ReferenceType { underlying: expr.boxed() })
+    Ok(registry.register(ReferenceType { underlying: expr }))
 }
 
-pub fn parse_array_type(parser: &mut Parser) -> ReturnedType {
+pub fn parse_array_type(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::OpenSquare)?;
 
-    let expr = parse_type(parser, DEFAULT)?;
+    let expr = parse_type(registry, parser, DEFAULT)?;
 
     parser.expect_next(SimpleToken::Semicolon)?;
 
@@ -62,19 +63,19 @@ pub fn parse_array_type(parser: &mut Parser) -> ReturnedType {
 
     parser.expect_next(SimpleToken::CloseSquare)?;
 
-    Ok(ArrayType{
-        underlying: expr.boxed(),
+    Ok(registry.register(ArrayType{
+        underlying: expr,
         count: count as u32
-    })
+    }))
 
 }
 
-pub fn parse_tuple_type(parser: &mut Parser) -> ReturnedType {
+pub fn parse_tuple_type(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::OpenBracket)?;
 
     let mut result = vec![];
     loop {
-        let expr = parse_type(parser, DEFAULT)?;
+        let expr = parse_type(registry, parser, DEFAULT)?;
 
         result.push(expr);
 
@@ -85,13 +86,13 @@ pub fn parse_tuple_type(parser: &mut Parser) -> ReturnedType {
         parser.expect_next(SimpleToken::Comma)?;
     }
 
-    Ok(TupleType(result))
+    Ok(registry.register(TupleType(result)))
 }
 
-pub fn parse_nullable_type(parser: &mut Parser, left: AstType, _bp: u32) -> ReturnedType {
+pub fn parse_nullable_type(registry: &mut TypeRegistry,parser: &mut Parser, left: TypeEntry, _bp: u32) -> ReturnedType {
     parser.expect_next(Question)?;
 
-    Ok(NullableType {
-        underlying: left.boxed()
-    })
+    Ok(registry.register(NullableType {
+        underlying: left
+    }))
 }

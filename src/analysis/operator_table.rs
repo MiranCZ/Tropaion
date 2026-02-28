@@ -2,6 +2,7 @@ use crate::ast::ast_type::AstType;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, VertBarAssign, BitXor, BoolAnd, BoolOr, Dash, DashAssign, Equals, Greater, GreaterEquals, LeftLeft, LeftLeftAssign, Less, LessEquals, NotEquals, Percent, PercentAssign, Plus, PlusAssign, RightRight, RightRightAssign, Slash, SlashAssign, Star, StarAssign, VerticalBar, AmpersandAssign, BitXorAssign, Assign};
 use std::collections::HashMap;
+use crate::analysis::type_registry::TypeRegistry;
 
 type SimpleType = usize;
 
@@ -24,9 +25,9 @@ impl OperatorTable {
         new
     }
 
-    pub fn get_op_result(&self, right: AstType, op: SimpleToken, left: AstType) -> Option<AstType> {
-        let right = from_ast_type(right);
-        let left = from_ast_type(left);
+    pub fn get_op_result(&self,registry: &TypeRegistry ,right: AstType, op: SimpleToken, left: AstType) -> Option<AstType> {
+        let right = from_ast_type(right, registry);
+        let left = from_ast_type(left, registry);
 
         let result = self.table.get(&(right, op, left));
 
@@ -91,7 +92,11 @@ impl OperatorTable {
     }
 }
 
-fn from_ast_type(t: AstType) -> SimpleType {
+fn from_ast_type(t: AstType, registry: &TypeRegistry) -> SimpleType {
+    if let AstType::NullableType {underlying} = t {
+        return from_ast_type(underlying.get(registry), registry)
+    }
+    
     match t {
         AstType::Bool => Bool,
         AstType::Int => Int,

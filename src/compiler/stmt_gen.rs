@@ -1,3 +1,4 @@
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 use crate::ast::statement::TypedStmt;
@@ -6,58 +7,52 @@ use crate::compiler::expr_gen::Operation::Load;
 
 impl TypedStmt {
 
-    pub fn gen_bytecode(&self, generator: &mut BytecodeGen) {
+    pub fn gen_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
         match self {
             TypedStmt::BlockStmt { body } => {
                 generator.new_scope();
 
                 for b in body {
-                    b.gen_bytecode(generator);
+                    b.gen_bytecode(registry, generator);
                 }
 
                 generator.end_scope();
             }
             TypedStmt::ExpressionStmt(e) => {
-                e.generate_bytecode(generator, Load);
+                e.generate_bytecode(registry, generator, Load);
             }
             TypedStmt::VarDeclarationStmt {name, value, .. } => {
-                value.generate_bytecode(generator, Load);
+                value.generate_bytecode(registry, generator, Load);
 
-                match value.get_type() {
-                    AstType::Bool | AstType::Int => generator.i_store(name.clone()),
-                    AstType::Float => generator.f_store(name.clone()),
-                    AstType::NullableType {..} => generator.a_store(name.clone()),
-                    AstType::StructType {..} => generator.a_store(name.clone()),
-                    _ => panic!("Not yet supported type {:?}",value.get_type())
-                };
+                generator.store_value(registry, name, value.get_type());
             }
             TypedStmt::IfStmt { condition, body, else_branch } => {
-                condition.generate_bytecode(generator, Load);
+                condition.generate_bytecode(registry, generator, Load);
                 generator.new_skippable_scope();
 
                 for b in body {
-                    b.gen_bytecode(generator);
+                    b.gen_bytecode(registry, generator);
                 }
 
                 if let Some(br) = else_branch {
                     generator.push_scope_exit_insn();
 
-                    br.gen_bytecode(generator);
+                    br.gen_bytecode(registry, generator);
                 }
 
                 generator.end_scope();
             }
             TypedStmt::WhileStmt { condition, body } => {
-                condition.generate_bytecode(generator, Load);
+                condition.generate_bytecode(registry, generator, Load);
 
                 generator.new_skippable_scope();
 
                 for b in body {
-                    b.gen_bytecode(generator);
+                    b.gen_bytecode(registry, generator);
                 }
 
                 // FIXME should not generate this twice
-                condition.generate_bytecode(generator, Load);
+                condition.generate_bytecode(registry, generator, Load);
                 generator.push_goto_scope_start_insn();
 
                 generator.end_scope();
@@ -68,7 +63,7 @@ impl TypedStmt {
 
                 for param in params {
                     let name = param.name.clone();
-                    match param.param_type {
+                    match param.param_type.get(registry) {
                         AstType::Bool => generator.i_store(name),
                         AstType::Int => generator.i_store(name),
                         AstType::Float => generator.f_store(name),
@@ -78,7 +73,7 @@ impl TypedStmt {
                 }
 
                 for b in body {
-                    b.gen_bytecode(generator);
+                    b.gen_bytecode(registry, generator);
                 }
 
                 // FIXME technically its fine adding two return statements, but not ideal
@@ -93,13 +88,13 @@ impl TypedStmt {
             TypedStmt::StructStmt {name, fields, body, .. } => {
 
                 for b in body {
-                    b.gen_bytecode(generator);
+                    b.gen_bytecode(registry, generator);
                 }
             }
             TypedStmt::ReturnStmt(e) => {
-                 e.generate_bytecode(generator, Load);
+                 e.generate_bytecode(registry, generator, Load);
 
-                generator.ret(e.get_type().word_size());
+                generator.ret(e.get_type().get(registry).word_size(registry));
             }
 
             // ignored (at least for now)

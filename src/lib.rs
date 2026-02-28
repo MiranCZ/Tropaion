@@ -1,4 +1,5 @@
 use crate::analysis::symbol_table::SymbolTable;
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::SymbolType;
 use crate::compiler::compiler::Compiler;
@@ -45,14 +46,19 @@ pub fn main() {
     let text = r#"
     struct A();
 
-    fn main() {
-        let x = null;
+    fn main() -> float{
+        let x: float? = null;
+
+        x = 3;
+        let y = 1.0 + x;
 
         if true {
             x = 5;
         } else {
-            x = A();
+            x = 7.5;
         }
+
+        return y + x;
     }
     "#;
 
@@ -70,10 +76,12 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     }
     
     let tokens = tokens.unwrap();
-    
+
+    let mut registry = TypeRegistry::new();
+
     let mut parser = Parser::new(tokens);
 
-    let parsed = parser.parse();
+    let parsed = parser.parse(&mut registry);
 
     if let Err(e) = parsed {
         panic!("{e}");
@@ -83,11 +91,11 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let mut analyzer = analysis::analyzer::Analyzer::new(parsed);
 
-    let resolved_root = analyzer.analyze();
+    let resolved_root = analyzer.analyze(&mut registry);
 
     let mut comp = Compiler::new(resolved_root);
 
-    let (instructions, functions) = comp.compile();
+    let (instructions, functions) = comp.compile(&mut registry);
 
     let interpret = Interpreter::new(instructions, functions);
 
@@ -111,7 +119,10 @@ fn interpret(text: &str) {
 
     let mut parser = Parser::new(tokens);
 
-    let res = parser.parse();
+
+    let mut registry = TypeRegistry::new();
+
+    let res = parser.parse(&mut registry);
 
     match res {
         Ok(v) => {
@@ -119,7 +130,8 @@ fn interpret(text: &str) {
 
             let mut analyzer = analysis::analyzer::Analyzer::new(v);
 
-            let resolved_root = analyzer.analyze();
+
+            let resolved_root = analyzer.analyze(&mut registry);
 
             println!("{:#?}", resolved_root);
 
@@ -128,10 +140,11 @@ fn interpret(text: &str) {
 
             println!();
             println!();
+            println!("{:#?}", registry);
             println!("-------------------");
             println!();
 
-            let (instructions, functions) = comp.compile();
+            let (instructions, functions) = comp.compile(&mut registry);
 
             for i in instructions.iter() {
                 println!("{i:?}");

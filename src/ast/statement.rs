@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::ast::ast_type::{AstType, MemberInfo};
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{Bool, StructType};
 use crate::ast::expression::Expression;
 use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, IfStmt, MultilineCommentStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::lexer::token::SimpleToken::If;
 
 pub type UntypedStmt = Statement<()>;
-pub type TypedStmt = Statement<AstType>;
+pub type TypedStmt = Statement<TypeEntry>;
 
 pub type StatementBlock<T> = Vec<Statement<T>>;
 
@@ -22,7 +22,7 @@ pub enum Statement<T> {
         name: String,
         is_const: bool,
         value: Expression<T>,
-        explicit_type: Option<AstType>
+        explicit_type: Option<TypeEntry>
     },
     IfStmt {
         condition: Expression<T>,
@@ -37,7 +37,7 @@ pub enum Statement<T> {
     FunctionStmt {
         name: String,
         params: Vec<Parameter>,
-        return_type: AstType,
+        return_type: TypeEntry,
         body: StatementBlock<T>
     },
     StructStmt {
@@ -61,19 +61,19 @@ impl <T> Statement<T> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
     pub name: String,
-    pub param_type: AstType
+    pub param_type: TypeEntry
 }
 
 
 impl UntypedStmt {
 
-    pub fn resolve_type(self, symbol_table: &mut TypeSymTable) -> TypedStmt {
-        fn resolve_smt_block(body: StatementBlock<()>, symbol_table: &mut TypeSymTable) -> StatementBlock<AstType> {
+    pub fn resolve_type(self,registry: &mut TypeRegistry ,symbol_table: &mut TypeSymTable) -> TypedStmt {
+        fn resolve_smt_block(body: StatementBlock<()>,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> StatementBlock<TypeEntry> {
             let mut typed_body = vec![];
 
             symbol_table.push();
             for x in body {
-                typed_body.push(x.resolve_type(symbol_table));
+                typed_body.push(x.resolve_type(registry, symbol_table));
             }
             symbol_table.pop();
 
@@ -82,89 +82,87 @@ impl UntypedStmt {
 
         match self {
             BlockStmt { body } => {
-                BlockStmt {body: resolve_smt_block(body, symbol_table)}
+                BlockStmt {body: resolve_smt_block(body,registry, symbol_table)}
             }
             ExpressionStmt(expr) => {
-                let typed = expr.resolve_type(symbol_table);
+                let typed = expr.resolve_type(registry, symbol_table);
 
                 ExpressionStmt(typed)
             }
             VarDeclarationStmt { name, is_const, value, explicit_type } => {
-                let mut typed_value = value.resolve_type(symbol_table);
+                let mut typed_value = value.resolve_type(registry, symbol_table);
 
                 symbol_table.record(name.clone(), typed_value.get_type());
 
                 let mut resolved_expl_type = None;
 
                 if let Some(t) = explicit_type {
-                    let resolved_t = t.resolve_type(symbol_table);
+                    t.resolve_type(registry, symbol_table);
 
-                    if let Some(new_t) = resolved_t.try_assign(typed_value.get_type()) {
-                        typed_value.set_type(new_t)
+                    if let Some(new_t) = t.get(registry).get_assign_result(typed_value.get_type().get(registry), registry) {
+                        typed_value.set_type(registry, new_t);
                     } else {
-                        panic!("Explicit type does not match! {:?} vs {:?}", typed_value.get_type(), resolved_t);
+                        panic!("Explicit type does not match! {:?} vs {:?}", typed_value.get_type(), t);
                     }
 
-                    resolved_expl_type = Some(resolved_t);
+                    resolved_expl_type = Some(t);
                 }
 
 
                 VarDeclarationStmt {name, is_const, value: typed_value, explicit_type: resolved_expl_type}
             }
             IfStmt { condition, body, else_branch } => {
-                let typed_condition = condition.resolve_type(symbol_table);
+                let typed_condition = condition.resolve_type(registry, symbol_table);
 
-                if typed_condition.get_type() != Bool {
+                if typed_condition.get_type().get(registry) != Bool {
                     panic!("Condition should evaluate to a boolean! {:?}", typed_condition);
                 }
                 let mut typed_else_branch = None;
                 if let Some(branch) = else_branch {
-                    typed_else_branch = Some(branch.resolve_type(symbol_table).boxed());
+                    typed_else_branch = Some(branch.resolve_type(registry, symbol_table).boxed());
                 }
 
-                IfStmt {condition: typed_condition, body: resolve_smt_block(body, symbol_table), else_branch: typed_else_branch}
+                IfStmt {condition: typed_condition, body: resolve_smt_block(body, registry, symbol_table), else_branch: typed_else_branch}
             }
             WhileStmt { condition, body } => {
-                let typed_condition = condition.resolve_type(symbol_table);
+                let typed_condition = condition.resolve_type(registry, symbol_table);
 
-                if typed_condition.get_type() != Bool {
+                if typed_condition.get_type().get(registry) != Bool {
                     panic!("Condition should evaluate to a boolean! {:?}", typed_condition);
                 }
 
-                WhileStmt {condition: typed_condition, body: resolve_smt_block(body, symbol_table)}
+                WhileStmt {condition: typed_condition, body: resolve_smt_block(body, registry, symbol_table)}
             }
-            FunctionStmt { name, params, return_type, body } => {
-                let return_type = return_type.resolve_type(symbol_table);
+            FunctionStmt { name, mut params, return_type, body } => {
+                return_type.resolve_type(registry, symbol_table);
 
-                let mut resolved_params = vec![];
 
-                for p in params {
-                    resolved_params.push(Parameter{name: p.name, param_type: p.param_type.resolve_type(symbol_table)});
+                for p in params.iter_mut() {
+                    p.param_type.resolve_type(registry, symbol_table);
                 }
 
                 symbol_table.push();
-                for p in resolved_params.clone() {
+
+                for p in params.clone() {
                     symbol_table.record(p.name, p.param_type);
                 }
 
-                let body = resolve_smt_block(body, symbol_table);
+                let body = resolve_smt_block(body, registry, symbol_table);
 
                 symbol_table.pop();
 
-                FunctionStmt {name, params: resolved_params, return_type, body}
+                FunctionStmt {name, params, return_type, body}
             }
-            StructStmt { name, fields, body } => {
-                let mut resolved_fields = vec![];
-
-                for p in fields {
-                    resolved_fields.push(Parameter{name: p.name, param_type: p.param_type.resolve_type(symbol_table)});
+            StructStmt { name, mut fields, body } => {
+                for p in fields.iter_mut() {
+                    p.param_type.resolve_type(registry, symbol_table);
                 }
 
                 symbol_table.push();
                 let struct_type = symbol_table.get(name.clone()).unwrap();
                 symbol_table.record(String::from("this"), struct_type.clone());
 
-                if let StructType {children,..} = struct_type {
+                if let StructType {children,..} = struct_type.get(registry) {
                     for p in children {
                         symbol_table.record_with_info(p.0, p.1.0, true);
                     }
@@ -172,14 +170,14 @@ impl UntypedStmt {
                     panic!("WTH type mismatch, got {struct_type:?}");
                 }
 
-                let body = resolve_smt_block(body, symbol_table);
+                let body = resolve_smt_block(body, registry, symbol_table);
 
                 symbol_table.pop();
 
-                StructStmt {name, fields: resolved_fields, body}
+                StructStmt {name, fields, body}
             }
             ReturnStmt(expr) => {
-                ReturnStmt(expr.resolve_type(symbol_table))
+                ReturnStmt(expr.resolve_type(registry, symbol_table))
             }
             CommentStmt(s) => {
                 CommentStmt(s)

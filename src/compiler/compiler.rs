@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
@@ -20,29 +21,29 @@ impl Compiler {
         }
     }
 
-    pub fn compile(mut self) -> (Vec<ByteCode>, HashMap<String, FunctionInfo>) {
-        self.collect_functions(&self.root.clone());
+    pub fn compile(mut self, registry: &TypeRegistry) -> (Vec<ByteCode>, HashMap<String, FunctionInfo>) {
+        self.collect_functions(registry, &self.root.clone());
 
-        self.root.gen_bytecode(&mut self.generator);
+        self.root.gen_bytecode(registry, &mut self.generator);
 
         (self.generator.instructions, self.generator.functions)
     }
 
-    fn collect_functions(&mut self, stmt: &TypedStmt) {
+    fn collect_functions(&mut self, registry: &TypeRegistry ,stmt: &TypedStmt) {
         match stmt {
             BlockStmt { body, .. } |
             TypedStmt::IfStmt { body, .. } |
             TypedStmt::WhileStmt { body, .. } |
             StructStmt { body, .. } => {
                 for b in body {
-                    self.collect_functions(b)
+                    self.collect_functions(registry,b)
                 }
             }
             Statement::FunctionStmt {name,params ,..} => {
                 let mut size = 0;
 
                 for p in params {
-                    size += p.param_type.word_size();
+                    size += p.param_type.get(registry).word_size(registry);
                 }
 
                 self.generator.register_func(name.clone(), size);

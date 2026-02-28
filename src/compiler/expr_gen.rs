@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::{call, member, TypedExpr};
+use crate::ast::expression::Expression::NullableExpr;
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::{Load, LoadField, Store, StoreField};
 use crate::lexer::token::SimpleToken;
@@ -21,67 +23,85 @@ pub enum Operation {
 impl TypedExpr {
 
 
-    pub fn generate_bytecode(&self, generator: &mut BytecodeGen, operation: Operation) {
+    pub fn generate_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, operation: Operation) {
         match operation {
-            Load => self.load(generator),
-            Store => self.store(generator),
+            Load => self.load(registry, generator),
+            Store => self.store(registry, generator),
             LoadField {fields, children} => {
-                self.load_field(fields, children, generator);
+                self.load_field(registry, fields, children, generator);
             }
             StoreField {fields} => {
-                self.store_field(fields, generator);
+                self.store_field(registry, fields, generator);
             }
         }
     }
 
-    pub fn load(&self, generator: &mut BytecodeGen) {
+    pub fn load(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
         match self {
-            TypedExpr::NullLiteralExpr(t) => {
+            TypedExpr::NullLiteralExpr(_) => {
                 generator.null_const();
             }
-            TypedExpr::BoolLiteralExpr(b) => {
+            TypedExpr::BoolLiteralExpr(_, b) => {
                 if *b {
                     generator.i_const(1);
                 } else {
                     generator.i_const(0);
                 }
             }
-            TypedExpr::IntLiteralExpr(i) => generator.i_const(*i),
-            TypedExpr::FloatLiteralExpr(f) => generator.f_const(*f),
-            TypedExpr::StringLiteralExpr(_) => {
+            TypedExpr::IntLiteralExpr(_, i) => generator.i_const(*i),
+            TypedExpr::FloatLiteralExpr(_, f) => generator.f_const(*f),
+            TypedExpr::StringLiteralExpr(..) => {
                 todo!()
             }
             TypedExpr::IdentifierExpr(t, name) => {
-                match t {
+                match t.get(registry) {
                     AstType::Bool |
                     AstType::Int => generator.i_load(name.clone()),
                     AstType::Float => generator.f_load(name.clone()),
                     AstType::StructType { .. } => generator.a_load(name.clone()),
+                    AstType::NullableType {underlying: t} => {
+                        generator.a_load(name.clone());
+
+                        match t.get(registry) {
+                            AstType::Bool |
+                            AstType::Int => generator.i_load_offset(0),
+                            AstType::Float => generator.f_load_offset(0),
+                            AstType::StructType { .. } => generator.a_load_offset(0),
+
+                            _ => panic!("Cannot dereference {self:?}")
+                        }
+                    },
 
                     _ => panic!("Invalid load type! {self:?}")
                 }
             }
+            NullableExpr(t, child) => {
+                child.generate_bytecode(registry, generator, Load);
+
+                // FIXME should here be 1 or size of `t`?
+                generator.create_stack_ptr(1);
+            }
             TypedExpr::IncrementExpr(_, e) => {
-                e.generate_bytecode(generator, Load);
+                e.generate_bytecode(registry, generator, Load);
 
                 generator.i_const(1);
                 generator.add();
 
-                e.generate_bytecode(generator, Store);
+                e.generate_bytecode(registry, generator, Store);
             }
             TypedExpr::DecrementExpr(_, e) => {
-                e.generate_bytecode(generator, Load);
+                e.generate_bytecode(registry, generator, Load);
 
                 generator.i_const(1);
                 generator.sub();
 
-                e.generate_bytecode(generator, Store);
+                e.generate_bytecode(registry, generator, Store);
             }
             TypedExpr::PrefixExpr { operator, expr, .. } => {
                 match operator {
                     SimpleToken::Dash => {
                         generator.i_const(0);
-                        expr.generate_bytecode(generator, Load);
+                        expr.generate_bytecode(registry, generator, Load);
                         generator.sub();
                     },
                     SimpleToken::Tilde => todo!(),
@@ -91,8 +111,8 @@ impl TypedExpr {
                 }
             }
             TypedExpr::BinaryExpr {left, operator, right, .. } => {
-                left.generate_bytecode(generator, Load);
-                right.generate_bytecode(generator, Load);
+                left.generate_bytecode(registry, generator, Load);
+                right.generate_bytecode(registry, generator, Load);
 
                 match operator {
                     SimpleToken::Plus => generator.add(),
@@ -112,19 +132,19 @@ impl TypedExpr {
                 }
             }
             TypedExpr::AssignExpr {assignee, value, .. } => {
-                value.generate_bytecode(generator, Load);
-                assignee.generate_bytecode(generator, Store);
+                value.generate_bytecode(registry, generator, Load);
+                assignee.generate_bytecode(registry, generator, Store);
             }
             TypedExpr::TupleExpr { values, .. } => {
                 for x in values {
-                    x.generate_bytecode(generator, Load);
+                    x.generate_bytecode(registry, generator, Load);
                 }
             }
             TypedExpr::MemberExpr { member, property, .. } => {
-                if let AstType::StructType {fields, children, ..} = member.get_type() {
-                    member.generate_bytecode(generator, Load);
+                if let AstType::StructType {fields, children, ..} = member.get_type().get(registry) {
+                    member.generate_bytecode(registry, generator, Load);
 
-                    property.generate_bytecode(generator, LoadField {
+                    property.generate_bytecode(registry, generator, LoadField {
                          fields, children
                     });
                 } else {
@@ -136,12 +156,12 @@ impl TypedExpr {
 
                 let mut size = 0;
                 for a in args {
-                    a.generate_bytecode(generator, Load);
-                    size += a.get_type().word_size();
+                    a.generate_bytecode(registry, generator, Load);
+                    size += a.get_type().get(registry).word_size(registry);
                 }
 
 
-                match t {
+                match t.get(registry) {
                     AstType::FunctionType {name, .. } => {
                         generator.call(&name);
                     }
@@ -155,9 +175,11 @@ impl TypedExpr {
         }
     }
 
-    pub fn store(&self, generator: &mut BytecodeGen) {
+    pub fn store(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
         match self {
-            TypedExpr::IdentifierExpr(_, name) => generator.i_store(name.clone()),
+            TypedExpr::IdentifierExpr(t, name) => {
+                generator.store_value(registry, name, *t);
+            },
             TypedExpr::IncrementExpr(_, e) => {
                 todo!()
             }
@@ -171,10 +193,10 @@ impl TypedExpr {
                 panic!("Tuples are immutable!");
             }
             TypedExpr::MemberExpr { member, property, .. } => {
-                if let AstType::StructType {fields, ..} = member.get_type() {
-                    member.generate_bytecode(generator, Load);
+                if let AstType::StructType {fields, ..} = member.get_type().get(registry) {
+                    member.generate_bytecode(registry, generator, Load);
 
-                    property.generate_bytecode(generator, StoreField {
+                    property.generate_bytecode(registry, generator, StoreField {
                         fields
                     });
                 } else {
@@ -185,12 +207,12 @@ impl TypedExpr {
         }
     }
 
-    pub fn load_field(&self, fields: Vec<MemberInfo>, children: HashMap<String, MemberInfo>, generator: &mut BytecodeGen) {
+    pub fn load_field(&self,registry: &TypeRegistry ,fields: Vec<MemberInfo>, children: HashMap<String, MemberInfo>, generator: &mut BytecodeGen) {
         match self {
             TypedExpr::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
                     if f.1 == *name {
-                        return match t {
+                        return match t.get(registry) {
                             AstType::Bool |
                             AstType::Int => generator.i_load_offset(f.2),
                             AstType::Float => generator.f_load_offset(f.2),
@@ -212,12 +234,12 @@ impl TypedExpr {
             TypedExpr::CallExpr { func, args, .. } => {
                 let mut size = 0;
                 for a in args {
-                    a.generate_bytecode(generator, Load);
-                    size += a.get_type().word_size();
+                    a.generate_bytecode(registry, generator, Load);
+                    size += a.get_type().get(registry).word_size(registry);
                 }
 
                 let t = func.get_type();
-                match t {
+                match t.get(registry) {
                     AstType::FunctionType {name, .. } => {
                         generator.call(&name);
                     }
@@ -232,12 +254,12 @@ impl TypedExpr {
         }
     }
 
-    pub fn store_field(&self, fields: Vec<MemberInfo>, generator: &mut BytecodeGen) {
+    pub fn store_field(&self,registry: &TypeRegistry ,fields: Vec<MemberInfo>, generator: &mut BytecodeGen) {
         match self {
             TypedExpr::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
                     if f.1 == *name {
-                        return match t {
+                        return match t.get(registry) {
                             AstType::Bool |
                             AstType::Int => generator.i_store_offset(f.2),
                             AstType::Float => generator.f_store_offset(f.2),

@@ -73,7 +73,7 @@ impl Interpreter {
             function_mapping: functions_map,
 
             insn_addr: 0,
-            pointer: 0,
+            pointer: 1, // 0 is nullptr
             stack,
             stack_frames: vec![],
             call_stack: vec![],
@@ -82,10 +82,6 @@ impl Interpreter {
     }
 
     pub fn run_function(&mut self, function: String) -> (Vec<Value>, &Heap) {
-        // for null-ptr
-        self.push(Null);
-
-
         let fun = self.function_mapping.get(&function);
         if fun.is_none() {
             panic!("Trying to call non-existant function {function}!");
@@ -117,7 +113,7 @@ impl Interpreter {
             ByteCode::Comment(_) => {}
             ByteCode::Nop => {}
 
-            ByteCode::Null => self.push(RefValue {ptr: 0, len: 1}),
+            ByteCode::NullPtr => self.push(RefValue {ptr: 0, len: 1}),
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),
@@ -246,6 +242,9 @@ impl Interpreter {
         let top = self.pop();
 
         if let RefValue{ptr, len} = top {
+            if ptr == 0 {
+                panic!("Storing to a null-pointer!");
+            }
             if len < (offset as u32) {
                 panic!("Reference offest is bigger than its length!")
             }
@@ -269,6 +268,9 @@ impl Interpreter {
         let top = self.pop();
 
         if let RefValue{ptr, len} = top {
+            if ptr == 0 {
+                panic!("Loading from a null-pointer!");
+            }
             if len < (offset as u32) {
                 panic!("Reference offest is bigger than its length!")
             }

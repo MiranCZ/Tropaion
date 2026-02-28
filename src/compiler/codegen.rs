@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::ast::ast_type::AstType;
+use crate::ast::expression::Expression;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, Null, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, NullPtr, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -187,7 +190,7 @@ impl BytecodeGen {
     }
 
     pub fn null_const(&mut self) {
-        self.push_insn(Null);
+        self.push_insn(NullPtr);
     }
 
     pub fn i_const(&mut self, c: i32) {
@@ -248,6 +251,16 @@ impl BytecodeGen {
 
     pub fn cmp_le(&mut self) {
         self.push_insn(CmpEqLess);
+    }
+
+    pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) {
+        match value.get(registry) {
+            AstType::Bool | AstType::Int => self.i_store(name.clone()),
+            AstType::Float => self.f_store(name.clone()),
+            AstType::NullableType { .. } => self.a_store(name.clone()),
+            AstType::StructType { .. } => self.a_store(name.clone()),
+            _ => panic!("Not yet supported type {:?}", value.get(registry))
+        };
     }
 
     pub fn i_store(&mut self, name: String) {

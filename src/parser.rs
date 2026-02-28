@@ -6,6 +6,7 @@ pub mod binding_power;
 mod expression_parser;
 mod type_parser;
 
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::{Statement, UntypedStmt};
 use crate::ast::statement::Statement::BlockStmt;
@@ -38,7 +39,7 @@ impl Parser {
         &self.lookup
     }
 
-    pub fn parse(&mut self) -> Result<UntypedStmt, ParserError> {
+    pub fn parse(&mut self, registry: &mut TypeRegistry) -> Result<UntypedStmt, ParserError> {
         let mut body = Vec::new();
 
         loop {
@@ -48,7 +49,7 @@ impl Parser {
                 break;
             }
 
-            body.push(parse_statement(self)?);
+            body.push(parse_statement(registry, self)?);
         }
 
         Ok(BlockStmt{

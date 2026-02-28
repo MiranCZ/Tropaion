@@ -4,6 +4,7 @@ use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
 use std::collections::HashMap;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -20,23 +21,23 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self) -> TypedStmt {
-        self.record_top_level();
-        self.record_consts();
+    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
+        self.record_top_level(registry);
+        self.record_consts(registry);
 
 
-        let resolved_root: TypedStmt = self.root.clone().resolve_type(&mut self.symbol_table);
+        let resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table);
 
         // TODO semantic analysis would probs be nice xd
 
-        let resolved_root = resolved_root.mangle_functions().transform_methods(&self.symbol_table);
+        let resolved_root = resolved_root.mangle_functions(registry).transform_methods(registry, &self.symbol_table);
 
         resolved_root
     }
 
 
     /// record all top-level structs and functions which can be used everywhere
-    fn record_top_level(&mut self) {
+    fn record_top_level(&mut self, registry: &mut TypeRegistry) {
         if let BlockStmt{ body } = &self.root.clone() {
             for x in body {
                 match x {
@@ -46,11 +47,15 @@ impl Analyzer {
                     },
 
                     FunctionStmt {name, params, return_type, .. } => {
-                        self.record_function(FunctionType {
+                        let t = FunctionType {
                             name: name.clone(),
                             params: params.iter().map(|p| p.param_type.clone()).collect(),
-                            return_type: return_type.clone().boxed()
-                        })
+                            return_type: *return_type
+                        };
+
+                        let func_type = registry.register(t);
+
+                        self.record_function(registry, func_type);
                     },
 
                     StructStmt {name, fields, body } => {
@@ -60,7 +65,7 @@ impl Analyzer {
 
                         let mut i = 0;
                         for f in fields {
-                            let info = MemberInfo(f.param_type.clone(), f.name.clone(), i);
+                            let info = MemberInfo(f.param_type, f.name.clone(), i);
                             children.insert(f.name.clone(), info.clone());
 
                             field_infos.push(info);
@@ -74,10 +79,12 @@ impl Analyzer {
                                 FunctionStmt {name, return_type, params, .. } => {
                                     let t = FunctionType {
                                         name: name.clone(),
-                                        return_type: return_type.clone().boxed(),
+                                        return_type: *return_type,
                                         params: params.iter().map(|p| p.clone().param_type).collect()
                                     };
-                                    Self::_record_function(&mut table, t);
+                                    let func_type = registry.register(t);
+
+                                    Self::_record_function(&mut table,registry ,func_type);
                                 },
                                 _ => panic!("invalid statement inside struct {x:?}")
                             }
@@ -93,12 +100,13 @@ impl Analyzer {
                             children.insert(name.clone(), info);
                         }
 
-
-                        self.symbol_table.record(name.clone(), StructType {
+                        let struct_type = registry.register(StructType {
                             name: name.clone(),
                             fields: field_infos,
                             children
-                        })
+                        });
+
+                        self.symbol_table.record(name.clone(), struct_type);
                     },
                     _ => panic!("Invalid statement {x:?}")
                 }
@@ -110,7 +118,7 @@ impl Analyzer {
         panic!("not a block statement? {:?}",self.root)
     }
 
-    fn record_consts(&mut self) {
+    fn record_consts(&mut self, registry: &mut TypeRegistry) {
         if let BlockStmt{ body } = self.root.clone() {
             for x in body {
                 match x {
@@ -119,7 +127,7 @@ impl Analyzer {
                             panic!("Top-level variables must be constant!")
                         }
 
-                        let inferred_type = value.resolve_type(&mut self.symbol_table);
+                        let inferred_type = value.resolve_type(registry, &mut self.symbol_table);
 
                         if let Some(explicit) = explicit_type.clone() {
                             if explicit != inferred_type.get_type() {
@@ -143,23 +151,20 @@ impl Analyzer {
     }
 
 
-    fn record_function(&mut self, func: AstType) {
-        Self::_record_function(&mut self.symbol_table, func)
+    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) {
+        Self::_record_function(&mut self.symbol_table,registry ,func)
     }
 
-    fn _record_function(symbol_table: &mut TypeSymTable, func: AstType) {
-        if let FunctionType {name, ..} = func.clone() {
+    fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) {
+        if let FunctionType {name, ..} = func.get(registry) {
             let t = symbol_table.get(name.clone());
 
             if t.is_none() {
                 let mut overloads = vec![];
                 overloads.push(func);
-                symbol_table.record(name.clone(), FunctionsType {
-                    name,
-                    overloads
-                })
+                symbol_table.record(name.clone(), func);
             } else if let Some(t) = t {
-                if let FunctionsType { mut overloads, ..} = t {
+                if let FunctionsType { mut overloads, ..} = t.get(registry) {
                     overloads.push(func);
                 } else {
                     panic!("Invalid overload {name}")

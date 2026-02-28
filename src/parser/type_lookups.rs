@@ -1,5 +1,6 @@
 pub mod type_lookup;
 
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType::*;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
@@ -10,12 +11,12 @@ use crate::parser::Parser;
 
 impl Token {
     pub fn type_nud(&self, lookup: &TypeLookup) -> Option<TypeNudHandler> {
-        fn handle_symbol(parser: &mut Parser) -> ReturnedType {
+        fn handle_symbol(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
             let token = parser.next()?;
 
             Ok(match token {
                 Identifier(v) => {
-                    if v == "int" {
+                    let ast_type = if v == "int" {
                         Int
                     } else if v == "float" {
                         Float
@@ -23,8 +24,9 @@ impl Token {
                         Bool
                     } else {
                         SymbolType(v.clone())
-                    }
-
+                    };
+                    
+                    registry.register(ast_type)
                 },
 
                 _ => panic!()

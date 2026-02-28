@@ -1,5 +1,6 @@
 pub mod lookup;
 
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression::Expression::*;
 
 use crate::error::parser_error::ParserError;
@@ -12,14 +13,14 @@ use crate::parser::Parser;
 
 impl Token {
     pub fn nud(&self, lookup: &Lookup) -> Option<NudHandler> {
-        fn handle_literal(parser: &mut Parser) -> ReturnedExpression {
+        fn handle_literal(_registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedExpression {
             let token = parser.next()?;
 
             Ok(match token {
                 Identifier(v) => IdentifierExpr((), v.clone()),
-                NumberIntLiteral(v) => IntLiteralExpr(v),
-                NumberFloatLiteral(v) => FloatLiteralExpr(v),
-                StringLiteral(v) => StringLiteralExpr(v.clone()),
+                NumberIntLiteral(v) => IntLiteralExpr((), v),
+                NumberFloatLiteral(v) => FloatLiteralExpr((), v),
+                StringLiteral(v) => StringLiteralExpr((), v.clone()),
 
                 _ => panic!()
             })
