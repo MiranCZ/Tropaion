@@ -84,3 +84,24 @@ pub fn test_loops() {
 
     test_simple_code("main", loop_stmt, 62);
 }
+
+#[test]
+pub fn test_nulls() {
+    let loop_stmt = r#"
+    fn main() -> int {
+        let x: int? = null;
+
+        let y = 5;
+
+        if y > 1 {
+            x = 7;
+        }
+
+        return x+y;
+    }
+    "#;
+
+    test_simple_code("main", loop_stmt, 12);
+}
+
+// TODO test nullptr panics
