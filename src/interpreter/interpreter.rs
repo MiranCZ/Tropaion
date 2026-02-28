@@ -378,6 +378,9 @@ impl Interpreter {
                 if visited.contains(&(*p1, *p2)) {
                     return true;
                 }
+                if *p1 == *p2 {
+                    return true;
+                }
 
                 visited.insert((*p1, *p2));
                 for i in 0..(*l1) {

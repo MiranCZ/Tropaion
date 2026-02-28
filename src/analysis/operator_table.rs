@@ -26,6 +26,15 @@ impl OperatorTable {
     }
 
     pub fn get_op_result(&self,registry: &TypeRegistry ,right: AstType, op: SimpleToken, left: AstType) -> Option<AstType> {
+        if right.equals(&left, registry) {
+            if let Equals = op {
+                return Some(AstType::Bool);
+            }
+            if let NotEquals = op {
+                return Some(AstType::Bool);
+            }
+        }
+
         let right = from_ast_type(right, registry);
         let left = from_ast_type(left, registry);
 
@@ -96,7 +105,7 @@ fn from_ast_type(t: AstType, registry: &TypeRegistry) -> SimpleType {
     if let AstType::NullableType {underlying} = t {
         return from_ast_type(underlying.get(registry), registry)
     }
-    
+
     match t {
         AstType::Bool => Bool,
         AstType::Int => Int,

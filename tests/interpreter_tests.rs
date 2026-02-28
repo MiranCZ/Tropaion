@@ -182,3 +182,65 @@ fn test_recursion() {
 
     test_simple_code("main", code, 13);
 }
+
+#[test]
+fn test_cyclic_equals() {
+    let code = r#"
+    struct A(b: B?, i: int);
+    struct B(a: A);
+
+    fn create_a() -> A {
+        let a = A(null, 5);
+        let b = B(a);
+
+        a.b = b;
+
+        return a;
+    }
+
+
+    fn main() -> int {
+        let a1 = create_a();
+        let a2 = create_a();
+
+        if a1 == a2 {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    "#;
+
+
+    test_simple_code("main", code, 1);
+
+    let code = r#"
+    struct A(b: B?, i: int);
+    struct B(a: A);
+
+    fn create_a() -> A {
+        let a = A(null, 5);
+        let b = B(a);
+
+        a.b = b;
+
+        return a;
+    }
+
+
+    fn main() -> int {
+        let a1 = create_a();
+        let a2 = create_a();
+        a2.i = 6;
+
+        if a1 == a2 {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    "#;
+
+
+    test_simple_code("main", code, 0);
+}
