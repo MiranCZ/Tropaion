@@ -10,7 +10,7 @@ fn test_simple_code(main: &str, code: &str, expected: i32) {
 
     let (stack, heap) = interpret.run_function(main.to_string());
 
-    assert_eq!(stack[0], IntValue(expected));
+    assert_eq!(stack[1], IntValue(expected));
 
 }
 
@@ -24,7 +24,7 @@ fn test_math_expr(expr: &str, expected: i32) {
 
     let (stack, heap) = interpret.run_function("main_".to_string());
 
-    assert_eq!(stack[0], IntValue(expected), "Failed for expression '{} = {}'", expr, expected);
+    assert_eq!(stack[1], IntValue(expected), "Failed for expression '{} = {}'", expr, expected);
 }
 
 #[test]
