@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
@@ -95,6 +95,9 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
+            println!("\tvalues {:?}", &self.stack[0..self.pointer]);
+            println!("{insn:?}");
+
             self.execute(insn);
             self.insn_addr += 1;
         }
@@ -125,8 +128,8 @@ impl Interpreter {
             ByteCode::Div => self.div(),
             ByteCode::Mod => self.rem(),
 
-            ByteCode::CmpEq => {}
-            ByteCode::CmpNotEq => {}
+            ByteCode::CmpEq => self.eq(),
+            ByteCode::CmpNotEq => self.ne(),
             ByteCode::CmpGreater => self.gt(),
             ByteCode::CmpEqGreater => self.ge(),
             ByteCode::CmpLess => self.lt(),
@@ -340,6 +343,59 @@ impl Interpreter {
     cmp_op!(ge, >=);
     cmp_op!(lt, <);
     cmp_op!(le, <=);
+
+    fn eq(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+
+        if self.values_equal(&a, &b, &mut HashSet::new()) {
+            self.push(IntValue(1));
+        } else {
+            self.push(IntValue(0));
+        }
+    }
+
+    fn ne(&mut self) {
+        let b = self.pop();
+        let a = self.pop();
+
+        if !self.values_equal(&a, &b, &mut HashSet::new()) {
+            self.push(IntValue(1));
+        } else {
+            self.push(IntValue(0));
+        }
+    }
+
+    fn values_equal(&mut self, a: &Value, b: &Value, visited: &mut HashSet<(u32, u32)>) -> bool{
+        match (a, b) {
+            (Null, Null) => true,
+            (IntValue(i1), IntValue(i2)) => *i1 == *i2,
+            (FloatValue(f1), FloatValue(f2)) => *f1 == *f2,
+            (RefValue{ptr: p1, len: l1}, RefValue{ptr: p2, len: l2}) => {
+                if *l1 != *l2 {
+                    return false;
+                }
+                if visited.contains(&(*p1, *p2)) {
+                    return true;
+                }
+
+                visited.insert((*p1, *p2));
+                for i in 0..(*l1) {
+                    let v1 = self.load_at_ptr((i + p1) as usize);
+                    let v2 = self.load_at_ptr((i + p2) as usize);
+
+                    if !self.values_equal(&v1, &v2, visited) {
+                        return false;
+                    }
+                }
+
+                true
+            }
+
+
+            _ => false,
+        }
+    }
 
     fn call(&mut self, fn_index: u16) {
         let info = self.functions[fn_index as usize];
