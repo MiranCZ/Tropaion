@@ -158,3 +158,27 @@ fn test_struct_promotion() {
 
     test_simple_code("main", code, 15);
 }
+
+#[test]
+fn test_recursion() {
+    let code = r#"
+    fn fib(n: int) -> int {
+        if n == 0 {
+            return 0;
+        }
+        if n == 1 {
+            return 1;
+        }
+
+        return fib(n-1) + fib(n-2);
+    }
+
+
+    fn main() -> int {
+        return fib(7);
+    }
+    "#;
+
+
+    test_simple_code("main", code, 13);
+}
