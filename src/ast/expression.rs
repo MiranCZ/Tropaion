@@ -206,7 +206,7 @@ impl UntypedExpr {
             CallExpr {func, args, .. } => {
                 let mut resolved_func = func.clone().resolve_type(registry, symbol_table);
 
-                if let FunctionsType {overloads, ..} = resolved_func.get_type().get(registry) {
+                if let FunctionsType {overloads, name, ..} = resolved_func.get_type().get(registry) {
                     let mut resolved_args = vec![];
 
                     for arg in args.clone() {
@@ -224,7 +224,7 @@ impl UntypedExpr {
                             }
 
                             for i in 0..resolved_args.len() {
-                                if params[i] != resolved_args[i].get_type() {
+                                if !params[i].get(registry).equals(&resolved_args[i].get_type().get(registry), registry) {
                                     continue 'overloadLoop;
                                 }
                             }
@@ -239,7 +239,8 @@ impl UntypedExpr {
 
 
                     if let AstType::FunctionType {return_type, ..} = func.get(registry) {
-                        resolved_func.set_type(registry, func.get(registry));
+                        // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
+                        resolved_func.change_type(registry, func.get(registry));
 
                         return CallExpr {
                             t: return_type,
@@ -250,11 +251,25 @@ impl UntypedExpr {
                 }
 
                 // calling constructor of a struct
-                if let AstType::StructType {..} = resolved_func.get_type().get(registry) {
+                if let AstType::StructType {fields, ..} = resolved_func.get_type().get(registry) {
                     let mut resolved_args = vec![];
 
                     for arg in args {
                         resolved_args.push(arg.resolve_type(registry, symbol_table));
+                    }
+
+                    if fields.len() != resolved_args.len() {
+                        panic!("Invalid constructor call");
+                    }
+
+                    for i in 0..fields.len() {
+                        let f = &fields[i].0;
+                        let a = &mut resolved_args[i];
+
+                        if let Some(ass_res) = f.get(registry).get_assign_result(a.get_type().get(registry), registry) {
+                            a.set_type(registry, ass_res);
+                        }
+
                     }
 
                     return CallExpr {
@@ -264,7 +279,7 @@ impl UntypedExpr {
                     };
                 }
 
-                panic!("Calling something else than a function or a struct constructor! {:?} {:?}", func, resolved_func);
+                panic!("Calling something else than a function or a struct constructor! {:?} {:?} {:?} {:#?}", func, resolved_func, symbol_table.symbols, registry);
             }
         }
     }
@@ -352,6 +367,41 @@ impl TypedExpr {
             }
         }
     }
+
+
+    /// does not mutate the original type, but reassigns a new one
+    pub fn change_type(&mut self,registry: &mut TypeRegistry ,typ: AstType) {
+        let new_type = registry.register(typ.clone());
+
+        match self {
+            BoolLiteralExpr(..) => panic!(),
+            FloatLiteralExpr(..) => panic!(),
+            StringLiteralExpr(..) => panic!(),
+            IntLiteralExpr(t, v) => {
+                *self = FloatLiteralExpr(registry.register(Float),*v as f32)
+            },
+            NullLiteralExpr(t) => {
+                if let NullableType {..} = typ {
+                    *t = new_type;
+                } else {
+                    panic!()
+                }
+            }
+            NullableExpr(t, _) |
+            IdentifierExpr(t, _) |
+            IncrementExpr(t, _) |
+            DecrementExpr(t, _) |
+            PrefixExpr {t, .. }|
+            BinaryExpr {t, .. }|
+            AssignExpr {t, .. }|
+            TupleExpr {t, .. }|
+            MemberExpr {t, .. }|
+            CallExpr {t, .. } => {
+                *t = new_type;
+            }
+        }
+    }
+
 }
 
 pub fn bool(b: bool) -> UntypedExpr {

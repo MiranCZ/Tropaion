@@ -44,21 +44,23 @@ pub fn main() {
     "#;
 
     let text = r#"
-    struct A();
+    struct A(b: B?, i: int);
+    struct B(a: A);
 
-    fn main() -> float{
-        let x: float? = null;
+    fn create_a() -> A {
+        let a = A(null, 5);
+        let b = B(a);
 
-        x = 3;
-        let y = 1.0 + x;
+        a.b = b;
 
-        if true {
-            x = 5;
-        } else {
-            x = 7.5;
-        }
+        return a;
+    }
 
-        return y + x;
+
+    fn main() -> int {
+        let a = create_a();
+
+        return a.i;
     }
     "#;
 

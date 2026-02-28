@@ -203,6 +203,7 @@ impl Interpreter {
     }
 
     fn pop_stack_frame(&mut self) {
+
         let frame = self.stack_frames.pop();
 
         if let Some(value) = frame {
@@ -251,7 +252,7 @@ impl Interpreter {
 
             let absolute_index = (ptr as usize) + (offset as usize);
 
-            let prev = self.stack[absolute_index];
+            let prev = self.load_at_ptr(absolute_index);
 
 
             let new = self.pop();
@@ -260,7 +261,7 @@ impl Interpreter {
                 panic!("Invalid STORE_OFFSET expected: {typ:?} previous: {prev:?} new: {new:?}");
             }
 
-            self.stack[absolute_index] = new;
+            self.store_at_ptr(absolute_index, new);
         }
     }
 
@@ -277,7 +278,7 @@ impl Interpreter {
 
             let absolute_index = (ptr as usize) + (offset as usize);
 
-            let value = self.stack[absolute_index];
+            let value = self.load_at_ptr(absolute_index);
 
             if !typ.assignable(&value) {
                 panic!("Invalid LOAD_OFFSET {typ:?} {value:?}")
@@ -289,6 +290,23 @@ impl Interpreter {
         }
 
     }
+
+    fn load_at_ptr(&mut self, ptr: usize) -> Value{
+        if ptr < STACK_SIZE {
+            self.stack[ptr]
+        } else {
+            self.heap.load(ptr as u32, 0)
+        }
+    }
+
+    fn store_at_ptr(&mut self, ptr: usize, value: Value) {
+        if ptr < STACK_SIZE {
+            self.stack[ptr] = value;
+        } else {
+            self.heap.store(ptr as u32, 0, value);
+        }
+    }
+
 
     fn create_stack_ptr(&mut self, size: u32) {
         let ptr = (self.pointer as u32) - (size);
@@ -360,12 +378,16 @@ impl Interpreter {
 
         let mut values = Vec::with_capacity(size);
 
-
+        let mut promoted = HashMap::new();
         for v in self.stack[(self.pointer-size)..self.pointer].iter() {
             let mut v = *v;
 
             if let RefValue {ptr, len} = v && ptr > new_ptr {
-                v = Self::promote_ref(ptr, len, new_ptr, &mut self.heap, &self.stack);
+                if let Some(promoted_ptr) = promoted.get(&ptr) {
+                    v = RefValue {ptr: *promoted_ptr, len};
+                } else {
+                    v = Self::promote_ref(ptr, len, new_ptr, &mut self.heap, &self.stack, &mut promoted);
+                }
             }
 
             values.push(v);
@@ -387,8 +409,19 @@ impl Interpreter {
 
     }
 
-    fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>) -> Value {
+    fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Value {
         let mut values = Vec::with_capacity(len as usize);
+
+        println!("Promoting {ptr} {promoted:?}");
+
+        if let Some(p) = promoted.get(&ptr) {
+            return RefValue {ptr: *p, len};
+        }
+
+        let promoted_ptr = heap.alloc(len);
+
+        promoted.insert(ptr, promoted_ptr);
+
 
         for i in ptr..(ptr + len) {
             let i = i as usize;
@@ -396,19 +429,17 @@ impl Interpreter {
             let mut v = stack[i];
 
             if let RefValue {ptr, len} = v && ptr > new_ptr {
-                v = Self::promote_ref(ptr, len, new_ptr, heap, stack);
+                v = Self::promote_ref(ptr, len, new_ptr, heap, stack, promoted);
             }
 
             values.push(v);
         }
 
-        let ptr = heap.alloc(len);
-
         for i in 0..len {
-            heap.store(ptr, i, values[i as usize]);
+            heap.store(promoted_ptr, i, values[i as usize]);
         }
 
-        RefValue { ptr, len }
+        RefValue { ptr: promoted_ptr, len }
     }
 
     fn if_eq(&mut self, offset: i32) {

@@ -88,6 +88,9 @@ impl AstType {
                 true
             }
 
+            // TODO comparing names should be fine?
+            (StructType {name: n1, ..}, StructType {name: n2, ..}) => *n1 == *n2,
+
 
 
             _ => false
@@ -157,6 +160,11 @@ impl AstType {
                 underlying.resolve_type(registry, symbol_table);
 
                 ReferenceType {underlying}
+            }
+            NullableType {underlying} => {
+                underlying.resolve_type(registry, symbol_table);
+
+                NullableType {underlying}
             }
             ArrayType {underlying, count } => {
                 underlying.resolve_type(registry, symbol_table);

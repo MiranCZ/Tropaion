@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::analysis::type_registry::TypeRegistry;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::{call, member, TypedExpr};
 use crate::ast::expression::Expression::NullableExpr;
@@ -160,16 +160,22 @@ impl TypedExpr {
                     size += a.get_type().get(registry).word_size(registry);
                 }
 
-
-                match t.get(registry) {
-                    AstType::FunctionType {name, .. } => {
-                        generator.call(&name);
+                fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, size: u32,typ: TypeEntry) {
+                    match typ.get(registry) {
+                        AstType::FunctionType { name, .. } => {
+                            generator.call(&name);
+                        }
+                        AstType::StructType { name, fields, .. } => {
+                            generator.create_stack_ptr(size);
+                        },
+                        AstType::NullableType { underlying } => {
+                            call(registry, generator, size, underlying);
+                        }
+                        _ => panic!("Cannot call {typ:?}")
                     }
-                    AstType::StructType {name, fields, ..} => {
-                        generator.create_stack_ptr(size);
-                    }
-                    _ => panic!("Cannot call {t:?}")
                 }
+
+                call(registry, generator, size, t);
             },
             _ => panic!("Invalid LOAD for {self:?}")
         }
@@ -264,6 +270,9 @@ impl TypedExpr {
                             AstType::Int => generator.i_store_offset(f.2),
                             AstType::Float => generator.f_store_offset(f.2),
                             AstType::StructType { .. } => generator.a_store_offset(f.2),
+                            AstType::NullableType {..} => {
+                                generator.a_store_offset(f.2)
+                            }
 
                             _ => panic!("Cannot STORE_FIELD for {self:?}")
                         };

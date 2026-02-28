@@ -10,8 +10,9 @@ fn test_simple_code(main: &str, code: &str, expected: i32) {
 
     let (stack, heap) = interpret.run_function(main.to_string());
 
-    assert_eq!(stack[1], IntValue(expected));
 
+    assert_eq!(stack.len(), 2); // nullptr, value
+    assert_eq!(stack[1], IntValue(expected));
 }
 
 fn test_math_expr(expr: &str, expected: i32) {
@@ -24,6 +25,7 @@ fn test_math_expr(expr: &str, expected: i32) {
 
     let (stack, heap) = interpret.run_function("main_".to_string());
 
+    assert_eq!(stack.len(), 2); // nullptr, value
     assert_eq!(stack[1], IntValue(expected), "Failed for expression '{} = {}'", expr, expected);
 }
 
@@ -86,6 +88,29 @@ pub fn test_loops() {
 }
 
 #[test]
+pub fn test_overloads() {
+    let loop_stmt = r#"
+    fn other(i: int) -> int{
+        return i;
+    }
+
+    fn other(i: float) -> float {
+        return i;
+    }
+
+
+    fn main() -> int {
+        let x = 1 + other(2);
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", loop_stmt, 3);
+}
+
+
+#[test]
 pub fn test_nulls() {
     let loop_stmt = r#"
     fn main() -> int {
@@ -105,3 +130,31 @@ pub fn test_nulls() {
 }
 
 // TODO test nullptr panics
+
+
+#[test]
+fn test_struct_promotion() {
+    let code = r#"
+    struct A(b: B?, i: int);
+    struct B(a: A);
+
+    fn create_a() -> A {
+        let a = A(null, 5);
+        let b = B(a);
+
+        a.b = b;
+
+        return a;
+    }
+
+
+    fn main() -> int {
+        let a = create_a();
+
+        return a.i + 10;
+    }
+    "#;
+
+
+    test_simple_code("main", code, 15);
+}

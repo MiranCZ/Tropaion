@@ -162,12 +162,14 @@ impl Analyzer {
             if t.is_none() {
                 let mut overloads = vec![];
                 overloads.push(func);
-                symbol_table.record(name.clone(), func);
+                symbol_table.record(name.clone(), registry.register(FunctionsType {
+                    name, overloads
+                }));
             } else if let Some(t) = t {
                 if let FunctionsType { mut overloads, ..} = t.get(registry) {
                     overloads.push(func);
                 } else {
-                    panic!("Invalid overload {name}")
+                    panic!("Invalid overload {name} {:?}", t.get(registry))
                 }
             }
         } else {

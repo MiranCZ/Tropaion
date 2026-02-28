@@ -8,7 +8,7 @@ pub type TypeSymTable = SymbolTable<TypeEntry, bool>;
 #[derive(Debug)]
 pub struct SymbolTable<T: Clone, E: Clone> {
     pub op_table: OperatorTable,
-    symbols: Vec<HashMap<String, (T, Option<E>)>>
+    pub symbols: Vec<HashMap<String, (T, Option<E>)>>
 }
 
 impl <T: Clone, E: Clone> SymbolTable<T, E> {
