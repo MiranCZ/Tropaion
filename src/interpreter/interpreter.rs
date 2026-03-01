@@ -281,9 +281,10 @@ impl Interpreter {
         let top = self.pop();
 
         if let RefValue{ptr, len} = top {
-            if ptr == 0 {
-                panic!("Loading from a null-pointer!");
-            }
+            // this is not a panic since LOADING a nullptr is valid for stuff like null-checks
+            // if ptr == 0 {
+            //     panic!("Loading from a null-pointer!");
+            // }
             if len < (offset as u32) {
                 panic!("Reference offest is bigger than its length!")
             }
@@ -303,7 +304,7 @@ impl Interpreter {
 
     }
 
-    fn load_at_ptr(&mut self, ptr: usize) -> Value{
+    fn load_at_ptr(&self, ptr: usize) -> Value{
         if ptr < STACK_SIZE {
             self.stack[ptr]
         } else {
@@ -389,19 +390,19 @@ impl Interpreter {
     }
 
     fn values_equal(&mut self, a: &Value, b: &Value, visited: &mut HashSet<(u32, u32)>) -> bool{
-        match (a, b) {
+        let value = match (a, b) {
             (Null, Null) => true,
             (IntValue(i1), IntValue(i2)) => *i1 == *i2,
             (FloatValue(f1), FloatValue(f2)) => *f1 == *f2,
-            (RefValue{ptr: p1, len: l1}, RefValue{ptr: p2, len: l2}) => {
+            (RefValue{ptr: p1, len: l1}, RefValue{ptr: p2, len: l2}) => 'block: {
                 if *l1 != *l2 {
-                    return false;
+                    break 'block false;
                 }
                 if visited.contains(&(*p1, *p2)) {
-                    return true;
+                    break 'block true;
                 }
                 if *p1 == *p2 {
-                    return true;
+                    break 'block true;
                 }
 
                 visited.insert((*p1, *p2));
@@ -410,15 +411,58 @@ impl Interpreter {
                     let v2 = self.load_at_ptr((i + p2) as usize);
 
                     if !self.values_equal(&v1, &v2, visited) {
-                        return false;
+                        break 'block false;
                     }
                 }
 
                 true
             }
 
-
             _ => false,
+        };
+
+        if value {
+            return true;
+        }
+
+        // deref of nulls etc
+        match (a, b) {
+            (RefValue {len, ..}, _) if *len == 1=> {
+                if let Some(deref) = self.try_deref(*a, &mut HashSet::new()) {
+                    self.values_equal(&deref, b, visited)
+                } else {
+                    false
+                }
+            }
+            (_, RefValue {len, ..}) if *len == 1 => {
+                if let Some(deref) = self.try_deref(*b, &mut HashSet::new()) {
+                    self.values_equal(a, &deref, visited)
+                } else {
+                    false
+                }
+            }
+
+            _ => false
+        }
+    }
+
+    fn try_deref(&self, value: Value, visited: &mut HashSet<u32>) -> Option<Value> {
+        if let RefValue {ptr, len} = value {
+            if len != 1 {
+                return Some(value);
+            }
+
+            if visited.contains(&ptr) {
+                return None;
+            }
+
+            visited.insert(ptr);
+
+            let at_ptr = self.load_at_ptr(ptr as usize);
+
+            self.try_deref(at_ptr, visited)
+        } else {
+            Some(value)
         }
     }
 

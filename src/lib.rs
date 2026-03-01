@@ -44,23 +44,18 @@ pub fn main() {
     "#;
 
     let text = r#"
-    struct A(b: B?, i: int);
-    struct B(a: A);
-
-    fn create_a() -> A {
-        let a = A(null, 5);
-        let b = B(a);
-
-        a.b = b;
-
-        return a;
-    }
-
+    struct Point(x: int, y: int);
 
     fn main() -> int {
-        let a = create_a();
+        let p3 = Point(1, 2);
 
-        return a.i;
+        let p4: Point? = Point(1, 2);
+
+        if p3 != p4 {
+            return 4;
+        }
+
+        return 0;
     }
     "#;
 

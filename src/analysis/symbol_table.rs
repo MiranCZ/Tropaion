@@ -41,6 +41,14 @@ impl <T: Clone, E: Clone> SymbolTable<T, E> {
         false
     }
 
+    pub fn contains_in_current(&self, symbol: &String) -> bool {
+        if let Some(last) = self.last() {
+            return last.contains_key(symbol);
+        }
+
+        panic!("Symbol table is empty!")
+    }
+
     pub fn get_with_info(&self, symbol: String) -> Option<(T, Option<E>)> {
         let mut t = None;
 

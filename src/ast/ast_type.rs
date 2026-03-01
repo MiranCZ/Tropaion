@@ -55,7 +55,16 @@ impl AstType {
 
 impl AstType {
 
+
     pub fn equals(&self, other: &Self, registry: &TypeRegistry) -> bool {
+        self._equals(other, registry, false)
+    }
+
+    pub fn loose_equals(&self, other: &Self, registry: &TypeRegistry) -> bool {
+        self._equals(other, registry, true)
+    }
+
+    pub fn _equals(&self, other: &Self, registry: &TypeRegistry, loose: bool) -> bool {
         match (self, other) {
             (AstType::UnknownType, AstType::UnknownType) => true,
             (AstType::Void, AstType::Void) => true,
@@ -66,10 +75,10 @@ impl AstType {
             (AstType::SymbolType(s1), AstType::SymbolType(s2)) => *s1 == *s2,
             (ReferenceType {underlying: u1}, ReferenceType {underlying: u2}) |
             (NullableType {underlying: u1}, NullableType {underlying: u2}) => {
-                u1.get(registry).equals(&u2.get(registry), registry)
+                u1.get(registry)._equals(&u2.get(registry), registry, loose)
             }
             (ArrayType {underlying: u1, count: c1}, ArrayType {underlying: u2, count: c2}) => {
-                *c1 == *c2 && u1.get(registry).equals(&u2.get(registry), registry)
+                *c1 == *c2 && u1.get(registry)._equals(&u2.get(registry), registry, loose)
             }
             (TupleType(arr1), TupleType(arr2)) => {
                 if arr1.len() != arr2.len() {
@@ -80,7 +89,7 @@ impl AstType {
                     let a = arr1[i];
                     let b = arr2[i];
 
-                    if !a.get(registry).equals(&b.get(registry), registry) {
+                    if !a.get(registry)._equals(&b.get(registry), registry, loose) {
                         return false;
                     }
                 }
@@ -91,10 +100,13 @@ impl AstType {
             // TODO comparing names should be fine?
             (StructType {name: n1, ..}, StructType {name: n2, ..}) => *n1 == *n2,
 
+            (NullableType {underlying}, _) if loose => underlying.get(registry)._equals(other, registry, loose),
+            (_, NullableType {underlying}) if loose => other._equals(&underlying.get(registry), registry, loose),
 
-
-            _ => false
+             _ => false
         }
+
+
     }
 
 }

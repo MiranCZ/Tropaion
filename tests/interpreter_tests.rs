@@ -375,3 +375,100 @@ fn test_bool_ops() {
 
     test_simple_code("main", code, 65);
 }
+
+
+#[test]
+fn test_shadowing() {
+    let code = r#"
+    fn main() -> int {
+        let x = 10;
+
+        if true {
+            let x = 50;
+            x += 1;
+        }
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 10);
+}
+
+#[test]
+fn test_return() {
+    let code = r#"
+    fn main() -> int {
+        let i = 0;
+        while i < 100 {
+            if i == 5 {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
+    "#;
+
+    test_simple_code("main", code, 5);
+}
+
+#[test]
+fn test_null_comparison() {
+    let code = r#"
+    struct Point(x: int, y: int);
+
+    fn main() -> int {
+        let p: Point? = null;
+        let p2: Point? = null;
+
+        if p != p2 {
+            return 1;
+        }
+
+        let p3 = Point(1, 2);
+
+        if p == p3 {
+            return 2;
+        }
+        if p3 == p {
+            return 3;
+        }
+
+        let p4: Point? = Point(1, 2);
+
+        if p3 != p4 {
+            return 4;
+        }
+
+        return 0;
+    }
+    "#;
+
+    test_simple_code("main", code, 0);
+}
+
+#[test]
+fn test_method_call() {
+    let code = r#"
+    struct T(a: int) {
+        fn get() -> int {
+            return a * 2;
+        }
+
+        fn sum() -> int {
+            return get() + get();
+        }
+
+    }
+
+    fn main() -> int {
+        let t = T(5);
+
+        return t.sum();
+    }
+    "#;
+
+
+    test_simple_code("main", code, 20);
+}

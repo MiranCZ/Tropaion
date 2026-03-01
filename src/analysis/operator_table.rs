@@ -26,7 +26,7 @@ impl OperatorTable {
     }
 
     pub fn get_op_result(&self,registry: &TypeRegistry ,right: AstType, op: SimpleToken, left: AstType) -> Option<AstType> {
-        if right.equals(&left, registry) {
+        if right.loose_equals(&left, registry) {
             if let Equals = op {
                 return Some(AstType::Bool);
             }
@@ -34,6 +34,7 @@ impl OperatorTable {
                 return Some(AstType::Bool);
             }
         }
+        println!("Evaluating {op:?}\n{right:?}\n{left:?}");
 
         let right = from_ast_type(right, registry);
         let left = from_ast_type(left, registry);

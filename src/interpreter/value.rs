@@ -47,7 +47,8 @@ impl ValueType {
             (ValueType::Null, Value::Null) |
             (Int, IntValue(_)) |
             (Float, FloatValue(_)) |
-            (Address, RefValue{..}) => true,
+            (Address, RefValue{..}) |
+            (Address, Value::Null) => true,
 
             _ => false
         }

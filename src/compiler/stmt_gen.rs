@@ -24,7 +24,7 @@ impl TypedStmt {
             TypedStmt::VarDeclarationStmt {name, value, .. } => {
                 value.generate_bytecode(registry, generator, Load);
 
-                generator.store_value(registry, name, value.get_type());
+                generator.store_new_var(name.clone(), registry, value.get_type());
             }
             TypedStmt::IfStmt { condition, body, else_branch } => {
                 condition.generate_bytecode(registry, generator, Load);
@@ -71,13 +71,8 @@ impl TypedStmt {
 
                 for param in params {
                     let name = param.name.clone();
-                    match param.param_type.get(registry) {
-                        AstType::Bool => generator.i_store(name),
-                        AstType::Int => generator.i_store(name),
-                        AstType::Float => generator.f_store(name),
-                        AstType::StructType {..} => generator.a_store(name),
-                        _ => panic!("Unsupported parameter type! {:?}",param.param_type)
-                    }
+
+                    generator.store_new_var(name, registry, param.param_type);
                 }
 
                 for b in body {

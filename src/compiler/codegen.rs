@@ -317,9 +317,29 @@ impl BytecodeGen {
             let ind = self.symbol_table.get(name).unwrap();
 
             self.push_insn(create_store(ind));
+        } else {
+            panic!("Variable with the name {name} not created")
+        }
+    }
+    
+    pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) {
+        match value.get(registry) {
+            AstType::Bool | AstType::Int => self.store_new(name, |i| IStore(i)),
+            AstType::Float => self.store_new(name, |i| FStore(i)),
+            AstType::NullableType { .. } => self.store_new(name, |i| AStore(i)),
+            AstType::StructType { .. } => self.store_new(name, |i| AStore(i)),
+            _ => panic!("Not yet supported type {:?}", value.get(registry))
+        };
+    }
+    
+    fn store_new(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
+        if self.symbol_table.contains_in_current(&name) {
+            let ind = self.symbol_table.get(name).unwrap();
+
+            self.push_insn(create_store(ind));
             return;
         }
-
+        
         self.push_insn(create_store(self.scope_local_count));
         let ind = self.scope_local_count;
 

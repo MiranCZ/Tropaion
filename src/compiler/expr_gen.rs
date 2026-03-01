@@ -62,15 +62,16 @@ impl TypedExpr {
                     AstType::StructType { .. } => generator.a_load(name.clone()),
                     AstType::NullableType {underlying: t} => {
                         generator.a_load(name.clone());
+                        // FIXME need to deref the value in arithmetic I guess?
 
-                        match t.get(registry) {
-                            AstType::Bool |
-                            AstType::Int => generator.i_load_offset(0),
-                            AstType::Float => generator.f_load_offset(0),
-                            AstType::StructType { .. } => generator.a_load_offset(0),
-
-                            _ => panic!("Cannot dereference {self:?}")
-                        }
+                        // match t.get(registry) {
+                        //     AstType::Bool |
+                        //     AstType::Int => generator.i_load_offset(0),
+                        //     AstType::Float => generator.f_load_offset(0),
+                        //     AstType::StructType { .. } => generator.a_load_offset(0),
+                        //
+                        //     _ => panic!("Cannot dereference {self:?}")
+                        // }
                     },
 
                     _ => panic!("Invalid load type! {self:?}")
