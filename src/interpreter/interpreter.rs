@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
 use crate::interpreter::heap::Heap;
@@ -119,6 +119,10 @@ impl Interpreter {
             ByteCode::FConst(f) => self.push_float(f),
             ByteCode::Pop => {self.pop();},
             ByteCode::Dup => self.dup(),
+
+            ByteCode::Or => self.bitor(),
+            ByteCode::And => self.bitand(),
+
             ByteCode::Add => self.add(),
             ByteCode::Sub => self.sub(),
             ByteCode::Mul => self.mul(),
@@ -329,6 +333,9 @@ impl Interpreter {
 
         self.push(last)
     }
+
+    math_op!(bitor);
+    math_op!(bitand);
 
     math_op!(add);
     math_op!(sub);

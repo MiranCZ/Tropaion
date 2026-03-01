@@ -12,6 +12,9 @@ pub enum ByteCode {
     Pop,
     Dup,
 
+    Or,
+    And,
+    
     Add,
     Sub,
     Mul,

@@ -306,3 +306,59 @@ fn test_cyclic_equals() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_bool_ops() {
+    let code = r#"
+    struct Holder(x: int);
+
+    fn a(h: Holder) -> bool {
+        h.x += 1;
+
+        return false;
+    }
+
+    fn b(h: Holder) -> bool {
+        h.x += 7;
+
+        return true;
+    }
+
+    fn c(h: Holder) -> bool {
+        h.x += 23;
+
+        return true;
+    }
+
+
+    fn main() -> int {
+        let h = Holder(0);
+
+        let y = 0;
+        if a(h) {
+           y += 3;
+        }
+        // x: 1; y: 0
+
+        if b(h) || a(h) {
+            y += 5;
+        }
+        // x: 8; y: 5
+
+        if a(h) && b(h) {
+            y += 10;
+        }
+        // x: 9; y: 5
+
+        if b(h) && (a(h) || c(h)) {
+            y += 20;
+        }
+        // x: 40; y: 25
+
+        return h.x + y;
+    }
+    "#;
+
+
+    test_simple_code("main", code, 65);
+}

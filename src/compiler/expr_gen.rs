@@ -111,6 +111,33 @@ impl TypedExpr {
                 }
             }
             TypedExpr::BinaryExpr {left, operator, right, .. } => {
+                match operator {
+                    SimpleToken::BoolOr => {
+                        left.generate_bytecode(registry, generator, Load);
+                        generator.dup();
+                        generator.new_skippable_scope_ne();
+                        right.generate_bytecode(registry, generator, Load);
+
+                        generator.or();
+                        generator.end_scope();
+
+                        return;
+                    }
+                    SimpleToken::BoolAnd => {
+                        left.generate_bytecode(registry, generator, Load);
+                        generator.dup();
+                        generator.new_skippable_scope_eq();
+                        right.generate_bytecode(registry, generator, Load);
+
+                        generator.and();
+                        generator.end_scope();
+
+                        return;
+                    }
+
+                    _ => {}
+                }
+
                 left.generate_bytecode(registry, generator, Load);
                 right.generate_bytecode(registry, generator, Load);
 
@@ -127,7 +154,7 @@ impl TypedExpr {
                     SimpleToken::GreaterEquals => generator.cmp_ge(),
                     SimpleToken::Less => generator.cmp_lt(),
                     SimpleToken::LessEquals => generator.cmp_le(),
-                    
+
                     _ => panic!("Invalid operator {:?}", operator)
                 }
             }

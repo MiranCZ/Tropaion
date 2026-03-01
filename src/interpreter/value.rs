@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
 use crate::interpreter::value::Value::*;
 use crate::interpreter::value::ValueType::*;
 
@@ -81,6 +81,29 @@ impl_math_op!(Mul, mul);
 impl_math_op!(Div, div);
 impl_math_op!(Rem, rem);
 
+impl BitOr for Value {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(v | rhs.try_as_int()),
+
+            _ => panic!("Invalid BitOr for {self:?} {rhs:?}")
+        }
+    }
+}
+
+impl BitAnd for Value {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(v & rhs.try_as_int()),
+
+            _ => panic!("Invalid BitAnd for {self:?} {rhs:?}")
+        }
+    }
+}
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

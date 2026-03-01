@@ -28,7 +28,7 @@ impl TypedStmt {
             }
             TypedStmt::IfStmt { condition, body, else_branch } => {
                 condition.generate_bytecode(registry, generator, Load);
-                generator.new_skippable_scope();
+                generator.new_skippable_scope_eq();
 
                 for b in body {
                     b.gen_bytecode(registry, generator);
@@ -53,7 +53,7 @@ impl TypedStmt {
             TypedStmt::WhileStmt { condition, body } => {
                 condition.generate_bytecode(registry, generator, Load);
 
-                generator.new_skippable_scope();
+                generator.new_skippable_scope_eq();
 
                 for b in body {
                     b.gen_bytecode(registry, generator);

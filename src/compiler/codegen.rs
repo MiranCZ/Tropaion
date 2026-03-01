@@ -4,7 +4,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, Mod, Mul, Nop, NullPtr, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, And, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -72,12 +72,20 @@ impl BytecodeGen {
         self.symbol_table.push();
     }
 
-    pub fn new_skippable_scope(&mut self) {
+    pub fn new_skippable_scope_eq(&mut self) {
         self.scopes.push(ScopeInfo::skippable(self));
         self.symbol_table.push();
 
         // the zero is a placeholder
         self.push_insn(IfEq(0));
+    }
+
+    pub fn new_skippable_scope_ne(&mut self) {
+        self.scopes.push(ScopeInfo::skippable(self));
+        self.symbol_table.push();
+
+        // the zero is a placeholder
+        self.push_insn(IfNe(0));
     }
 
     pub fn push_scope_exit_insn(&mut self) {
@@ -111,7 +119,12 @@ impl BytecodeGen {
 
         let ind = scope.start_index;
 
-        self.instructions[ind as usize] = IfEq(end_offset);
+        match self.instructions[ind as usize] {
+            IfEq(_) => self.instructions[ind as usize] = IfEq(end_offset),
+            IfNe(_) => self.instructions[ind as usize] = IfNe(end_offset),
+            
+            _ => panic!("Expected comparison placeholder, got {:?}", self.instructions[ind as usize])
+        }
     }
 
     pub fn get_scope_start_offset(&self) -> i32 {
@@ -207,6 +220,14 @@ impl BytecodeGen {
 
     pub fn dup(&mut self) {
         self.push_insn(Dup);
+    }
+    
+    pub fn or(&mut self) {
+        self.push_insn(Or);
+    }
+    
+    pub fn and(&mut self) {
+        self.push_insn(And);
     }
 
     pub fn add(&mut self) {
