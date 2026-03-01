@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
+use crate::ast::ast_type::AstType::NullableType;
 use crate::ast::expression::{call, member, TypedExpr};
 use crate::ast::expression::Expression::NullableExpr;
 use crate::compiler::codegen::BytecodeGen;
@@ -77,6 +78,15 @@ impl TypedExpr {
             }
             NullableExpr(t, child) => {
                 child.generate_bytecode(registry, generator, Load);
+
+                let typ;
+                if let NullableType{underlying} = t.get(registry) {
+                    typ = underlying;
+                } else {
+                    panic!("Expected Nullable, got {:?}",t)
+                }
+
+                generator.store_internal_value(registry, typ);
 
                 // FIXME should here be 1 or size of `t`?
                 generator.create_stack_ptr(1);
@@ -181,28 +191,41 @@ impl TypedExpr {
             TypedExpr::CallExpr {func, args, .. } => {
                 let t = func.get_type();
 
-                let mut size = 0;
-                for a in args {
-                    a.generate_bytecode(registry, generator, Load);
-                    size += a.get_type().get(registry).word_size(registry);
-                }
 
-                fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, size: u32,typ: TypeEntry) {
+
+                fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, args: &Vec<TypedExpr>,typ: TypeEntry) {
                     match typ.get(registry) {
                         AstType::FunctionType { name, .. } => {
+                            let mut size = 0;
+                            for a in args {
+                                a.generate_bytecode(registry, generator, Load);
+                                size += a.get_type().get(registry).word_size(registry);
+                            }
                             generator.call(&name);
                         }
-                        AstType::StructType { name, fields, .. } => {
-                            generator.create_stack_ptr(size);
+
+                        AstType::StructType {.. } => {
+                            let mut size = 0;
+                            for a in args {
+                                a.generate_bytecode(registry, generator, Load);
+
+                                generator.store_internal_value(registry, a.get_type());
+                                size += a.get_type().get(registry).word_size(registry);
+                            }
+                            if size > (u16::MAX as u32) {
+                                panic!("Struct size too big to flatten!")
+                            }
+
+                            generator.create_stack_ptr(size as u16);
                         },
                         AstType::NullableType { underlying } => {
-                            call(registry, generator, size, underlying);
+                            call(registry, generator, args, underlying);
                         }
                         _ => panic!("Cannot call {typ:?}")
                     }
                 }
 
-                call(registry, generator, size, t);
+                call(registry, generator, args, t);
             },
             _ => panic!("Invalid LOAD for {self:?}")
         }
@@ -277,7 +300,11 @@ impl TypedExpr {
                         generator.call(&name);
                     }
                     AstType::StructType {..} => {
-                        generator.create_stack_ptr(size);
+                        if size > (u16::MAX as u32) {
+                            panic!("Struct size too big to flatten!")
+                        }
+
+                        generator.create_stack_ptr(size as u16);
                     }
                     _ => panic!("Cannot call {t:?}")
                 }

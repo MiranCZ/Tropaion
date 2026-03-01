@@ -48,6 +48,7 @@ pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
     scopes: Vec<ScopeInfo>,
     local_count: u16,
+    scope_local_count: u16,
     symbol_table: SymbolTable<u16, ()>,
     pub functions: HashMap<String, FunctionInfo>,
     func_count: u16
@@ -60,6 +61,7 @@ impl BytecodeGen {
             instructions: vec![],
             scopes: vec![],
             local_count: 0,
+            scope_local_count: 0,
             symbol_table: SymbolTable::new(),
             functions: HashMap::new(),
             func_count: 0
@@ -108,7 +110,7 @@ impl BytecodeGen {
             self.instructions[i as usize] = Goto(end_offset);
         }
 
-        self.local_count = scope.local_count;
+        self.scope_local_count = scope.local_count;
 
         self.symbol_table.pop();
         if !scope.skippable {
@@ -161,13 +163,15 @@ impl BytecodeGen {
 
         let scope = self.scopes.last().unwrap();
 
-        let frame_ind = scope.start_index ;
+        let frame_ind = scope.start_index;
 
         let local_count = self.local_count - scope.local_count;
 
         self.instructions[frame_ind as usize] = StackFrame(local_count);
 
         self.end_scope();
+
+        self.local_count = self.scope_local_count;
     }
 
     pub fn register_func(&mut self, name: String, params_len: u32) {
@@ -316,16 +320,37 @@ impl BytecodeGen {
             return;
         }
 
-        self.push_insn(create_store(self.local_count));
+        self.push_insn(create_store(self.scope_local_count));
+        let ind = self.scope_local_count;
 
         self.local_count += 1;
+        self.scope_local_count += 1;
 
-        let ind = self.local_count - 1;
         self.symbol_table.record(name, ind);
     }
 
-    pub fn create_stack_ptr(&mut self, consume_words: u32) {
-        self.push_insn(CreateStackPtr {consume_words});
+    pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) {
+        match value.get(registry) {
+            AstType::Bool | AstType::Int => self.store_internal(|i| IStore(i)),
+            AstType::Float => self.store_internal(|i| FStore(i)),
+            AstType::NullableType { .. } => self.store_internal(|i| AStore(i)),
+            AstType::StructType { .. } => self.store_internal(|i| AStore(i)),
+            _ => panic!("Not yet supported type {:?}", value.get(registry))
+        };
+    }
+
+    fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {
+        self.push_insn(create_store(self.scope_local_count));
+
+        self.local_count += 1;
+        self.scope_local_count += 1;
+    }
+
+
+    pub fn create_stack_ptr(&mut self, consume_words: u16) {
+        let offset = self.local_count - consume_words;
+
+        self.push_insn(CreateStackPtr {offset, consume_words});
     }
 
     pub fn i_load(&mut self, name: String) {

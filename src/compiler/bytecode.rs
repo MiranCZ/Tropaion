@@ -37,7 +37,8 @@ pub enum ByteCode {
     ALoad(u16),
 
     CreateStackPtr{
-        consume_words: u32
+        offset: u16,
+        consume_words: u16
     },
 
     // loads from address on top of the stack + offset

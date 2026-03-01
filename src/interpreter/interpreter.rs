@@ -39,6 +39,11 @@ macro_rules! cmp_op {
 
 const STACK_SIZE: usize = 1_000_000;
 
+struct StackFrame {
+    start: usize,
+    len: usize
+}
+
 pub struct Interpreter {
     instructions: Vec<ByteCode>,
     functions: Vec<FunctionInfo>,
@@ -47,7 +52,7 @@ pub struct Interpreter {
     insn_addr: usize,
     pointer: usize,
     stack: Vec<Value>,
-    stack_frames: Vec<usize>,
+    stack_frames: Vec<StackFrame>,
     call_stack: Vec<usize>,
     heap: Heap
 }
@@ -94,6 +99,9 @@ impl Interpreter {
 
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
+
+            println!("values {:?}", &self.stack[0..self.pointer]);
+            println!("\t{insn:?}\n");
 
             self.execute(insn);
             self.insn_addr += 1;
@@ -144,7 +152,7 @@ impl Interpreter {
             ByteCode::FLoad(i) => self.load_local(i, Float),
             ByteCode::ALoad(i) => self.load_local(i, Address),
 
-            ByteCode::CreateStackPtr { consume_words } => self.create_stack_ptr(consume_words),
+            ByteCode::CreateStackPtr { offset, consume_words } => self.create_stack_ptr(offset, consume_words),
 
             ByteCode::ILoadOffset(o) => self.load_offset_local(o, Int),
             ByteCode::FLoadOffset(o) => self.load_offset_local(o, Float),
@@ -201,7 +209,7 @@ impl Interpreter {
     }
 
     fn push_stack_frame(&mut self, size: u16) {
-        self.stack_frames.push(self.pointer);
+        self.stack_frames.push(StackFrame{start: self.pointer, len: size as usize });
 
         self.pointer += size as usize;
     }
@@ -211,7 +219,7 @@ impl Interpreter {
         let frame = self.stack_frames.pop();
 
         if let Some(value) = frame {
-            self.pointer = value;
+            self.pointer = value.start;
         } else {
             panic!("Attempted to pop stack frame but none is present!")
         }
@@ -312,17 +320,27 @@ impl Interpreter {
     }
 
 
-    fn create_stack_ptr(&mut self, size: u32) {
-        let ptr = (self.pointer as u32) - (size);
+    fn create_stack_ptr(&mut self, offset: u16, size: u16) {
+        let ptr = self.get_stack_frame_start() + (offset as usize);
 
-        self.push(RefValue{ptr, len: size});
+        self.push(RefValue{ptr: ptr as u32, len: size as u32});
     }
 
     fn get_stack_frame_start(&self) -> usize {
         let value = self.stack_frames.last();
 
         if let Some(ind) = value {
-            return *ind;
+            return ind.start;
+        }
+
+        panic!("Attempted to get stack frame but none is present!")
+    }
+
+    fn get_stack_frame_size(&self) -> usize {
+        let value = self.stack_frames.last();
+
+        if let Some(ind) = value {
+            return ind.len;
         }
 
         panic!("Attempted to get stack frame but none is present!")
@@ -445,7 +463,7 @@ impl Interpreter {
         for v in self.stack[(self.pointer-size)..self.pointer].iter() {
             let mut v = *v;
 
-            if let RefValue {ptr, len} = v && ptr > new_ptr {
+            if let RefValue {ptr, len} = v && ptr >= new_ptr {
                 if let Some(promoted_ptr) = promoted.get(&ptr) {
                     v = RefValue {ptr: *promoted_ptr, len};
                 } else {

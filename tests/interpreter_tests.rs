@@ -48,6 +48,19 @@ pub fn test_math() {
 }
 
 #[test]
+fn test_flattening() {
+    let code = r#"
+    struct Point(x: int, y: int);
+
+    fn main() -> int {
+        return 5 + Point(2, 4).x + 5;
+    }
+    "#;
+
+    test_simple_code("main", code, 12);
+}
+
+#[test]
 pub fn test_if() {
     let if_stmt = r#"
     fn main() -> int {
@@ -213,7 +226,7 @@ fn test_struct_promotion() {
     fn main() -> int {
         let a = create_a();
 
-        return a.i + 10;
+        return 5 + a.i + 5;
     }
     "#;
 
