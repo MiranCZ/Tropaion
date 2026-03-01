@@ -35,12 +35,20 @@ impl TypedStmt {
                 }
 
                 if let Some(br) = else_branch {
+                    // generator.push_scope_exit_insn();
+                    generator.nop();
+                    generator.end_scope();
+                    generator.instructions.pop();
+
+                    generator.new_scope();
                     generator.push_scope_exit_insn();
 
                     br.gen_bytecode(registry, generator);
+                    generator.end_scope();
+                } else {
+                    generator.end_scope();
                 }
 
-                generator.end_scope();
             }
             TypedStmt::WhileStmt { condition, body } => {
                 condition.generate_bytecode(registry, generator, Load);

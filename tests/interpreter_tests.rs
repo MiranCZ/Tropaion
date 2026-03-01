@@ -67,6 +67,68 @@ pub fn test_if() {
 }
 
 #[test]
+pub fn test_else() {
+    let create = |str: &str| {
+        return r#"
+        fn main() -> int {
+            let x = -1;
+
+        "#.to_owned() + str + r#"
+
+            return x;
+        }
+        "#;
+    };
+
+    let case = r#"
+    if false {
+        x = 5;
+    }
+    "#;
+    test_simple_code("main", create(case).as_ref(), -1);
+
+    let case = r#"
+    if false {
+        x = 5;
+    } else {
+        x = 10;
+    }
+    "#;
+    test_simple_code("main", create(case).as_ref(), 10);
+
+    let case = r#"
+    if false {
+        x = 5;
+    } else if true {
+        x = 10;
+    }
+    "#;
+    test_simple_code("main", create(case).as_ref(), 10);
+
+    let case = r#"
+    if false {
+        x = 5;
+    } else if false {
+        x = 10;
+    } else {
+        x = 20;
+    }
+    "#;
+    test_simple_code("main", create(case).as_ref(), 20);
+
+    let case = r#"
+    if false {
+        x = 5;
+    } else if true {
+        x = 10;
+    } else {
+        x = 20;
+    }
+    "#;
+    test_simple_code("main", create(case).as_ref(), 10);
+}
+
+#[test]
 pub fn test_loops() {
     let loop_stmt = r#"
     fn main() -> int {

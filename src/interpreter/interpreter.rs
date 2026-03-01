@@ -95,9 +95,6 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            println!("\tvalues {:?}", &self.stack[0..self.pointer]);
-            println!("{insn:?}");
-
             self.execute(insn);
             self.insn_addr += 1;
         }
@@ -470,8 +467,6 @@ impl Interpreter {
 
     fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Value {
         let mut values = Vec::with_capacity(len as usize);
-
-        println!("Promoting {ptr} {promoted:?}");
 
         if let Some(p) = promoted.get(&ptr) {
             return RefValue {ptr: *p, len};
