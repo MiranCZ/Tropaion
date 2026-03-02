@@ -199,46 +199,47 @@ impl TypedExpr {
                 }
             }
             TypedExpr::CallExpr {func, args, .. } => {
-                let t = func.get_type();
-
-
-
-                fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, args: &Vec<TypedExpr>,typ: TypeEntry) {
-                    match typ.get(registry) {
-                        AstType::FunctionType { name, .. } => {
-                            let mut size = 0;
-                            for a in args {
-                                a.generate_bytecode(registry, generator, Load);
-                                size += a.get_type().get(registry).word_size(registry);
-                            }
-                            generator.call(&name);
-                        }
-
-                        AstType::StructType {.. } => {
-                            let mut size = 0;
-                            for a in args {
-                                a.generate_bytecode(registry, generator, Load);
-
-                                generator.store_internal_value(registry, a.get_type());
-                                size += a.get_type().get(registry).word_size(registry);
-                            }
-                            if size > (u16::MAX as u32) {
-                                panic!("Struct size too big to flatten!")
-                            }
-
-                            generator.create_stack_ptr(size as u16);
-                        },
-                        AstType::NullableType { underlying } => {
-                            call(registry, generator, args, underlying);
-                        }
-                        _ => panic!("Cannot call {typ:?}")
-                    }
-                }
-
-                call(registry, generator, args, t);
+                Self::generate_call_expr_load(registry, generator, func, args);
             },
             _ => panic!("Invalid LOAD for {self:?}")
         }
+    }
+
+    fn generate_call_expr_load(registry: &TypeRegistry, generator: &mut BytecodeGen ,func: &Box<TypedExpr>, args: &Vec<TypedExpr>) {
+        let t = func.get_type();
+
+        fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, args: &Vec<TypedExpr>,typ: TypeEntry) {
+            match typ.get(registry) {
+                AstType::FunctionType { name, .. } => {
+                    generator.comment(format!("Loading func {name}, with args {args:?}"));
+                    for a in args {
+                        a.generate_bytecode(registry, generator, Load);
+                    }
+                    generator.call(&name);
+                }
+
+                AstType::StructType {.. } => {
+                    let mut size = 0;
+                    for a in args {
+                        a.generate_bytecode(registry, generator, Load);
+
+                        generator.store_internal_value(registry, a.get_type());
+                        size += a.get_type().get(registry).word_size(registry);
+                    }
+                    if size > (u16::MAX as u32) {
+                        panic!("Struct size too big to flatten!")
+                    }
+
+                    generator.create_stack_ptr(size as u16);
+                },
+                AstType::NullableType { underlying } => {
+                    call(registry, generator, args, underlying);
+                }
+                _ => panic!("Cannot call {typ:?}")
+            }
+        }
+
+        call(registry, generator, args, t);
     }
 
     pub fn store(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
@@ -298,26 +299,7 @@ impl TypedExpr {
                 }
             }
             TypedExpr::CallExpr { func, args, .. } => {
-                let mut size = 0;
-                for a in args {
-                    a.generate_bytecode(registry, generator, Load);
-                    size += a.get_type().get(registry).word_size(registry);
-                }
-
-                let t = func.get_type();
-                match t.get(registry) {
-                    AstType::FunctionType {name, .. } => {
-                        generator.call(&name);
-                    }
-                    AstType::StructType {..} => {
-                        if size > (u16::MAX as u32) {
-                            panic!("Struct size too big to flatten!")
-                        }
-
-                        generator.create_stack_ptr(size as u16);
-                    }
-                    _ => panic!("Cannot call {t:?}")
-                }
+                Self::generate_call_expr_load(registry, generator, func, args);
             }
 
             _ => panic!("Cannot call LOAD_FIELD on {self:?}")

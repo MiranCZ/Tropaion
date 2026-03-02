@@ -14,7 +14,7 @@ impl TypedStmt {
         self._mangle_functions(registry, String::new())
     }
 
-    fn _mangle_functions(self,registry: &mut TypeRegistry ,owner: String) -> TypedStmt {
+    fn _mangle_functions(self,registry: &mut TypeRegistry, owner: String) -> TypedStmt {
         match self {
             BlockStmt { body } => {
                 let mut mangled_body = vec![];
@@ -74,7 +74,9 @@ impl TypedStmt {
                 let owner = if owner.is_empty() {
                     name.clone()
                 } else {
-                    owner + "_" + name.as_str()
+                    // owner + "_" + name.as_str()
+                    // FIXME nested owners shouldn't be possible?
+                    owner.clone()
                 };
 
                 for b in body {
@@ -153,7 +155,9 @@ impl TypedExpr {
                     repl = if owner.is_empty() {
                         name.clone()
                     } else {
-                        owner + "_" + name.as_str()
+                        // owner + "_" + name.as_str()
+                        // FIXME nested owners shouldn't be possible?
+                        owner.clone()
                     };
                 }
                 let owner = repl;
@@ -212,7 +216,9 @@ impl AstType {
             let owner = if owner.is_empty() {
                 name.clone()
             } else {
-                owner + "_" + name.as_str()
+                // owner + "_" + name.as_str()
+                // FIXME nested owners shouldn't be possible?
+                owner.clone()
             };
 
             for entry in children.iter() {

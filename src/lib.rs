@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
@@ -19,18 +20,18 @@ pub mod interpreter;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Point(x: int, y: int);
+    struct Rect(a: int, b: int) {
 
-    fn main() -> int {
-        let p3 = Point(1, 2);
-
-        let p4: Point? = Point(1, 2);
-
-        if p3 != p4 {
-            return 4;
+        fn value(n: int) -> int {
+            return n * (a + b);
         }
 
-        return 0;
+    }
+
+    fn main() -> int {
+        let t = Rect(5, 10);
+
+        return t.value(3);
     }
     "#;
 
@@ -118,6 +119,9 @@ fn interpret(text: &str) {
 
             let (instructions, functions) = comp.compile(&mut registry);
 
+            println!("{:?}", functions);
+            println!();
+
             for i in instructions.iter() {
                 println!("{i:?}");
             }
@@ -126,8 +130,9 @@ fn interpret(text: &str) {
 
             let mut interpret = Interpreter::new(instructions, functions);
 
+            let now = Instant::now();
             let result = interpret.run_function("main_".to_string());
-
+            println!("Took {:?}", now.elapsed());
             println!("RESULT: {result:?}")
         }
         Err(e) => panic!("{e}")

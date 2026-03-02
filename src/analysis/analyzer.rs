@@ -86,6 +86,9 @@ impl Analyzer {
 
                                     Self::_record_function(&mut table,registry ,func_type);
                                 },
+
+                                Statement::CommentStmt(..) | Statement::MultilineCommentStmt(..) => {}
+
                                 _ => panic!("invalid statement inside struct {x:?}")
                             }
                         }

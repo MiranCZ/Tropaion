@@ -69,7 +69,7 @@ impl TypedStmt {
                 generator.comment(format!("fn {name} -- START"));
                 generator.fn_start(name.clone());
 
-                for param in params {
+                for param in params.iter().rev() {
                     let name = param.name.clone();
 
                     generator.store_new_var(name, registry, param.param_type);

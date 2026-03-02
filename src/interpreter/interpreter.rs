@@ -100,8 +100,8 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            println!("values {:?}", &self.stack[0..self.pointer]);
-            println!("\t{insn:?}\n");
+            // println!("values {:?}", &self.stack[0..self.pointer]);
+            // println!("\t{insn:?}\n");
 
             self.execute(insn);
             self.insn_addr += 1;

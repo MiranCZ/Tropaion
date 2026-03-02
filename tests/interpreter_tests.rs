@@ -163,6 +163,21 @@ pub fn test_loops() {
 }
 
 #[test]
+fn test_funcs() {
+    let code = r#"
+    fn two_arg(a: int, b: float) -> int {
+        return a;
+    }
+
+    fn main() -> int {
+        return two_arg(5, 2.7);
+    }
+    "#;
+
+    test_simple_code("main", code, 5);
+}
+
+#[test]
 pub fn test_overloads() {
     let loop_stmt = r#"
     fn other(i: int) -> int{
@@ -440,7 +455,7 @@ fn test_null_comparison() {
         if p3 != p4 {
             return 4;
         }
-        
+
         if p3.x != p4.x {
             return 5;
         }
@@ -461,7 +476,7 @@ fn test_method_call() {
         }
 
         fn sum() -> int {
-            return get() + get();
+            return get() + this.get();
         }
 
     }
@@ -475,4 +490,35 @@ fn test_method_call() {
 
 
     test_simple_code("main", code, 20);
+}
+
+
+#[test]
+fn test_method_call2() {
+    let code = r#"
+    struct Rect(a: int, b: int) {
+
+        fn sum() -> int {
+            return a + b;
+        }
+
+        fn cir() -> int {
+            return sum() * 2;
+        }
+
+        fn value(n: int) -> int {
+            return cir() * n;
+        }
+
+    }
+
+    fn main() -> int {
+        let t = Rect(5, 10);
+
+        return t.value(3);
+    }
+    "#;
+
+
+    test_simple_code("main", code, 90);
 }

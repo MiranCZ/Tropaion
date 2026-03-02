@@ -107,8 +107,6 @@ impl UntypedExpr {
                     let info = tuple.1;
 
                     if let Some(v) = info && v {
-                        println!("Reassigning this {:?}", t.get(registry));
-
                         return MemberExpr {
                             t: t.clone(),
                             member: IdentifierExpr((), "this".to_string()).resolve_type(registry, symbol_table).boxed(),
@@ -243,6 +241,28 @@ impl UntypedExpr {
                     if let AstType::FunctionType {return_type, ..} = func.get(registry) {
                         // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
                         resolved_func.change_type(registry, func.get(registry));
+
+                        if let MemberExpr {t, member, property} = &resolved_func
+                            && let IdentifierExpr(t, name) = &**member && name == "this"
+                        {
+
+                            let return_type = return_type.duplicate(registry);
+
+                            let mut property = property.clone();
+                            property.change_type(registry, func.get(registry));
+
+                            let res =  MemberExpr {
+                                t: return_type,
+                                member: member.clone().boxed(),
+                                property: CallExpr {
+                                    t: return_type,
+                                    func: property.clone(),
+                                    args: resolved_args
+                                }.boxed()
+                            };
+
+                            return res;
+                        }
 
                         return CallExpr {
                             t: return_type.duplicate(registry),
