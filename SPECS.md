@@ -10,7 +10,7 @@
 
 # Datatypes
 
-`bool`, `int` (32 bits, signed), `float` (32 bits), `tuple`, `array`* ,`string`
+`bool`, `int` (32 bits, signed), `float` (32 bits), `tuple`, `array` ,`string`
 
 
 ## Overflows
@@ -35,18 +35,12 @@ let value: string = my_tuple[0];
 
 # Arrays
 - need to have the SAME type
-- size MUST be known at compile time
-- declaration `let my_arr: [int; 3] = [0, 1, 2];`
-- you can also specify EXACTLY one element and the whole array will be filled with it:
-  - `let my_arr: [int; 3] = [6];` => `[6, 6, 6]`
-
-=TODO= some ppl might complain that size must be known,
-so maybe dynamically allocate arrays with comp-time unknown sizes?
-Downside of this is someone making a mistake, allocating on heap, and not realizing
-
-=TODO= 
-about the one element thing, specify how the values are copied (or just drop the idea entirely)
-
+- size DOES NOT have to be known at compile time
+- declaration `let my_arr: [int] = [5, 10, 15];`
+- allocated on the heap (future optimization might be a stack allocation for known sizes)
+- zero-indexed using `[]`, (eq `my_arr[0]` - which returns `5`)
+- an index can be any expression evaluated into an int
+- providing index that is out of bounds or negative will result in an error
 
 # Strings
 
@@ -202,7 +196,7 @@ let r = s; // `r` holds a reference to `v`
 ## Freeing memory
 None of this affects `const` variables, these are immutable and are present for the whole run of the program
 
-- all primitives, arrays (which have a known size at compile-time) and "simple structs" 
+- all primitives, tuples and "simple structs" 
 are allocated on the stack which makes it trivial to free them
   - if a function returns a reference to some of these values (`fn foo() -> &int`) the variable gets allocated on the heap upon creation (where it can be later garbage collated)
 - if the compiler cannot prove when an object stops being used it does not drop it and the object is later dropped by the GC
