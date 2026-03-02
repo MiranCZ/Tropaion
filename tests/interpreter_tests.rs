@@ -554,3 +554,18 @@ fn test_arrays() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_not() {
+    let code = r#"
+    fn main() -> int {
+        if !false {
+            return 0;
+        }
+
+        return 1;
+    }
+    "#;
+
+    test_simple_code("main", code, 0);
+}

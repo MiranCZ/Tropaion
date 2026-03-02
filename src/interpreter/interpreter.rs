@@ -132,6 +132,7 @@ impl Interpreter {
 
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
+            ByteCode::BoolNot => self.bool_not(),
 
             ByteCode::Add => self.add(),
             ByteCode::Sub => self.sub(),
@@ -396,6 +397,21 @@ impl Interpreter {
         self.stack.swap(self.pointer-2, self.pointer-1);
     }
 
+    fn bool_not(&mut self) {
+        let top = self.pop();
+        
+        if let IntValue(i) = top {
+            if i == 0 {
+                self.push(IntValue(1));
+            } else {
+                self.push(IntValue(0));
+            }
+        } else {
+            panic!("Cannot apply BOOL_NOT to {top:?}");
+        }
+        
+    }
+    
     math_op!(bitor);
     math_op!(bitand);
 

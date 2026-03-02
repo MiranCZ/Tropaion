@@ -156,8 +156,11 @@ impl TypedExpr {
                         expr.generate_bytecode(registry, generator, LoadDeref);
                         generator.sub();
                     },
+                    SimpleToken::Exclamation => {
+                        expr.generate_bytecode(registry, generator, LoadDeref);
+                        generator.bool_not()
+                    },
                     SimpleToken::Tilde => todo!(),
-                    SimpleToken::Exclamation => todo!(),
 
                     _ => panic!("Invalid operator {operator:?}")
                 }

@@ -15,6 +15,7 @@ pub enum ByteCode {
 
     Or,
     And,
+    BoolNot,
     
     Add,
     Sub,

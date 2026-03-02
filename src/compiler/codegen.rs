@@ -4,7 +4,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -209,7 +209,7 @@ impl BytecodeGen {
     pub fn null_const(&mut self) {
         self.push_insn(NullPtr);
     }
-    
+
     pub fn swap(&mut self) {
         self.push_insn(Swap);
     }
@@ -228,6 +228,10 @@ impl BytecodeGen {
 
     pub fn dup(&mut self) {
         self.push_insn(Dup);
+    }
+   
+    pub fn bool_not(&mut self) {
+        self.push_insn(BoolNot);
     }
     
     pub fn or(&mut self) {
