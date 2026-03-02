@@ -522,3 +522,35 @@ fn test_method_call2() {
 
     test_simple_code("main", code, 90);
 }
+
+#[test]
+fn test_arrays() {
+    let code = r#"
+    fn generate() -> [int] {
+        let arr = [10, 2, 3, 4, 5];
+
+        arr[0] = 1;
+
+        return arr;
+    }
+
+    fn main() -> int {
+        let arr = generate();
+
+        if arr[0] != 1 {
+            return 1;
+        }
+
+        if arr[4] != 5 {
+            return 2;
+        }
+
+        arr[2] = 0;
+
+        return arr[2];
+    }
+    "#;
+
+
+    test_simple_code("main", code, 0);
+}

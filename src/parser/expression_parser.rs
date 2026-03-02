@@ -4,10 +4,10 @@ use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, True};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, True};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
-use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT, UNARY};
+use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 
@@ -82,6 +82,23 @@ pub fn parse_null_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> Retur
     Ok(NullLiteralExpr(()))
 }
 
+pub fn parse_array_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedExpression {
+    parser.expect_next(OpenSquare)?;
+
+    let mut values = vec![];
+
+    while !parser.consume_if_next(CloseSquare)? {
+        values.push(parse_expression(registry, parser, COMMA)?);
+
+        if !parser.consume_if_next(Comma)? {
+            parser.expect_next(CloseSquare)?;
+            break;
+        }
+    }
+
+    Ok(expression::array_literal(values))
+}
+
 pub fn parse_increment_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
     parser.next()?;
     Ok(expression::increment(left))
@@ -135,6 +152,17 @@ pub fn parse_assignment_expr(registry: &mut TypeRegistry,parser: &mut Parser, le
     let value = parse_expression(registry, parser, binding_power)?;
    
     Ok(expression::assign(left, operator, value))
+}
+
+
+pub fn parse_array_access_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+    parser.expect_next(OpenSquare)?;
+
+    let index = parse_expression(registry, parser, binding_power)?;
+
+    parser.expect_next(CloseSquare)?;
+
+    Ok(expression::array_access(left, index))
 }
 
 pub fn parse_call_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {

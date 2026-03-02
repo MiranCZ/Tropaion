@@ -22,8 +22,7 @@ pub enum AstType {
         underlying: TypeEntry
     },
     ArrayType {
-        underlying: TypeEntry,
-        count: u32,
+        underlying: TypeEntry
     },
     TupleType(Vec<TypeEntry>),
     FunctionsType {
@@ -77,8 +76,8 @@ impl AstType {
             (NullableType {underlying: u1}, NullableType {underlying: u2}) => {
                 u1.get(registry)._equals(&u2.get(registry), registry, loose)
             }
-            (ArrayType {underlying: u1, count: c1}, ArrayType {underlying: u2, count: c2}) => {
-                *c1 == *c2 && u1.get(registry)._equals(&u2.get(registry), registry, loose)
+            (ArrayType {underlying: u1}, ArrayType {underlying: u2}) => {
+                u1.get(registry)._equals(&u2.get(registry), registry, loose)
             }
             (TupleType(arr1), TupleType(arr2)) => {
                 if arr1.len() != arr2.len() {
@@ -178,10 +177,10 @@ impl AstType {
 
                 NullableType {underlying}
             }
-            ArrayType {underlying, count } => {
+            ArrayType {underlying} => {
                 underlying.resolve_type(registry, symbol_table);
 
-                ArrayType {underlying, count}
+                ArrayType {underlying}
             }
             TupleType(mut arr) => {
                 for a in arr.iter_mut() {
@@ -259,17 +258,20 @@ impl AstType {
             AstType::SymbolType(_) => {
                 panic!("Size not known for unresolved symbol {self:?}")  
             },
-            AstType::ArrayType {count, underlying} => {
-                underlying.get(registry).word_size(registry) * *count
-            },
+            AstType::ArrayType { underlying} => 1,
             AstType::TupleType(types) => {
+                // just reference
+                if true {
+                    return 1;
+                }
+
                 let mut size = 0;
 
                 for x in types {
                     size += x.get(registry).word_size(registry);
                 }
                 
-                size
+                size + 1 // size of types + 1 for reference
             }
             AstType::FunctionType { .. } => 1,
             AstType::StructType {.. } => 1,

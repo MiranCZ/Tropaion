@@ -57,15 +57,10 @@ pub fn parse_array_type(registry: &mut TypeRegistry,parser: &mut Parser) -> Retu
 
     let expr = parse_type(registry, parser, DEFAULT)?;
 
-    parser.expect_next(SimpleToken::Semicolon)?;
-
-    let count = parser.expect_next_int()?;
-
     parser.expect_next(SimpleToken::CloseSquare)?;
 
     Ok(registry.register(ArrayType{
         underlying: expr,
-        count: count as u32
     }))
 
 }

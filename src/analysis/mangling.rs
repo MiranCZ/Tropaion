@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
-use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, PrefixExpr, TupleExpr};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, PrefixExpr, TupleExpr};
 use crate::ast::expression::TypedExpr;
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::ast::statement::{Parameter, Statement, TypedStmt};
@@ -103,6 +103,15 @@ impl TypedExpr {
             TypedExpr::FloatLiteralExpr(..) |
             TypedExpr::NullableExpr(..) |
             TypedExpr::StringLiteralExpr(..) => self,
+            TypedExpr::ArrayLiteralExpr(t, values) => {
+                let mut mangled_values = vec![];
+
+                for v in values {
+                    mangled_values.push(v.mangle_functions(registry, owner.clone()));
+                }
+            
+                ArrayLiteralExpr(t,mangled_values)
+            }
 
             IncrementExpr(t, e) => {
                 t.mangle_function(registry, owner.clone());
@@ -142,6 +151,14 @@ impl TypedExpr {
                 let value = value.mangle_functions(registry, owner.clone()).boxed();
 
                 AssignExpr {t, assignee, value}
+            }
+            ArrayAccessExpr {t,property, index} => {
+                let property = property.mangle_functions(registry, owner.clone()).boxed();
+                let index = index.mangle_functions(registry, owner).boxed();
+                
+                ArrayAccessExpr {
+                    t, property, index
+                }
             }
             MemberExpr { t, member, property } => {
                 t.mangle_function(registry, owner.clone());

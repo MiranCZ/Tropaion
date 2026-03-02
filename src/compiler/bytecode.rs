@@ -11,6 +11,7 @@ pub enum ByteCode {
 
     Pop,
     Dup,
+    Swap,
 
     Or,
     And,
@@ -46,9 +47,18 @@ pub enum ByteCode {
     FLoadOffset(u16),
     ALoadOffset(u16),
 
-    IStoreOffset(u16),
-    FStoreOffset(u16),
-    AStoreOffset(u16),
+    IStoreOffset(u32),
+    FStoreOffset(u32),
+    AStoreOffset(u32),
+
+    ILoadVarOffset,
+    FLoadVarOffset,
+    ALoadVarOffset,
+
+    IStoreVarOffset,
+    FStoreVarOffset,
+    AStoreVarOffset,
+
 
     Goto(i32),
     IfEq(i32),
@@ -57,5 +67,7 @@ pub enum ByteCode {
     StackFrame(u16),
     Call(u16),
     Ret(u16),
-    RetLong(u32)
+    RetLong(u32),
+    
+    HeapAlloc(u32)
 }

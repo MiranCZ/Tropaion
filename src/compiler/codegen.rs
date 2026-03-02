@@ -4,7 +4,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::Expression;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, AStore, AStoreOffset, Add, And, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FStore, FStoreOffset, Goto, IConst, ILoad, ILoadOffset, IStore, IStoreOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -209,6 +209,10 @@ impl BytecodeGen {
     pub fn null_const(&mut self) {
         self.push_insn(NullPtr);
     }
+    
+    pub fn swap(&mut self) {
+        self.push_insn(Swap);
+    }
 
     pub fn i_const(&mut self, c: i32) {
         self.push_insn(IConst(c));
@@ -299,16 +303,26 @@ impl BytecodeGen {
     pub fn a_store(&mut self, name: String) {
         self.store(name, |i| AStore(i))
     }
-    
-    pub fn i_store_offset(&mut self, offset: u16) {
+
+    pub fn store_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) {
+        match value.get(registry) {
+            AstType::Bool | AstType::Int => self.i_store_offset(offset),
+            AstType::Float => self.f_store_offset(offset),
+            AstType::NullableType { .. } => self.a_store_offset(offset),
+            AstType::StructType { .. } => self.a_store_offset(offset),
+            _ => panic!("Not yet supported type {:?}", value.get(registry))
+        };
+    }
+
+    pub fn i_store_offset(&mut self, offset: u32) {
         self.push_insn(IStoreOffset(offset));
     }
 
-    pub fn f_store_offset(&mut self, offset: u16) {
+    pub fn f_store_offset(&mut self, offset: u32) {
         self.push_insn(FStoreOffset(offset));
     }
 
-    pub fn a_store_offset(&mut self, offset: u16) {
+    pub fn a_store_offset(&mut self, offset: u32) {
         self.push_insn(AStoreOffset(offset));
     }
 
@@ -328,6 +342,20 @@ impl BytecodeGen {
             AstType::Float => self.store_new(name, |i| FStore(i)),
             AstType::NullableType { .. } => self.store_new(name, |i| AStore(i)),
             AstType::StructType { .. } => self.store_new(name, |i| AStore(i)),
+            AstType::ArrayType { .. } => self.store_new(name, |i| AStore(i)),
+            AstType::TupleType(arr) => {
+                self.scope_local_count += (arr.len() as u16) + 1;
+
+                for a in arr.iter().rev() {
+                    self.scope_local_count -= 2;
+                    self.store_internal_value(registry, *a);
+                }
+                self.scope_local_count += arr.len() as u16 - 1;
+
+                self.create_stack_ptr(arr.len() as u16);
+
+                self.store_new(name, |i| AStore(i))
+            },
             _ => panic!("Not yet supported type {:?}", value.get(registry))
         };
     }
@@ -403,6 +431,30 @@ impl BytecodeGen {
         self.push_insn(ALoadOffset(offset));
     }
 
+    pub fn i_load_var_offset(&mut self) {
+        self.push_insn(ILoadVarOffset);
+    }
+
+    pub fn f_load_var_offset(&mut self) {
+        self.push_insn(FLoadVarOffset);
+    }
+
+    pub fn a_load_var_offset(&mut self) {
+        self.push_insn(ALoadVarOffset);
+    }
+
+    pub fn i_store_var_offset(&mut self) {
+        self.push_insn(IStoreVarOffset);
+    }
+
+    pub fn f_store_var_offset(&mut self) {
+        self.push_insn(FStoreVarOffset);
+    }
+
+    pub fn a_store_var_offset(&mut self) {
+        self.push_insn(AStoreVarOffset);
+    }
+
     pub fn call(&mut self, name: &String) {
         let info = self.functions.get(name).unwrap();
 
@@ -415,6 +467,10 @@ impl BytecodeGen {
         } else {
             self.push_insn(RetLong(amount));
         }
+    }
+
+    pub fn heap_alloc(&mut self, size: u32) {
+        self.push_insn(HeapAlloc(size));
     }
 
 }

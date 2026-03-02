@@ -1,7 +1,7 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
-use crate::ast::expression::Expression::{AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
@@ -18,6 +18,7 @@ pub enum Expression<T> {
     IntLiteralExpr(T, i32),
     FloatLiteralExpr(T, f32),
     StringLiteralExpr(T, String),
+    ArrayLiteralExpr(T, Vec<Expression<T>>),
     IdentifierExpr(T, String),
     NullableExpr(T, Box<Expression<T>>),
     IncrementExpr(T, Box<Expression<T>>),
@@ -41,6 +42,11 @@ pub enum Expression<T> {
     TupleExpr {
         t: T,
         values: Vec<Expression<T>>
+    },
+    ArrayAccessExpr {
+        t: T,
+        property: Box<Expression<T>>,
+        index: Box<Expression<T>>
     },
     MemberExpr {
         t: T,
@@ -99,6 +105,37 @@ impl UntypedExpr {
 
                 StringLiteralExpr(reg, s)
             },
+            ArrayLiteralExpr(_, values) => {
+                if values.is_empty() {
+                    let typ = ArrayType {underlying: registry.register(UnknownType)};
+
+                    return ArrayLiteralExpr(registry.register(typ), vec![]);
+                }
+
+                let mut typed_values = vec![];
+
+                for v in values {
+                    typed_values.push(v.resolve_type(registry, symbol_table));
+                }
+
+                let mut underlying = typed_values[0].get_type();
+
+                for v in &typed_values {
+                    if let Some(res) = underlying.get(registry).get_assign_result(v.get_type().get(registry), registry) {
+                        underlying = registry.register(res);
+                    } else if let Some(res) = v.get_type().get(registry).get_assign_result(underlying.get(registry), registry) {
+                        underlying = registry.register(res);
+                    }
+                }
+
+                for v in typed_values.iter_mut() {
+                    v.set_type(registry, underlying.get(registry))
+                }
+
+                let array_type = ArrayType {underlying};
+
+                ArrayLiteralExpr(registry.register(array_type), typed_values)
+            }
             IdentifierExpr(_, identifier) => {
                 let v = symbol_table.get_with_info(identifier.clone());
 
@@ -162,6 +199,23 @@ impl UntypedExpr {
                 let t = typed_assignee.get_type();
 
                 return AssignExpr {t, assignee: typed_assignee.boxed(), value: typed_value.boxed()};
+            }
+            Expression::ArrayAccessExpr {property, index, ..} => {
+                let property = property.resolve_type(registry, symbol_table);
+                let index = index.resolve_type(registry, symbol_table);
+
+                let underlying;
+                if let ArrayType {underlying: u} = property.get_type().get(registry) {
+                    underlying = u;
+                } else {
+                    panic!("Invalid type for array access! {:?}", property.get_type().get(registry));
+                }
+
+                ArrayAccessExpr {
+                    t: underlying,
+                    property: property.boxed(),
+                    index: index.boxed()
+                }
             }
             TupleExpr {values, .. } => {
                 let mut types = vec![];
@@ -326,6 +380,7 @@ impl TypedExpr {
             IntLiteralExpr(t, ..) => *t,
             FloatLiteralExpr(t, ..) => *t,
             StringLiteralExpr(t, ..) => *t,
+            ArrayLiteralExpr(t, ..) => *t,
             IdentifierExpr(t, _) => *t,
             NullableExpr(t,_) => *t,
             IncrementExpr(t, _) => *t,
@@ -333,6 +388,7 @@ impl TypedExpr {
             PrefixExpr {t, .. } => *t,
             BinaryExpr {t, .. } => *t,
             AssignExpr {t, .. } => *t,
+            ArrayAccessExpr {t, .. } => *t,
             TupleExpr {t, .. } => *t,
             MemberExpr {t, .. } => *t,
             CallExpr {t, .. } =>* t
@@ -385,6 +441,7 @@ impl TypedExpr {
                     panic!("was set to {typ:?}")
                 }
             }
+            ArrayLiteralExpr(t, ..) |
             IdentifierExpr(t, _) |
             NullableExpr(t, _) |
             IncrementExpr(t, _) |
@@ -392,6 +449,7 @@ impl TypedExpr {
             PrefixExpr {t, .. } |
             BinaryExpr {t, .. } |
             AssignExpr {t, .. } |
+            ArrayAccessExpr {t, .. } |
             TupleExpr {t, .. } |
             MemberExpr {t, .. } |
             CallExpr {t, .. } => {
@@ -419,6 +477,7 @@ impl TypedExpr {
                     panic!()
                 }
             }
+            ArrayLiteralExpr(t, _) |
             NullableExpr(t, _) |
             IdentifierExpr(t, _) |
             IncrementExpr(t, _) |
@@ -426,6 +485,7 @@ impl TypedExpr {
             PrefixExpr {t, .. }|
             BinaryExpr {t, .. }|
             AssignExpr {t, .. }|
+            ArrayAccessExpr {t, .. }|
             TupleExpr {t, .. }|
             MemberExpr {t, .. }|
             CallExpr {t, .. } => {
@@ -454,6 +514,10 @@ pub fn string(s: String) -> UntypedExpr {
 
 pub fn identifier(identifier: String) -> UntypedExpr {
     IdentifierExpr((), identifier)
+}
+
+pub fn array_literal(values: Vec<UntypedExpr>) -> UntypedExpr {
+    ArrayLiteralExpr((), values)
 }
 
 pub fn increment(expr: UntypedExpr) -> UntypedExpr {
@@ -505,6 +569,14 @@ pub fn assign(assignee: UntypedExpr, operator: SimpleToken, value: UntypedExpr) 
         SimpleToken::AmpersandAssign => binary(Ampersand),
         SimpleToken::BitXorAssign => binary(BitXor),
         _ => panic!("Not an implement assignment operator! {operator:?}")
+    }
+}
+
+pub fn array_access(property: UntypedExpr, index: UntypedExpr) -> UntypedExpr {
+    ArrayAccessExpr {
+        t: (),
+        property: property.boxed(),
+        index: index.boxed()
     }
 }
 

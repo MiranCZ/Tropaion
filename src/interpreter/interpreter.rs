@@ -1,3 +1,4 @@
+use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
 use crate::compiler::bytecode::ByteCode;
@@ -127,6 +128,7 @@ impl Interpreter {
             ByteCode::FConst(f) => self.push_float(f),
             ByteCode::Pop => {self.pop();},
             ByteCode::Dup => self.dup(),
+            ByteCode::Swap => self.swap(),
 
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
@@ -154,13 +156,23 @@ impl Interpreter {
 
             ByteCode::CreateStackPtr { offset, consume_words } => self.create_stack_ptr(offset, consume_words),
 
-            ByteCode::ILoadOffset(o) => self.load_offset_local(o, Int),
-            ByteCode::FLoadOffset(o) => self.load_offset_local(o, Float),
-            ByteCode::ALoadOffset(o) => self.load_offset_local(o, Address),
+            ByteCode::ILoadOffset(o) => self.load_offset_local(o as u32, Int),
+            ByteCode::FLoadOffset(o) => self.load_offset_local(o as u32, Float),
+            ByteCode::ALoadOffset(o) => self.load_offset_local(o as u32, Address),
 
-            ByteCode::IStoreOffset(o) => self.store_offset_local(o, Int),
-            ByteCode::FStoreOffset(o) => self.store_offset_local(o, Float),
-            ByteCode::AStoreOffset(o) => self.store_offset_local(o, Address),
+            ByteCode::IStoreOffset(o) => self.store_offset_local(o as u32, Int),
+            ByteCode::FStoreOffset(o) => self.store_offset_local(o as u32, Float),
+            ByteCode::AStoreOffset(o) => self.store_offset_local(o as u32, Address),
+
+
+            ByteCode::ILoadVarOffset => self.load_var_offset_local(Int),
+            ByteCode::FLoadVarOffset => self.load_var_offset_local(Float),
+            ByteCode::ALoadVarOffset => self.load_var_offset_local(Address),
+
+            ByteCode::IStoreVarOffset => self.store_var_offset_local(Int),
+            ByteCode::FStoreVarOffset => self.store_var_offset_local(Float),
+            ByteCode::AStoreVarOffset => self.store_var_offset_local(Address),
+
 
             ByteCode::Goto(i) => self.goto(i),
             ByteCode::IfEq(o) => self.if_eq(o),
@@ -170,6 +182,8 @@ impl Interpreter {
             ByteCode::Call(ind) => self.call(ind),
             ByteCode::Ret(size) => self.ret(size as u32),
             ByteCode::RetLong(size) => self.ret(size),
+
+            ByteCode::HeapAlloc(size) => self.heap_alloc(size),
 
             ByteCode::StackFrame(_) => panic!("Dangling stack frame instruction!"),
         }
@@ -250,8 +264,17 @@ impl Interpreter {
         self.push(value);
     }
 
+    fn store_var_offset_local(&mut self, typ: ValueType) {
+        let top = self.pop();
 
-    fn store_offset_local(&mut self, offset: u16, typ: ValueType) {
+        if let IntValue(o) = top {
+            self.store_offset_local(o as u32, typ);
+        } else {
+            panic!("Cannot use {top:?} as offset!")
+        }
+    }
+
+    fn store_offset_local(&mut self, offset: u32, typ: ValueType) {
         let top = self.pop();
 
         if let RefValue{ptr, len} = top {
@@ -269,15 +292,27 @@ impl Interpreter {
 
             let new = self.pop();
 
-            if !typ.assignable(&prev) || !typ.assignable(&new) {
+            if prev != Null && (!typ.assignable(&prev) || !typ.assignable(&new)) {
                 panic!("Invalid STORE_OFFSET expected: {typ:?} previous: {prev:?} new: {new:?}");
             }
 
             self.store_at_ptr(absolute_index, new);
+        } else {
+            panic!("Expected reference!")
         }
     }
 
-    fn load_offset_local(&mut self, offset: u16, typ: ValueType) {
+    fn load_var_offset_local(&mut self, typ: ValueType) {
+        let top = self.pop();
+
+        if let IntValue(o) = top {
+            self.load_offset_local(o as u32, typ);
+        } else {
+            panic!("Cannot use {top:?} as offset!")
+        }
+    }
+
+    fn load_offset_local(&mut self, offset: u32, typ: ValueType) {
         let top = self.pop();
 
         if let RefValue{ptr, len} = top {
@@ -285,7 +320,7 @@ impl Interpreter {
             // if ptr == 0 {
             //     panic!("Loading from a null-pointer!");
             // }
-            if len < (offset as u32) {
+            if len < (offset) {
                 panic!("Reference offest is bigger than its length!")
             }
 
@@ -351,6 +386,14 @@ impl Interpreter {
         let last = self.peek();
 
         self.push(last)
+    }
+
+    fn swap(&mut self) {
+        if self.stack.len() < 2 {
+            panic!();
+        }
+
+        self.stack.swap(self.pointer-2, self.pointer-1);
     }
 
     math_op!(bitor);
@@ -535,6 +578,10 @@ impl Interpreter {
     }
 
     fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Value {
+        if (ptr as usize) >= STACK_SIZE {
+            return RefValue {ptr,len};
+        }
+
         let mut values = Vec::with_capacity(len as usize);
 
         if let Some(p) = promoted.get(&ptr) {
@@ -563,6 +610,12 @@ impl Interpreter {
         }
 
         RefValue { ptr: promoted_ptr, len }
+    }
+
+    fn heap_alloc(&mut self, size: u32) {
+        let ptr =self.heap.alloc(size);
+
+        self.push(RefValue {ptr, len: size});
     }
 
     fn if_eq(&mut self, offset: i32) {

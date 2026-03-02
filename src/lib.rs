@@ -20,18 +20,12 @@ pub mod interpreter;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Rect(a: int, b: int) {
+    fn main() -> [int] {
+        let a = [1, 2, 3];
 
-        fn value(n: int) -> int {
-            return n * (a + b);
-        }
+        a[1] = 4;
 
-    }
-
-    fn main() -> int {
-        let t = Rect(5, 10);
-
-        return t.value(3);
+        return a;
     }
     "#;
 

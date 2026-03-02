@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Index;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::NullableType;
@@ -21,6 +22,8 @@ pub enum Operation {
     StoreField {
         fields: Vec<MemberInfo>
     },
+    LoadRefOffset(TypedExpr),
+    StoreRefOffset(TypedExpr),
 }
 impl TypedExpr {
 
@@ -36,6 +39,15 @@ impl TypedExpr {
             StoreField {fields} => {
                 self.store_field(registry, fields, generator);
             }
+
+            Operation::LoadRefOffset(index) => {
+                self.load_ref_offset(registry, index, generator);
+            }
+
+            Operation::StoreRefOffset(index) => {
+                self.store_ref_offset(registry, index, generator);
+            }
+
         }
     }
 
@@ -56,12 +68,37 @@ impl TypedExpr {
             TypedExpr::StringLiteralExpr(..) => {
                 todo!()
             }
+            TypedExpr::ArrayLiteralExpr(t, values) => {
+                let underlying;
+
+                if let AstType::ArrayType {underlying: u, ..} = t.get(registry) {
+                    underlying = u;
+                } else {
+                    panic!("Invalid array type! {:?}", t.get(registry));
+                }
+
+                generator.heap_alloc(values.len() as u32);
+
+                let mut offset = 0;
+                for v in values {
+                    generator.dup();
+                    v.generate_bytecode(registry, generator, Load);
+
+                    generator.swap();
+
+                    generator.store_offset_value(registry, offset, v.get_type());
+
+                    offset += 1;
+                }
+            }
             TypedExpr::IdentifierExpr(t, name) => {
                 match t.get(registry) {
                     AstType::Bool |
                     AstType::Int => generator.i_load(name.clone()),
                     AstType::Float => generator.f_load(name.clone()),
-                    AstType::StructType { .. } => generator.a_load(name.clone()),
+                    AstType::StructType { .. } |
+                    AstType::ArrayType { .. } |
+                    AstType::TupleType { .. } => generator.a_load(name.clone()),
                     AstType::NullableType {underlying: t} => {
                         generator.a_load(name.clone());
 
@@ -198,6 +235,9 @@ impl TypedExpr {
                     panic!("Invalid member access for {:?}", member.get_type())
                 }
             }
+            TypedExpr::ArrayAccessExpr {property, index, ..} => {
+                property.generate_bytecode(registry, generator, Operation::LoadRefOffset(*index.clone()));
+            }
             TypedExpr::CallExpr {func, args, .. } => {
                 Self::generate_call_expr_load(registry, generator, func, args);
             },
@@ -270,6 +310,9 @@ impl TypedExpr {
                     panic!("Invalid member access for {:?}", member.get_type())
                 }
             }
+            TypedExpr::ArrayAccessExpr {property, index, ..} => {
+                property.generate_bytecode(registry, generator, Operation::StoreRefOffset(*index.clone()));
+            }
             _ => panic!("Invalid STORE for {self:?}")
         }
     }
@@ -313,11 +356,11 @@ impl TypedExpr {
                     if f.1 == *name {
                         return match t.get(registry) {
                             AstType::Bool |
-                            AstType::Int => generator.i_store_offset(f.2),
-                            AstType::Float => generator.f_store_offset(f.2),
-                            AstType::StructType { .. } => generator.a_store_offset(f.2),
+                            AstType::Int => generator.i_store_offset(f.2 as u32),
+                            AstType::Float => generator.f_store_offset(f.2 as u32),
+                            AstType::StructType { .. } => generator.a_store_offset(f.2 as u32),
                             AstType::NullableType {..} => {
-                                generator.a_store_offset(f.2)
+                                generator.a_store_offset(f.2 as u32)
                             }
 
                             _ => panic!("Cannot STORE_FIELD for {self:?}")
@@ -329,6 +372,64 @@ impl TypedExpr {
             }
 
             _ => panic!("Cannot call STORE_FIELD on {self:?}")
+        }
+    }
+
+
+    pub fn load_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) {
+        match self {
+            TypedExpr::IdentifierExpr(t, name) => {
+                generator.a_load(name.clone());
+                index.generate_bytecode(registry, generator, Load);
+
+                let typ;
+
+                if let AstType::ArrayType {underlying, ..} = t.get(registry) {
+                    typ = underlying;
+                } else {
+                    panic!("Cannot index {:?}", t.get(registry));
+                }
+
+                return match typ.get(registry) {
+                    AstType::Bool |
+                    AstType::Int => generator.i_load_var_offset(),
+                    AstType::Float => generator.f_load_var_offset(),
+                    AstType::StructType { .. } => generator.a_load_var_offset(),
+
+                    _ => panic!("Cannot LOAD_REF for {self:?}")
+                };
+            }
+
+            _ => panic!("Cannot call LOAD_REF on {self:?}")
+        }
+    }
+
+
+    pub fn store_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) {
+        match self {
+            TypedExpr::IdentifierExpr(t, name) => {
+                generator.a_load(name.clone());
+                index.generate_bytecode(registry, generator, Load);
+
+                let typ;
+
+                if let AstType::ArrayType {underlying, ..} = t.get(registry) {
+                    typ = underlying;
+                } else {
+                    panic!("Cannot index {:?}", t.get(registry));
+                }
+
+                return match typ.get(registry) {
+                    AstType::Bool |
+                    AstType::Int => generator.i_store_var_offset(),
+                    AstType::Float => generator.f_store_var_offset(),
+                    AstType::StructType { .. } => generator.a_store_var_offset(),
+
+                    _ => panic!("Cannot LOAD_REF for {self:?}")
+                };
+            }
+
+            _ => panic!("Cannot call LOAD_REF on {self:?}")
         }
     }
 

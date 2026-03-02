@@ -58,6 +58,10 @@ impl Heap {
     pub fn load(&self, ptr: u32, offset: u32) -> Value{
         let ptr = self.rel_ptr(ptr as usize) + (offset as usize);
 
+        if ptr >= self.mem.len() {
+            return Null;
+        }
+
         self.mem[ptr]
     }
 
