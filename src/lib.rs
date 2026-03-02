@@ -18,31 +18,6 @@ pub mod interpreter;
 
 #[test]
 pub fn main() {
-
-    let text = r#"
-    fn main(a: &int) -> bool {
-        let x = 5;
-        // hello, I am a comment
-        let y = "bye!";
-        let test = "I am a \"quoated\" string";
-
-        let z = 10;
-        z++;
-
-        let check = x < z;
-        // let p = check + 1; // should error - it now does
-
-        x *= z;
-
-        return false;
-    }
-        /*
-        multiline
-        comment
-        yeppie
-        */
-    "#;
-
     let text = r#"
     struct Point(x: int, y: int);
 

@@ -107,6 +107,8 @@ impl UntypedExpr {
                     let info = tuple.1;
 
                     if let Some(v) = info && v {
+                        println!("Reassigning this {:?}", t.get(registry));
+
                         return MemberExpr {
                             t: t.clone(),
                             member: IdentifierExpr((), "this".to_string()).resolve_type(registry, symbol_table).boxed(),
@@ -182,7 +184,7 @@ impl UntypedExpr {
 
                 // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
                 let mut struct_scope = false;
-                if let AstType::StructType{children, ..} = member_type.get_type().get(registry) {
+                if let AstType::StructType{children, ..} = deref(member_type.get_type(), registry) {
                     struct_scope = true;
                     symbol_table.push();
                     for x in children {
@@ -243,7 +245,7 @@ impl UntypedExpr {
                         resolved_func.change_type(registry, func.get(registry));
 
                         return CallExpr {
-                            t: return_type,
+                            t: return_type.duplicate(registry),
                             func: resolved_func.boxed(),
                             args: resolved_args
                         };
@@ -273,7 +275,7 @@ impl UntypedExpr {
                     }
 
                     return CallExpr {
-                        t: resolved_func.get_type(),
+                        t: resolved_func.get_type().duplicate(registry),
                         func: resolved_func.boxed(),
                         args: resolved_args
                     };
@@ -284,6 +286,16 @@ impl UntypedExpr {
         }
     }
 
+}
+
+pub fn deref(t: TypeEntry, registry: &TypeRegistry) -> AstType {
+    match t.get(registry) {
+        NullableType { underlying } => {
+            deref(underlying, registry)
+        }
+
+        _ => t.get(registry)
+    }
 }
 
 impl TypedExpr {

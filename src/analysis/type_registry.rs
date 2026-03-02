@@ -37,6 +37,12 @@ impl TypeEntry {
         parent.get(self.key)
     }
     
+    pub fn duplicate(&self, parent: &mut TypeRegistry) -> TypeEntry {
+        let resolved = self.get(parent);
+        
+        parent.register(resolved)
+    }
+    
     pub fn mutate(&self, parent: &mut TypeRegistry,new_value: AstType) {
         parent.registry.insert(self.key, new_value);
     }

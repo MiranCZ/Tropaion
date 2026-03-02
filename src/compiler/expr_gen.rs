@@ -2,15 +2,16 @@ use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::NullableType;
-use crate::ast::expression::{call, member, TypedExpr};
+use crate::ast::expression::{call, deref, member, TypedExpr};
 use crate::ast::expression::Expression::NullableExpr;
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, LoadField, Store, StoreField};
+use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, Store, StoreField};
 use crate::lexer::token::SimpleToken;
 
 #[derive(Clone)]
 pub enum Operation {
     Load, // loads the expression on top of the stack
+    LoadDeref,
     Store, // stores value on top of the stack into the expression
     LoadField {
         fields: Vec<MemberInfo>,
@@ -26,7 +27,8 @@ impl TypedExpr {
 
     pub fn generate_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, operation: Operation) {
         match operation {
-            Load => self.load(registry, generator),
+            Load => self.load(registry, generator, false),
+            Operation::LoadDeref => self.load(registry, generator, true),
             Store => self.store(registry, generator),
             LoadField {fields, children} => {
                 self.load_field(registry, fields, children, generator);
@@ -37,7 +39,7 @@ impl TypedExpr {
         }
     }
 
-    pub fn load(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
+    pub fn load(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, dereference: bool) {
         match self {
             TypedExpr::NullLiteralExpr(_) => {
                 generator.null_const();
@@ -62,16 +64,18 @@ impl TypedExpr {
                     AstType::StructType { .. } => generator.a_load(name.clone()),
                     AstType::NullableType {underlying: t} => {
                         generator.a_load(name.clone());
-                        // FIXME need to deref the value in arithmetic I guess?
 
-                        // match t.get(registry) {
-                        //     AstType::Bool |
-                        //     AstType::Int => generator.i_load_offset(0),
-                        //     AstType::Float => generator.f_load_offset(0),
-                        //     AstType::StructType { .. } => generator.a_load_offset(0),
-                        //
-                        //     _ => panic!("Cannot dereference {self:?}")
-                        // }
+                        if dereference {
+                            match t.get(registry) {
+                                    AstType::Bool |
+                                    AstType::Int => generator.i_load_offset(0),
+                                    AstType::Float => generator.f_load_offset(0),
+                                    AstType::StructType { .. } => generator.a_load_offset(0),
+
+                                    _ => panic!("Cannot dereference {self:?}")
+                                }
+                        }
+
                     },
 
                     _ => panic!("Invalid load type! {self:?}")
@@ -93,7 +97,7 @@ impl TypedExpr {
                 generator.create_stack_ptr(1);
             }
             TypedExpr::IncrementExpr(_, e) => {
-                e.generate_bytecode(registry, generator, Load);
+                e.generate_bytecode(registry, generator, LoadDeref);
 
                 generator.i_const(1);
                 generator.add();
@@ -101,7 +105,7 @@ impl TypedExpr {
                 e.generate_bytecode(registry, generator, Store);
             }
             TypedExpr::DecrementExpr(_, e) => {
-                e.generate_bytecode(registry, generator, Load);
+                e.generate_bytecode(registry, generator, LoadDeref);
 
                 generator.i_const(1);
                 generator.sub();
@@ -112,7 +116,7 @@ impl TypedExpr {
                 match operator {
                     SimpleToken::Dash => {
                         generator.i_const(0);
-                        expr.generate_bytecode(registry, generator, Load);
+                        expr.generate_bytecode(registry, generator, LoadDeref);
                         generator.sub();
                     },
                     SimpleToken::Tilde => todo!(),
@@ -124,10 +128,10 @@ impl TypedExpr {
             TypedExpr::BinaryExpr {left, operator, right, .. } => {
                 match operator {
                     SimpleToken::BoolOr => {
-                        left.generate_bytecode(registry, generator, Load);
+                        left.generate_bytecode(registry, generator, LoadDeref);
                         generator.dup();
                         generator.new_skippable_scope_ne();
-                        right.generate_bytecode(registry, generator, Load);
+                        right.generate_bytecode(registry, generator, LoadDeref);
 
                         generator.or();
                         generator.end_scope();
@@ -135,10 +139,10 @@ impl TypedExpr {
                         return;
                     }
                     SimpleToken::BoolAnd => {
-                        left.generate_bytecode(registry, generator, Load);
+                        left.generate_bytecode(registry, generator, LoadDeref);
                         generator.dup();
                         generator.new_skippable_scope_eq();
-                        right.generate_bytecode(registry, generator, Load);
+                        right.generate_bytecode(registry, generator, LoadDeref);
 
                         generator.and();
                         generator.end_scope();
@@ -149,8 +153,13 @@ impl TypedExpr {
                     _ => {}
                 }
 
-                left.generate_bytecode(registry, generator, Load);
-                right.generate_bytecode(registry, generator, Load);
+                if matches!(operator, SimpleToken::Equals) || matches!(operator, SimpleToken::NotEquals) {
+                    left.generate_bytecode(registry, generator, Load);
+                    right.generate_bytecode(registry, generator, Load);
+                } else {
+                    left.generate_bytecode(registry, generator, LoadDeref);
+                    right.generate_bytecode(registry, generator, LoadDeref);
+                }
 
                 match operator {
                     SimpleToken::Plus => generator.add(),
@@ -179,8 +188,8 @@ impl TypedExpr {
                 }
             }
             TypedExpr::MemberExpr { member, property, .. } => {
-                if let AstType::StructType {fields, children, ..} = member.get_type().get(registry) {
-                    member.generate_bytecode(registry, generator, Load);
+                if let AstType::StructType {fields, children, ..} = deref(member.get_type(), registry) {
+                    member.generate_bytecode(registry, generator, LoadDeref);
 
                     property.generate_bytecode(registry, generator, LoadField {
                          fields, children

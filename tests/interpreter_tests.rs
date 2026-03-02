@@ -440,6 +440,10 @@ fn test_null_comparison() {
         if p3 != p4 {
             return 4;
         }
+        
+        if p3.x != p4.x {
+            return 5;
+        }
 
         return 0;
     }
