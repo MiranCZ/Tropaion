@@ -180,13 +180,13 @@ impl Interpreter {
 
             ByteCode::CreateStackPtr { offset, consume_words } => self.create_stack_ptr(offset, consume_words),
 
-            ByteCode::ILoadOffset(o) => self.load_offset_local(o as u32, Int),
-            ByteCode::FLoadOffset(o) => self.load_offset_local(o as u32, Float),
-            ByteCode::ALoadOffset(o) => self.load_offset_local(o as u32, Address),
+            ByteCode::ILoadOffset(o) => self.load_offset_local(o, Int),
+            ByteCode::FLoadOffset(o) => self.load_offset_local(o, Float),
+            ByteCode::ALoadOffset(o) => self.load_offset_local(o, Address),
 
-            ByteCode::IStoreOffset(o) => self.store_offset_local(o as u32, Int),
-            ByteCode::FStoreOffset(o) => self.store_offset_local(o as u32, Float),
-            ByteCode::AStoreOffset(o) => self.store_offset_local(o as u32, Address),
+            ByteCode::IStoreOffset(o) => self.store_offset_local(o, Int),
+            ByteCode::FStoreOffset(o) => self.store_offset_local(o, Float),
+            ByteCode::AStoreOffset(o) => self.store_offset_local(o, Address),
 
 
             ByteCode::ILoadVarOffset => self.load_var_offset_local(Int),

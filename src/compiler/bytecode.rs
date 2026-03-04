@@ -44,9 +44,9 @@ pub enum ByteCode {
     },
 
     // loads from address on top of the stack + offset
-    ILoadOffset(u16),
-    FLoadOffset(u16),
-    ALoadOffset(u16),
+    ILoadOffset(u32),
+    FLoadOffset(u32),
+    ALoadOffset(u32),
 
     IStoreOffset(u32),
     FStoreOffset(u32),

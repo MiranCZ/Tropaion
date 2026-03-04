@@ -69,7 +69,7 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     } else {
         panic!("Error {:?}", res.err().unwrap());
     };
-    
+
     let interpret = Interpreter::new(instructions, functions);
 
     interpret

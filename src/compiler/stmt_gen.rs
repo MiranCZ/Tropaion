@@ -19,15 +19,15 @@ impl TypedStmt {
                 generator.end_scope()?;
             }
             TypedStmt::ExpressionStmt(e) => {
-                e.generate_bytecode(registry, generator, Load);
+                e.generate_bytecode(registry, generator, Load)?;
             }
             TypedStmt::VarDeclarationStmt {name, value, .. } => {
-                value.generate_bytecode(registry, generator, Load);
+                value.generate_bytecode(registry, generator, Load)?;
 
                 generator.store_new_var(name.clone(), registry, value.get_type())?;
             }
             TypedStmt::IfStmt { condition, body, else_branch } => {
-                condition.generate_bytecode(registry, generator, Load);
+                condition.generate_bytecode(registry, generator, Load)?;
                 generator.new_skippable_scope_eq();
 
                 for b in body {
@@ -50,7 +50,7 @@ impl TypedStmt {
                 }
             }
             TypedStmt::WhileStmt { condition, body } => {
-                condition.generate_bytecode(registry, generator, Load);
+                condition.generate_bytecode(registry, generator, Load)?;
 
                 generator.new_skippable_scope_eq();
 
@@ -59,7 +59,7 @@ impl TypedStmt {
                 }
 
                 // FIXME should not generate this twice
-                condition.generate_bytecode(registry, generator, Load);
+                condition.generate_bytecode(registry, generator, Load)?;
                 generator.push_goto_scope_start_insn();
 
                 generator.end_scope()?;
@@ -93,7 +93,7 @@ impl TypedStmt {
                 }
             }
             TypedStmt::ReturnStmt(e) => {
-                 e.generate_bytecode(registry, generator, Load);
+                 e.generate_bytecode(registry, generator, Load)?;
 
                 generator.ret(e.get_type().get(registry).word_size(registry));
             }

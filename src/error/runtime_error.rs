@@ -5,7 +5,8 @@ use crate::interpreter::value::{Value, ValueType};
 
 #[derive(Debug, PartialEq)]
 pub enum ValueTypeVariant {
-    Null, Int, Float, Address, Number
+    Null, Int, Float, Address,
+    Number, Nullable, Array
 }
 
 impl ValueTypeVariant {

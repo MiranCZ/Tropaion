@@ -5,8 +5,9 @@ use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
-use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable};
+use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
 use crate::error::ok;
+use crate::interpreter::value::ValueType;
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -200,6 +201,80 @@ impl BytecodeGen {
 
 }
 
+impl BytecodeGen {
+
+    fn typed_expr(t: TypeEntry, registry: &TypeRegistry, mut generator: impl FnMut(ValueType) -> EmptyRes) -> EmptyRes {
+        let t = t.get(registry);
+
+        match t {
+            AstType::Bool | AstType::Int => generator(ValueType::Int)?,
+            AstType::Float => generator(ValueType::Float)?,
+            AstType::NullableType { .. } |
+            AstType::StructType { .. } => generator(ValueType::Address)?,
+
+            _ => return Err(CompilationError::unsupported_type(t, registry))
+        }
+
+        ok()
+    }
+
+    pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => self.store(name.clone(), |i| IStore(i)),
+            ValueType::Float => self.store(name.clone(), |i| FStore(i)),
+            ValueType::Address => self.store(name.clone(), |i| AStore(i)),
+        })
+    }
+
+    pub fn store_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => Ok(self.push_insn(IStoreOffset(offset))),
+            ValueType::Float => Ok(self.push_insn(FStoreOffset(offset))),
+            ValueType::Address => Ok(self.push_insn(AStoreOffset(offset)))
+        })
+    }
+
+
+    pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => Ok(self.store_internal(|i| IStore(i))),
+            ValueType::Float => Ok(self.store_internal(|i| FStore(i))),
+            ValueType::Address => Ok(self.store_internal(|i| AStore(i))),
+        })
+    }
+
+    pub fn store_var_offset(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => Ok(self.push_insn(IStoreVarOffset)),
+            ValueType::Float => Ok(self.push_insn(FStoreVarOffset)),
+            ValueType::Address => Ok(self.push_insn(AStoreVarOffset))
+        })
+    }
+
+    pub fn load_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => Ok(self.push_insn(ILoadOffset(offset))),
+            ValueType::Float => Ok(self.push_insn(FLoadOffset(offset))),
+            ValueType::Address => Ok(self.push_insn(ALoadOffset(offset)))
+        })
+    }
+
+    pub fn load_var_offset(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |t| match t {
+            ValueType::Null => Err(UnsupportedType("Null".to_string())),
+            ValueType::Int => Ok(self.push_insn(ILoadVarOffset)),
+            ValueType::Float => Ok(self.push_insn(FLoadVarOffset)),
+            ValueType::Address => Ok(self.push_insn(ALoadVarOffset))
+        })
+    }
+
+}
+
 
 /// Instruction helpers
 impl BytecodeGen {
@@ -292,44 +367,6 @@ impl BytecodeGen {
         self.push_insn(CmpEqLess);
     }
 
-    pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) -> EmptyRes {
-        match value.get(registry) {
-            AstType::Bool | AstType::Int => self.store(name.clone(), |i| IStore(i))?,
-            AstType::Float => self.store(name.clone(), |i| FStore(i))?,
-            AstType::NullableType { .. } |
-            AstType::StructType { .. } => self.store(name.clone(), |i| AStore(i))?,
-
-            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
-        };
-
-        ok()
-    }
-
-    pub fn store_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) -> EmptyRes {
-        match value.get(registry) {
-            AstType::Bool | AstType::Int => self.i_store_offset(offset),
-            AstType::Float => self.f_store_offset(offset),
-            AstType::NullableType { .. } => self.a_store_offset(offset),
-            AstType::StructType { .. } => self.a_store_offset(offset),
-
-            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
-        };
-
-        ok()
-    }
-
-    pub fn i_store_offset(&mut self, offset: u32) {
-        self.push_insn(IStoreOffset(offset));
-    }
-
-    pub fn f_store_offset(&mut self, offset: u32) {
-        self.push_insn(FStoreOffset(offset));
-    }
-
-    pub fn a_store_offset(&mut self, offset: u32) {
-        self.push_insn(AStoreOffset(offset));
-    }
-
     fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) -> EmptyRes {
         if self.symbol_table.contains(&name) {
             let ind = self.symbol_table.get(name).unwrap();
@@ -386,19 +423,6 @@ impl BytecodeGen {
         self.symbol_table.record(name, ind);
     }
 
-    pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
-        match value.get(registry) {
-            AstType::Bool | AstType::Int => self.store_internal(|i| IStore(i)),
-            AstType::Float => self.store_internal(|i| FStore(i)),
-            AstType::NullableType { .. } => self.store_internal(|i| AStore(i)),
-            AstType::StructType { .. } => self.store_internal(|i| AStore(i)),
-
-            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
-        };
-
-        ok()
-    }
-
     fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {
         self.push_insn(create_store(self.scope_local_count));
 
@@ -429,42 +453,6 @@ impl BytecodeGen {
         let ind = self.symbol_table.get(name).unwrap();
 
         self.push_insn(ALoad(ind));
-    }
-
-    pub fn i_load_offset(&mut self, offset: u16) {
-        self.push_insn(ILoadOffset(offset));
-    }
-
-    pub fn f_load_offset(&mut self, offset: u16) {
-        self.push_insn(FLoadOffset(offset));
-    }
-
-    pub fn a_load_offset(&mut self, offset: u16) {
-        self.push_insn(ALoadOffset(offset));
-    }
-
-    pub fn i_load_var_offset(&mut self) {
-        self.push_insn(ILoadVarOffset);
-    }
-
-    pub fn f_load_var_offset(&mut self) {
-        self.push_insn(FLoadVarOffset);
-    }
-
-    pub fn a_load_var_offset(&mut self) {
-        self.push_insn(ALoadVarOffset);
-    }
-
-    pub fn i_store_var_offset(&mut self) {
-        self.push_insn(IStoreVarOffset);
-    }
-
-    pub fn f_store_var_offset(&mut self) {
-        self.push_insn(FStoreVarOffset);
-    }
-
-    pub fn a_store_var_offset(&mut self) {
-        self.push_insn(AStoreVarOffset);
     }
 
     pub fn call(&mut self, name: &String) {
