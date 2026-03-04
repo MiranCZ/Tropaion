@@ -32,7 +32,7 @@ pub enum Value {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValueType {
     Null,
     Int,

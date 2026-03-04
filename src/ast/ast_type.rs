@@ -54,6 +54,45 @@ impl AstType {
 
 impl AstType {
 
+    pub fn format(&self, registry: &TypeRegistry) -> String {
+        match self {
+            AstType::UnknownType => "<unknown>".to_string(),
+            AstType::Void => "void".to_string(),
+            AstType::Bool => "bool".to_string(),
+            AstType::Int => "int".to_string(),
+            AstType::Float => "float".to_string(),
+            AstType::StringType => "string".to_string(),
+            AstType::SymbolType(s) => format!("<symbol({s})>"),
+
+            AstType::ReferenceType { underlying } => format!("&{}", underlying.get(registry).format(registry)),
+            AstType::NullableType { underlying } => format!("{}?", underlying.get(registry).format(registry)),
+            AstType::ArrayType { underlying } => format!("[{}]", underlying.get(registry).format(registry)),
+            TupleType(arr) => {
+                if arr.is_empty() {
+                    return "()".to_string();
+                }
+
+                let mut res = "(".to_string();
+
+                let first = arr[0].get(registry).format(registry);
+                res = res + &*first;
+
+                for a in arr[1..].iter() {
+                    res = res + ", " + &*a.get(registry).format(registry);
+                }
+
+                return res + ")";
+            },
+            AstType::FunctionsType { name, .. } => format!("{name}(..?)"),
+            AstType::FunctionType { name, .. } => format!("{name}()"),
+            AstType::StructType {name, .. } => name.clone()
+        }
+    }
+
+}
+
+impl AstType {
+
 
     pub fn equals(&self, other: &Self, registry: &TypeRegistry) -> bool {
         self._equals(other, registry, false)

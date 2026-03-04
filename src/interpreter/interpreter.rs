@@ -1,8 +1,13 @@
 use std::cell::Ref;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
+use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
+use crate::error::ok;
+use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
@@ -13,26 +18,30 @@ use crate::interpreter::value::ValueType::{Address, Float, Int};
 
 macro_rules! math_op {
     ($method:ident) => {
-        fn $method(&mut self) {
-            let b = self.pop();
-            let a = self.pop();
+        fn $method(&mut self) -> Res {
+            let b = self.pop()?;
+            let a = self.pop()?;
 
-            self.push(a.$method(b));
+            self.push(a.$method(b))?;
+
+            ok()
         }
     };
 }
 
 macro_rules! cmp_op {
     ($method:ident, $op: tt) => {
-        fn $method(&mut self) {
-            let b = self.pop();
-            let a = self.pop();
+        fn $method(&mut self) -> Res {
+            let b = self.pop()?;
+            let a = self.pop()?;
 
             if a $op b {
-                self.push(IntValue(1));
+                self.push(IntValue(1))?;
             } else {
-                self.push(IntValue(0));
+                self.push(IntValue(0))?;
             }
+
+            ok()
         }
     };
 }
@@ -58,7 +67,12 @@ pub struct Interpreter {
     heap: Heap
 }
 
+type Res = Result<(), RuntimeError>;
+type ValueRes = Result<Value, RuntimeError>;
+
+
 impl Interpreter {
+
 
     pub fn new(instructions: Vec<ByteCode>, functions_map: HashMap<String, FunctionInfo>) -> Self {
         let mut functions = Vec::with_capacity(functions_map.len());
@@ -87,15 +101,17 @@ impl Interpreter {
         }
     }
 
-    pub fn run_function(&mut self, function: String) -> (Vec<Value>, &Heap) {
+    pub fn run_function(&mut self, function: String) -> Result<(Vec<Value>, &Heap), RuntimeError> {
         let fun = self.function_mapping.get(&function);
-        if fun.is_none() {
-            panic!("Trying to call non-existant function {function}!");
-        }
-        let fun = fun.unwrap();
+
+        let fun = if let Some(fun) = fun {
+            fun
+        } else {
+            return Err(FunctionNotFound(function));
+        };
 
         self.insn_addr = self.instructions.len();
-        self.call(fun.index);
+        self.call(fun.index)?;
         self.insn_addr += 1;
 
         while self.insn_addr < self.instructions.len() {
@@ -104,7 +120,7 @@ impl Interpreter {
             // println!("values {:?}", &self.stack[0..self.pointer]);
             // println!("\t{insn:?}\n");
 
-            self.execute(insn);
+            self.execute(insn)?;
             self.insn_addr += 1;
         }
 
@@ -114,19 +130,26 @@ impl Interpreter {
             result.push(*v);
         }
 
-        (result, &self.heap)
+        Ok((result, &self.heap))
     }
 
-    fn execute(&mut self, insn: ByteCode) {
+    fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {
         match insn {
-            ByteCode::Comment(_) => {}
-            ByteCode::Nop => {}
+            ByteCode::Comment(_) => {ok()}
+            ByteCode::Nop => {ok()}
 
             ByteCode::NullPtr => self.push(RefValue {ptr: 0, len: 1}),
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),
-            ByteCode::Pop => {self.pop();},
+            ByteCode::Pop => {
+                let v = self.pop();
+                if let Some(e) = v.err() {
+                   return Err(e);
+                }
+
+                ok()
+            },
             ByteCode::Dup => self.dup(),
             ByteCode::Swap => self.swap(),
 
@@ -186,41 +209,47 @@ impl Interpreter {
 
             ByteCode::HeapAlloc(size) => self.heap_alloc(size),
 
-            ByteCode::StackFrame(_) => panic!("Dangling stack frame instruction!"),
+            ByteCode::StackFrame(_) => Err(UnexpectedStackFrame),
         }
     }
 
-    fn push_int(&mut self, value: i32) {
-        self.push(IntValue(value));
+    fn push_int(&mut self, value: i32) -> Res {
+        self.push(IntValue(value))?;
+
+        ok()
     }
 
-    fn push_float(&mut self, value: f32) {
-        self.push(FloatValue(value));
+    fn push_float(&mut self, value: f32) -> Res {
+        self.push(FloatValue(value))?;
+
+        ok()
     }
 
 
-    fn pop(&mut self) -> Value {
+    fn pop(&mut self) -> ValueRes {
         if self.pointer == 0 {
-            panic!("Attempting to pop an empty stack!")
+            return Err(StackUnderflow("Attempting to pop"));
         }
 
         self.pointer -= 1;
 
-        self.stack[self.pointer]
+        Ok(self.stack[self.pointer])
     }
 
-    fn peek(&mut self) -> Value {
+    fn peek(&mut self) -> ValueRes {
         if self.pointer == 0 {
-            panic!("Attempting to peek an empty stack!")
+            return Err(StackUnderflow("Attempting to pop"));
         }
 
-        self.stack[self.pointer-1]
+        Ok(self.stack[self.pointer-1])
     }
 
-    fn push(&mut self, value: Value) {
+    fn push(&mut self, value: Value) -> Res {
         self.stack[self.pointer] = value;
 
         self.pointer += 1;
+
+        ok()
     }
 
     fn push_stack_frame(&mut self, size: u16) {
@@ -229,61 +258,68 @@ impl Interpreter {
         self.pointer += size as usize;
     }
 
-    fn pop_stack_frame(&mut self) {
-
+    fn pop_stack_frame(&mut self) -> Res {
         let frame = self.stack_frames.pop();
 
         if let Some(value) = frame {
             self.pointer = value.start;
         } else {
-            panic!("Attempted to pop stack frame but none is present!")
+            return Err(StackFrameMissing);
         }
+
+        ok()
     }
 
-    fn store_local(&mut self, index: u16, typ: ValueType) {
-        let top = self.pop();
+    fn store_local(&mut self, index: u16, typ: ValueType) -> Res {
+        let top = self.pop()?;
 
-        let absolute_index = self.get_stack_frame_start() + (index as usize);
+        let absolute_index = self.get_stack_frame_start()? + (index as usize);
 
         if !typ.assignable(&top) {
-            panic!("Invalid store {typ:?} {top:?}")
+            return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: top});
         }
 
         self.stack[absolute_index] = top;
+
+        ok()
     }
 
-    fn load_local(&mut self, index: u16, typ: ValueType) {
-        let absolute_index = self.get_stack_frame_start() + (index as usize);
+    fn load_local(&mut self, index: u16, typ: ValueType) -> Res {
+        let absolute_index = self.get_stack_frame_start()? + (index as usize);
 
         let value = self.stack[absolute_index];
 
 
         if !typ.assignable(&value) {
-            panic!("Invalid LOAD {typ:?} {value:?}")
+            return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: value});
         }
 
-        self.push(value);
+        self.push(value)?;
+
+        ok()
     }
 
-    fn store_var_offset_local(&mut self, typ: ValueType) {
-        let top = self.pop();
+    fn store_var_offset_local(&mut self, typ: ValueType) -> Res {
+        let top = self.pop()?;
 
         if let IntValue(o) = top {
-            self.store_offset_local(o as u32, typ);
+            self.store_offset_local(o as u32, typ)?;
         } else {
-            panic!("Cannot use {top:?} as offset!")
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
         }
+
+        ok()
     }
 
-    fn store_offset_local(&mut self, offset: u32, typ: ValueType) {
-        let top = self.pop();
+    fn store_offset_local(&mut self, offset: u32, typ: ValueType) -> Res {
+        let top = self.pop()?;
 
         if let RefValue{ptr, len} = top {
             if ptr == 0 {
-                panic!("Storing to a null-pointer!");
+                return Err(NullPtrDeref);
             }
             if len < (offset as u32) {
-                panic!("Reference offest is bigger than its length!")
+                return Err(RuntimeError::OffsetOutOfBounds {len, offset});
             }
 
             let absolute_index = (ptr as usize) + (offset as usize);
@@ -291,38 +327,42 @@ impl Interpreter {
             let prev = self.load_at_ptr(absolute_index);
 
 
-            let new = self.pop();
+            let new = self.pop()?;
 
             if prev != Null && (!typ.assignable(&prev) || !typ.assignable(&new)) {
-                panic!("Invalid STORE_OFFSET expected: {typ:?} previous: {prev:?} new: {new:?}");
+                return Err(IllegalAssignment {expected: typ, got: new, previous: prev});
             }
 
             self.store_at_ptr(absolute_index, new);
         } else {
-            panic!("Expected reference!")
+            return Err(TypeMismatch {expected: ValueTypeVariant::Address, got: top});
         }
+
+        ok()
     }
 
-    fn load_var_offset_local(&mut self, typ: ValueType) {
-        let top = self.pop();
+    fn load_var_offset_local(&mut self, typ: ValueType) -> Res{
+        let top = self.pop()?;
 
         if let IntValue(o) = top {
-            self.load_offset_local(o as u32, typ);
+            self.load_offset_local(o as u32, typ)?;
         } else {
-            panic!("Cannot use {top:?} as offset!")
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
         }
+
+        ok()
     }
 
-    fn load_offset_local(&mut self, offset: u32, typ: ValueType) {
-        let top = self.pop();
+    fn load_offset_local(&mut self, offset: u32, typ: ValueType) -> Res {
+        let top = self.pop()?;
 
         if let RefValue{ptr, len} = top {
             // this is not a panic since LOADING a nullptr is valid for stuff like null-checks
             // if ptr == 0 {
-            //     panic!("Loading from a null-pointer!");
+            //     pa!("Loading from a null-pointer!");
             // }
             if len < (offset) {
-                panic!("Reference offest is bigger than its length!")
+                return Err(RuntimeError::OffsetOutOfBounds {len, offset});
             }
 
             let absolute_index = (ptr as usize) + (offset as usize);
@@ -330,17 +370,18 @@ impl Interpreter {
             let value = self.load_at_ptr(absolute_index);
 
             if !typ.assignable(&value) {
-                panic!("Invalid LOAD_OFFSET {typ:?} {value:?}")
+                return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: value});
             }
 
-            self.push(value);
+            self.push(value)?;
         } else {
-            panic!("Tried to call LOAD_OFFSET with {top:?}")
+            return Err(TypeMismatch {expected: ValueTypeVariant::Address, got: top});
         }
 
+        ok()
     }
 
-    fn load_at_ptr(&self, ptr: usize) -> Value{
+    fn load_at_ptr(&self, ptr: usize) -> Value {
         if ptr < STACK_SIZE {
             self.stack[ptr]
         } else {
@@ -357,59 +398,64 @@ impl Interpreter {
     }
 
 
-    fn create_stack_ptr(&mut self, offset: u16, size: u16) {
-        let ptr = self.get_stack_frame_start() + (offset as usize);
+    fn create_stack_ptr(&mut self, offset: u16, size: u16) -> Res {
+        let ptr = self.get_stack_frame_start()? + (offset as usize);
 
-        self.push(RefValue{ptr: ptr as u32, len: size as u32});
+        self.push(RefValue{ptr: ptr as u32, len: size as u32})?;
+
+        ok()
     }
 
-    fn get_stack_frame_start(&self) -> usize {
+    fn get_stack_frame_start(&self) -> Result<usize, RuntimeError> {
         let value = self.stack_frames.last();
 
         if let Some(ind) = value {
-            return ind.start;
+            return Ok(ind.start);
         }
 
-        panic!("Attempted to get stack frame but none is present!")
+        Err(StackFrameMissing)
     }
 
-    fn get_stack_frame_size(&self) -> usize {
+    fn get_stack_frame_size(&self) -> Result<usize, RuntimeError> {
         let value = self.stack_frames.last();
 
         if let Some(ind) = value {
-            return ind.len;
+            return Ok(ind.len);
         }
 
-        panic!("Attempted to get stack frame but none is present!")
+        Err(StackFrameMissing)
     }
 
-    fn dup(&mut self) {
-        let last = self.peek();
+    fn dup(&mut self) -> Res {
+        let last = self.peek()?;
 
         self.push(last)
     }
 
-    fn swap(&mut self) {
+    fn swap(&mut self) -> Res {
         if self.stack.len() < 2 {
-            panic!();
+            return Err(StackUnderflow("Attempted to swap with small stack"));
         }
 
         self.stack.swap(self.pointer-2, self.pointer-1);
+
+        ok()
     }
 
-    fn bool_not(&mut self) {
-        let top = self.pop();
+    fn bool_not(&mut self) -> Res {
+        let top = self.pop()?;
         
         if let IntValue(i) = top {
             if i == 0 {
-                self.push(IntValue(1));
+                self.push(IntValue(1))?;
             } else {
-                self.push(IntValue(0));
+                self.push(IntValue(0))?;
             }
         } else {
-            panic!("Cannot apply BOOL_NOT to {top:?}");
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
         }
-        
+
+        ok()
     }
     
     math_op!(bitor);
@@ -426,26 +472,30 @@ impl Interpreter {
     cmp_op!(lt, <);
     cmp_op!(le, <=);
 
-    fn eq(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
+    fn eq(&mut self) -> Res {
+        let b = self.pop()?;
+        let a = self.pop()?;
 
         if self.values_equal(&a, &b, &mut HashSet::new()) {
-            self.push(IntValue(1));
+            self.push(IntValue(1))?;
         } else {
-            self.push(IntValue(0));
+            self.push(IntValue(0))?;
         }
+
+        ok()
     }
 
-    fn ne(&mut self) {
-        let b = self.pop();
-        let a = self.pop();
+    fn ne(&mut self) -> Res {
+        let b = self.pop()?;
+        let a = self.pop()?;
 
         if !self.values_equal(&a, &b, &mut HashSet::new()) {
-            self.push(IntValue(1));
+            self.push(IntValue(1))?;
         } else {
-            self.push(IntValue(0));
+            self.push(IntValue(0))?;
         }
+
+        ok()
     }
 
     fn values_equal(&mut self, a: &Value, b: &Value, visited: &mut HashSet<(u32, u32)>) -> bool{
@@ -525,17 +575,17 @@ impl Interpreter {
         }
     }
 
-    fn call(&mut self, fn_index: u16) {
+    fn call(&mut self, fn_index: u16) -> Res {
         let info = self.functions[fn_index as usize];
 
         self.call_stack.push(self.insn_addr);
 
-        let size = (info.params_len) as usize;
+        let size = info.params_len as usize;
 
         let mut values = Vec::with_capacity(size);
 
         for _ in 0..size {
-            values.push(self.pop());
+            values.push(self.pop()?);
         }
         values.reverse();
 
@@ -546,17 +596,18 @@ impl Interpreter {
         if let ByteCode::StackFrame(size) = next_insn {
             self.push_stack_frame(*size);
         } else {
-            panic!("Expected STACK_FRAME after CALL got {next_insn:?} instead")
+            return Err(StackFrameExpected(next_insn.clone()));
         }
 
         for v in values {
-            self.push(v);
+            self.push(v)?;
         }
 
+        ok()
     }
 
-    fn ret(&mut self, size: u32) {
-        let new_ptr = self.get_stack_frame_start() as u32;
+    fn ret(&mut self, size: u32) -> Res {
+        let new_ptr = self.get_stack_frame_start()? as u32;
 
         let size = size as usize;
 
@@ -577,10 +628,10 @@ impl Interpreter {
             values.push(v);
         }
 
-        self.pop_stack_frame();
+        self.pop_stack_frame()?;
 
         for v in values {
-            self.push(v);
+            self.push(v)?;
         }
 
         let return_address = self.call_stack.pop();
@@ -588,9 +639,10 @@ impl Interpreter {
         if let Some(addr) = return_address {
             self.insn_addr = addr;
         } else {
-            panic!("Returned called on an empty callstack!")
+            return Err(EmptyCallstack);
         }
 
+        ok()
     }
 
     fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Value {
@@ -628,54 +680,62 @@ impl Interpreter {
         RefValue { ptr: promoted_ptr, len }
     }
 
-    fn heap_alloc(&mut self, size: u32) {
+    fn heap_alloc(&mut self, size: u32) -> Res {
         let ptr =self.heap.alloc(size);
 
-        self.push(RefValue {ptr, len: size});
+        self.push(RefValue {ptr, len: size})?;
+
+        ok()
     }
 
-    fn if_eq(&mut self, offset: i32) {
-        let value = self.pop();
+    fn if_eq(&mut self, offset: i32) -> Res {
+        let value = self.pop()?;
 
         let res = match value {
             IntValue(v) => v == 0,
             FloatValue(v) => v == 0f32,
 
-            _ => panic!("Expected Number got {value:?}")
+            _ => return Err(TypeMismatch {expected: Number, got: value})
         };
 
         if res {
-            self.goto(offset);
+            self.goto(offset)?;
         }
+
+        ok()
     }
 
-    fn if_ne(&mut self, offset: i32) {
-        let value = self.pop();
+    fn if_ne(&mut self, offset: i32) -> Res {
+        let value = self.pop()?;
 
         let res = match value {
             IntValue(v) => v == 0,
             FloatValue(v) => v == 0f32,
 
-            _ => panic!("Expected Number got {value:?}")
+            _ => return Err(TypeMismatch {expected: Number, got: value})
         };
 
         if !res {
-            self.goto(offset);
+            self.goto(offset)?;
         }
+
+        ok()
     }
 
-    fn goto(&mut self, offset: i32) {
+    fn goto(&mut self, offset: i32) -> Res {
         if offset < 0 {
             if (offset as i64) > (self.insn_addr as i64) {
-                panic!("Goto instruction pointer underflow!")
+                return Err(InstructionPtrUnderflow);
             }
         } else {
             if (offset as usize) + self.insn_addr >= self.instructions.len() {
-                panic!("Goto instruction pointer overflow!")
+                return Err(InstructionPtrOverflow);
             }
         }
 
         self.insn_addr = ((self.insn_addr as i64) + (offset as i64)) as usize;
+
+        ok()
     }
 
 }
