@@ -62,8 +62,14 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let mut comp = Compiler::new(resolved_root);
 
-    let (instructions, functions) = comp.compile(&mut registry);
+    let res = comp.compile(&mut registry);
 
+    let (instructions, functions) = if let Ok((i, f)) = res {
+        (i, f)
+    } else {
+        panic!("Error {:?}", res.err().unwrap());
+    };
+    
     let interpret = Interpreter::new(instructions, functions);
 
     interpret
@@ -111,7 +117,13 @@ fn interpret(text: &str) {
             println!("-------------------");
             println!();
 
-            let (instructions, functions) = comp.compile(&mut registry);
+            let res = comp.compile(&mut registry);
+
+            let (instructions, functions) = if let Ok((i, f)) = res {
+                (i, f)
+            } else {
+                panic!("Error {:?}", res.err().unwrap());
+            };
 
             println!("{:?}", functions);
             println!();

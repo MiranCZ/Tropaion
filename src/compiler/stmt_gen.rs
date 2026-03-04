@@ -1,22 +1,22 @@
-use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType;
-use crate::ast::expression::Expression;
+use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::TypedStmt;
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::Load;
+use crate::error::compilation_error::EmptyRes;
+use crate::error::ok;
 
 impl TypedStmt {
 
-    pub fn gen_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) {
+    pub fn gen_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) -> EmptyRes {
         match self {
             TypedStmt::BlockStmt { body } => {
                 generator.new_scope();
 
                 for b in body {
-                    b.gen_bytecode(registry, generator);
+                    b.gen_bytecode(registry, generator)?;
                 }
 
-                generator.end_scope();
+                generator.end_scope()?;
             }
             TypedStmt::ExpressionStmt(e) => {
                 e.generate_bytecode(registry, generator, Load);
@@ -24,31 +24,30 @@ impl TypedStmt {
             TypedStmt::VarDeclarationStmt {name, value, .. } => {
                 value.generate_bytecode(registry, generator, Load);
 
-                generator.store_new_var(name.clone(), registry, value.get_type());
+                generator.store_new_var(name.clone(), registry, value.get_type())?;
             }
             TypedStmt::IfStmt { condition, body, else_branch } => {
                 condition.generate_bytecode(registry, generator, Load);
                 generator.new_skippable_scope_eq();
 
                 for b in body {
-                    b.gen_bytecode(registry, generator);
+                    b.gen_bytecode(registry, generator)?;
                 }
 
                 if let Some(br) = else_branch {
                     // generator.push_scope_exit_insn();
                     generator.nop();
-                    generator.end_scope();
+                    generator.end_scope()?;
                     generator.instructions.pop();
 
                     generator.new_scope();
                     generator.push_scope_exit_insn();
 
-                    br.gen_bytecode(registry, generator);
-                    generator.end_scope();
+                    br.gen_bytecode(registry, generator)?;
+                    generator.end_scope()?;
                 } else {
-                    generator.end_scope();
+                    generator.end_scope()?;
                 }
-
             }
             TypedStmt::WhileStmt { condition, body } => {
                 condition.generate_bytecode(registry, generator, Load);
@@ -56,42 +55,41 @@ impl TypedStmt {
                 generator.new_skippable_scope_eq();
 
                 for b in body {
-                    b.gen_bytecode(registry, generator);
+                    b.gen_bytecode(registry, generator)?;
                 }
 
                 // FIXME should not generate this twice
                 condition.generate_bytecode(registry, generator, Load);
                 generator.push_goto_scope_start_insn();
 
-                generator.end_scope();
+                generator.end_scope()?;
             }
-            TypedStmt::FunctionStmt {name, body, params, return_type, .. } => {
+            TypedStmt::FunctionStmt {name, body, params, .. } => {
                 generator.comment(format!("fn {name} -- START"));
                 generator.fn_start(name.clone());
 
                 for param in params.iter().rev() {
                     let name = param.name.clone();
 
-                    generator.store_new_var(name, registry, param.param_type);
+                    generator.store_new_var(name, registry, param.param_type)?;
                 }
 
                 for b in body {
-                    b.gen_bytecode(registry, generator);
+                    b.gen_bytecode(registry, generator)?;
                 }
 
                 // FIXME technically its fine adding two return statements, but not ideal
                 // (this is here if no explicit return statement was inserted)
                 generator.ret(0);
 
-                generator.fn_end(name.clone());
+                generator.fn_end(name.clone())?;
 
 
                 generator.comment(format!("return of {name} -- END"));
             }
-            TypedStmt::StructStmt {name, fields, body, .. } => {
-
+            TypedStmt::StructStmt {body, .. } => {
                 for b in body {
-                    b.gen_bytecode(registry, generator);
+                    b.gen_bytecode(registry, generator)?;
                 }
             }
             TypedStmt::ReturnStmt(e) => {
@@ -105,6 +103,7 @@ impl TypedStmt {
             TypedStmt::MultilineCommentStmt(_) => {}
         }
 
+        ok()
     }
 
 }

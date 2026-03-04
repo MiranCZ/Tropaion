@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::expression::Expression;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
+use crate::error::compilation_error::{CompilationError, EmptyRes};
+use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable};
+use crate::error::ok;
 
 #[derive(Debug)]
 struct ScopeInfo {
@@ -102,7 +104,7 @@ impl BytecodeGen {
         self.push_insn(Goto(offset))
     }
 
-    pub fn end_scope(&mut self) {
+    pub fn end_scope(&mut self) -> EmptyRes {
         let scope = self.scopes.pop().unwrap();
 
         for i in scope.exit_points {
@@ -114,7 +116,7 @@ impl BytecodeGen {
 
         self.symbol_table.pop();
         if !scope.skippable {
-            return;
+            return ok();
         }
 
         let end_offset = self.index() - scope.start_index - 1;
@@ -124,19 +126,21 @@ impl BytecodeGen {
         match self.instructions[ind as usize] {
             IfEq(_) => self.instructions[ind as usize] = IfEq(end_offset),
             IfNe(_) => self.instructions[ind as usize] = IfNe(end_offset),
-            
-            _ => panic!("Expected comparison placeholder, got {:?}", self.instructions[ind as usize])
+
+            _ => return Err(CompilationError::ExpectedComparison(self.instructions[ind as usize].clone()))
         }
+
+        ok()
     }
 
-    pub fn get_scope_start_offset(&self) -> i32 {
+    pub fn get_scope_start_offset(&self) -> Result<i32, CompilationError> {
         if self.scopes.is_empty() {
-            panic!("UH OH! scopes are empty!")
+            return Err(MissingScope);
         }
 
         let last = self.scopes.last().unwrap();
 
-        last.start_index - self.index() - 1
+        Ok(last.start_index - self.index() - 1)
     }
 
     pub fn fn_start(&mut self, name: String) {
@@ -144,7 +148,7 @@ impl BytecodeGen {
         self.functions.insert(name, FunctionInfo{
             index: fun.index,
             params_len: fun.params_len,
-            start: (self.instructions.len() as u32),
+            start: self.instructions.len() as u32,
             end: 0
         });
 
@@ -152,13 +156,13 @@ impl BytecodeGen {
         self.push_insn(StackFrame(0));
     }
 
-    pub fn fn_end(&mut self, name: String) {
+    pub fn fn_end(&mut self, name: String) -> EmptyRes {
         let fun = self.functions.get(&name).unwrap();
         self.functions.insert(name, FunctionInfo{
             index: fun.index,
             params_len: fun.params_len,
             start: fun.start,
-            end: (self.instructions.len() as u32)
+            end: self.instructions.len() as u32
         });
 
         let scope = self.scopes.last().unwrap();
@@ -169,9 +173,11 @@ impl BytecodeGen {
 
         self.instructions[frame_ind as usize] = StackFrame(local_count);
 
-        self.end_scope();
+        self.end_scope()?;
 
         self.local_count = self.scope_local_count;
+
+        ok()
     }
 
     pub fn register_func(&mut self, name: String, params_len: u32) {
@@ -286,36 +292,30 @@ impl BytecodeGen {
         self.push_insn(CmpEqLess);
     }
 
-    pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) {
+    pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
-            AstType::Bool | AstType::Int => self.i_store(name.clone()),
-            AstType::Float => self.f_store(name.clone()),
-            AstType::NullableType { .. } => self.a_store(name.clone()),
-            AstType::StructType { .. } => self.a_store(name.clone()),
-            _ => panic!("Not yet supported type {:?}", value.get(registry))
+            AstType::Bool | AstType::Int => self.store(name.clone(), |i| IStore(i))?,
+            AstType::Float => self.store(name.clone(), |i| FStore(i))?,
+            AstType::NullableType { .. } |
+            AstType::StructType { .. } => self.store(name.clone(), |i| AStore(i))?,
+
+            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
         };
+
+        ok()
     }
 
-    pub fn i_store(&mut self, name: String) {
-        self.store(name, |i| IStore(i))
-    }
-
-    pub fn f_store(&mut self, name: String) {
-        self.store(name, |i| FStore(i))
-    }
-
-    pub fn a_store(&mut self, name: String) {
-        self.store(name, |i| AStore(i))
-    }
-
-    pub fn store_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) {
+    pub fn store_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
             AstType::Bool | AstType::Int => self.i_store_offset(offset),
             AstType::Float => self.f_store_offset(offset),
             AstType::NullableType { .. } => self.a_store_offset(offset),
             AstType::StructType { .. } => self.a_store_offset(offset),
-            _ => panic!("Not yet supported type {:?}", value.get(registry))
+
+            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
         };
+
+        ok()
     }
 
     pub fn i_store_offset(&mut self, offset: u32) {
@@ -330,17 +330,19 @@ impl BytecodeGen {
         self.push_insn(AStoreOffset(offset));
     }
 
-    fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
+    fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) -> EmptyRes {
         if self.symbol_table.contains(&name) {
             let ind = self.symbol_table.get(name).unwrap();
 
             self.push_insn(create_store(ind));
         } else {
-            panic!("Variable with the name {name} not created")
+            return Err(MissingVariable(name));
         }
+
+        ok()
     }
     
-    pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) {
+    pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
             AstType::Bool | AstType::Int => self.store_new(name, |i| IStore(i)),
             AstType::Float => self.store_new(name, |i| FStore(i)),
@@ -352,7 +354,7 @@ impl BytecodeGen {
 
                 for a in arr.iter().rev() {
                     self.scope_local_count -= 2;
-                    self.store_internal_value(registry, *a);
+                    self.store_internal_value(registry, *a)?;
                 }
                 self.scope_local_count += arr.len() as u16 - 1;
 
@@ -360,8 +362,11 @@ impl BytecodeGen {
 
                 self.store_new(name, |i| AStore(i))
             },
-            _ => panic!("Not yet supported type {:?}", value.get(registry))
+
+            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
         };
+
+        ok()
     }
     
     fn store_new(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
@@ -381,14 +386,17 @@ impl BytecodeGen {
         self.symbol_table.record(name, ind);
     }
 
-    pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) {
+    pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
             AstType::Bool | AstType::Int => self.store_internal(|i| IStore(i)),
             AstType::Float => self.store_internal(|i| FStore(i)),
             AstType::NullableType { .. } => self.store_internal(|i| AStore(i)),
             AstType::StructType { .. } => self.store_internal(|i| AStore(i)),
-            _ => panic!("Not yet supported type {:?}", value.get(registry))
+
+            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
         };
+
+        ok()
     }
 
     fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {

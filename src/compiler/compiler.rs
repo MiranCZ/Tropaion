@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::{BytecodeGen, FunctionInfo};
-use crate::interpreter::interpreter::Interpreter;
+use crate::error::compilation_error::CompilationError;
 
 pub struct Compiler {
     root: TypedStmt,
@@ -21,12 +20,12 @@ impl Compiler {
         }
     }
 
-    pub fn compile(mut self, registry: &TypeRegistry) -> (Vec<ByteCode>, HashMap<String, FunctionInfo>) {
+    pub fn compile(mut self, registry: &TypeRegistry) -> Result<(Vec<ByteCode>, HashMap<String, FunctionInfo>), CompilationError> {
         self.collect_functions(registry, &self.root.clone());
 
-        self.root.gen_bytecode(registry, &mut self.generator);
+        self.root.gen_bytecode(registry, &mut self.generator)?;
 
-        (self.generator.instructions, self.generator.functions)
+        Ok((self.generator.instructions, self.generator.functions))
     }
 
     fn collect_functions(&mut self, registry: &TypeRegistry ,stmt: &TypedStmt) {
