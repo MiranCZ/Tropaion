@@ -6,11 +6,12 @@ use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, F
 use crate::error::analysis_error::AnalysisError;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::fmt::Debug;
+use crate::util::spanned::Spanned;
 
-pub type UntypedStmt = Statement<()>;
-pub type TypedStmt = Statement<TypeEntry>;
+pub type UntypedStmt = Spanned<Statement<()>>;
+pub type TypedStmt = Spanned<Statement<TypeEntry>>;
 
-pub type StatementBlock<T> = Vec<Statement<T>>;
+pub type StatementBlock<T> = Vec<Spanned<Statement<T>>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<T> {
@@ -28,7 +29,7 @@ pub enum Statement<T> {
         condition: Expression<T>,
         body: StatementBlock<T>,
         // either another `if_stmt` or `block_stmt`
-        else_branch: Option<Box<Statement<T>>>
+        else_branch: Option<Box<Spanned<Statement<T>>>>
     },
     WhileStmt {
         condition: Expression<T>,
@@ -80,7 +81,7 @@ impl UntypedStmt {
             Ok(typed_body)
         }
 
-        Ok(match self {
+        let typed_stmt = match self.node {
             BlockStmt { body } => {
                 BlockStmt {body: resolve_smt_block(body,registry, symbol_table)?}
             }
@@ -185,7 +186,9 @@ impl UntypedStmt {
             MultilineCommentStmt(s) => {
                 MultilineCommentStmt(s)
             }
-        })
+        };
+        
+        Ok(Spanned::of(typed_stmt, self.span))
     }
 
 }

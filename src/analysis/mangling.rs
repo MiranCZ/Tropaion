@@ -6,6 +6,7 @@ use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, Assi
 use crate::ast::expression::TypedExpr;
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::ast::statement::{Parameter, Statement, TypedStmt};
+use crate::util::spanned::Spanned;
 
 impl TypedStmt {
 
@@ -15,7 +16,7 @@ impl TypedStmt {
     }
 
     fn _mangle_functions(self,registry: &mut TypeRegistry, owner: String) -> TypedStmt {
-        match self {
+        let stmt = match self.node {
             BlockStmt { body } => {
                 let mut mangled_body = vec![];
 
@@ -86,9 +87,11 @@ impl TypedStmt {
                 StructStmt {name, fields, body: mangled_body}
             }
             ReturnStmt(e) => ReturnStmt(e.mangle_functions(registry, owner.clone())),
-            TypedStmt::CommentStmt(_) => self,
-            TypedStmt::MultilineCommentStmt(_) => self
-        }
+            Statement::CommentStmt(_) => self.node,
+            Statement::MultilineCommentStmt(_) => self.node
+        };
+        
+        Spanned::of(stmt, self.span)
     }
 
 }

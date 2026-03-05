@@ -4,6 +4,7 @@ use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::SymbolType;
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, IfStmt, StructStmt, WhileStmt};
 use crate::ast::statement::{Parameter, TypedStmt};
+use crate::util::spanned::Spanned;
 
 impl TypedStmt {
 
@@ -12,7 +13,7 @@ impl TypedStmt {
     }
 
     fn _transform_methods(self,registry: &TypeRegistry,symbol_table: &TypeSymTable, inside_struct: &Option<TypeEntry>) -> TypedStmt {
-        match self {
+        let stmt = match self.node {
             BlockStmt {body,  .. } => {
                 let mut resolved = vec![];
 
@@ -70,8 +71,10 @@ impl TypedStmt {
                 FunctionStmt {name, params: mutated, return_type, body}
             }
 
-            _ => self
-        }
+            _ => self.node
+        };
+        
+        Spanned::of(stmt, self.span)
     }
 
 }

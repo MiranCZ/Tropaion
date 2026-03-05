@@ -4,7 +4,7 @@ use std::cmp::Reverse;
 use std::f32::consts::E;
 use std::num::ParseFloatError;
 use strum::IntoEnumIterator;
-use crate::error::context::ErrorContext;
+use crate::error::context::{ErrorContext, Span};
 use crate::error::lexer_error::LexerError;
 
 pub mod token;
@@ -12,7 +12,7 @@ pub mod token;
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub token: Token,
-    pub line: u32
+    pub span: Span
 }
 
 pub struct Lexer {
@@ -33,15 +33,16 @@ impl Lexer {
         let mut res = vec![];
        
         loop {
+            let before = self.pos;
             let read = self.read_next();
 
             let read = if let Ok(r) = read {
                 r
             } else {
-                return Err(ErrorContext::new(read.err().unwrap(), self.current_line()));
+                return Err(ErrorContext::new(read.err().unwrap(), before, self.pos));
             };
 
-            let next = TokenInfo{token: read, line: self.current_line()};
+            let next = TokenInfo{token: read, span: Span::new(before, self.pos)};
 
             if next.token == EOF {
                 res.push(next);

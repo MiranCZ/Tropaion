@@ -10,7 +10,7 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::{Statement, UntypedStmt};
 use crate::ast::statement::Statement::BlockStmt;
-use crate::error::context::ErrorContext;
+use crate::error::context::{ErrorContext, Span};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberIntLiteral, SimpleTokenType, EOF};
 use crate::lexer::token::{SimpleToken, Token};
@@ -18,6 +18,7 @@ use crate::lexer::TokenInfo;
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::parse_statement;
 use crate::parser::type_lookups::type_lookup::TypeLookup;
+use crate::util::spanned::Spanned;
 
 pub struct Parser {
     lookup: Lookup,
@@ -52,27 +53,27 @@ impl Parser {
             } else {
                 let err = token.err().unwrap();
 
-                return Err(ErrorContext::new(err, self.current_line()));
+                return Err(ErrorContext::of(err, self.current_span()));
             };
 
             if token == EOF {
                 break;
             }
 
+            let from = self.current_span().from;
             let stmt = parse_statement(registry, self);
             let stmt = if let Ok(s) = stmt {
                 s
             } else {
                 let err = stmt.err().unwrap();
 
-                return Err(ErrorContext::new(err, self.current_line()));
+                let to = self.current_span().to;
+                return Err(ErrorContext::new(err, from, to));
             };
             body.push(stmt);
         }
 
-        Ok(BlockStmt{
-            body
-        })
+        Ok(Spanned::new(BlockStmt{ body }, 0, self.current_span().to))
     }
 
     pub fn next(&mut self) -> Result<Token, ParserError> {
@@ -169,16 +170,16 @@ impl Parser {
         Ok(self.tokens[self.pos].token.clone())
     }
 
-    pub fn current_line(&self) -> u32 {
+    pub fn current_span(&self) -> Span {
         if self.pos >= self.tokens.len() {
             if self.tokens.len() == 0 {
-                return 0;
+                return Span::new(0, 0);
             }
 
-            return self.tokens[0].line;
+            return self.tokens[0].span;
         }
 
-        self.tokens[self.pos].line
+        self.tokens[self.pos].span
     }
 
 

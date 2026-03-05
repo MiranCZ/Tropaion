@@ -13,65 +13,84 @@ use crate::parser::expression_parser::parse_expression;
 use crate::parser::{binding_power, Parser};
 use crate::parser::handlers::ReturnedStatement;
 use crate::parser::type_parser::parse_type;
+use crate::util::spanned::Spanned;
 
+macro_rules! spanned {
+    ($parser:expr, $body:block) => {{
+        let from = $parser.current_span().from;
+        let inner = { $body };
+        let to = $parser.current_span().to;
+        Ok(Spanned::new(inner, from, to))
+    }};
+}
 
-pub fn parse_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    let token = parser.peek()?;
+pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        let token = parser.peek()?;
 
-    let stmnt_fn = token.statement(parser.lookup());
+        let stmnt_fn = token.statement(parser.lookup());
 
-    if let Some(f) = stmnt_fn {
-        return Ok(f(registry, parser)?);
-    }
+        if let Some(f) = stmnt_fn {
+            return Ok(f(registry, parser)?);
+        }
 
-    let expression = parse_expression(registry, parser, binding_power::DEFAULT)?;
+        let expression = parse_expression(registry, parser, binding_power::DEFAULT)?;
 
-    parser.expect_next(SimpleToken::Semicolon)?;
+        parser.expect_next(SimpleToken::Semicolon)?;
 
-    Ok(ExpressionStmt(expression))
+        ExpressionStmt(expression)
+    })
 }
 
 pub fn parse_comment_smt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    let text = parser.expect_next_comment()?;
-    
-    Ok(CommentStmt(text))
+    spanned!(parser, {
+        let text = parser.expect_next_comment()?;
+
+        CommentStmt(text)
+    })
 }
 
 pub fn parse_multiline_comment_smt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    let text = parser.expect_next_multiline_comment()?;
+    spanned!(parser, {
+        let text = parser.expect_next_multiline_comment()?;
 
-    Ok(MultilineCommentStmt(text))
+        MultilineCommentStmt(text)
+    })
 }
 
 pub fn parse_var_declaration_stmnt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    let token = parser.expect_next_simple()?;
+    spanned!(parser, {
+        let token = parser.expect_next_simple()?;
 
-    assert!(token == SimpleToken::Let || token == SimpleToken::Const);
+        assert!(token == SimpleToken::Let || token == SimpleToken::Const);
 
-    let is_const = (token == SimpleToken::Const);
-    let name = parser.expect_next_identifier()?;
+        let is_const = (token == SimpleToken::Const);
+        let name = parser.expect_next_identifier()?;
 
-    let mut explicit_type = None;
-    if parser.consume_if_next(Colon)? {
-        explicit_type = Some(parse_type(registry, parser, DEFAULT)?);
-    }
+        let mut explicit_type = None;
+        if parser.consume_if_next(Colon)? {
+            explicit_type = Some(parse_type(registry, parser, DEFAULT)?);
+        }
 
-    parser.expect_next(SimpleToken::Assign)?;
+        parser.expect_next(SimpleToken::Assign)?;
 
-    let value = parse_expression(registry, parser, ASSIGNMENT)?;
+        let value = parse_expression(registry, parser, ASSIGNMENT)?;
 
-    parser.expect_next(SimpleToken::Semicolon)?;
+        parser.expect_next(SimpleToken::Semicolon)?;
 
-    Ok(VarDeclarationStmt {
-        name,
-        is_const,
-        value,
-        explicit_type
+        VarDeclarationStmt {
+            name,
+            is_const,
+            value,
+            explicit_type
+        }
     })
 }
 
 pub fn parse_block_stmt(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
-    Ok(BlockStmt{body: _parse_block_stmt(registry, parser)?})
+    spanned!(parser, {
+        BlockStmt{body: _parse_block_stmt(registry, parser)?}
+    })
 }
 
 fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<StatementBlock<()>, ParserError> {
@@ -87,146 +106,156 @@ fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<
 }
 
 pub fn parse_return_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    parser.expect_next(Return)?;
+    spanned!(parser, {
+        parser.expect_next(Return)?;
 
-    let expr = parse_expression(registry, parser, DEFAULT)?;
+        let expr = parse_expression(registry, parser, DEFAULT)?;
 
-    parser.expect_next(Semicolon)?;
+        parser.expect_next(Semicolon)?;
 
-    Ok(ReturnStmt(expr))
+        ReturnStmt(expr)
+    })
 }
 
 pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-   parser.expect_next(SimpleToken::Fn)?;
+    spanned!(parser, {
+        parser.expect_next(SimpleToken::Fn)?;
 
-    let fn_name = parser.expect_next_identifier()?;
+        let fn_name = parser.expect_next_identifier()?;
 
-    parser.expect_next(SimpleToken::OpenBracket)?;
+        parser.expect_next(SimpleToken::OpenBracket)?;
 
-    let mut params = vec![];
+        let mut params = vec![];
 
-    loop {
-        if parser.consume_if_next(CloseBracket)? {
-            break;
+        loop {
+            if parser.consume_if_next(CloseBracket)? {
+                break;
+            }
+
+            let param_name = parser.expect_next_identifier()?;
+            parser.expect_next(Colon)?;
+            let param_type = parse_type(registry, parser, DEFAULT)?;
+
+            params.push(Parameter{name: param_name, param_type});
+
+            if !parser.consume_if_next(Comma)? {
+                parser.expect_next(CloseBracket)?;
+                break;
+            }
         }
 
-        let param_name = parser.expect_next_identifier()?;
-        parser.expect_next(Colon)?;
-        let param_type = parse_type(registry, parser, DEFAULT)?;
-
-        params.push(Parameter{name: param_name, param_type});
-
-        if !parser.consume_if_next(Comma)? {
-            parser.expect_next(CloseBracket)?;
-            break;
+        let mut return_type = registry.register(Void);
+        if parser.consume_if_next(Arrow)? {
+            return_type = parse_type(registry, parser, DEFAULT)?;
         }
-    }
 
-    let mut return_type = registry.register(Void);
-    if parser.consume_if_next(Arrow)? {
-        return_type = parse_type(registry, parser, DEFAULT)?;
-    }
+        let body = _parse_block_stmt(registry, parser)?;
 
-    let body = _parse_block_stmt(registry, parser)?;
-
-    Ok(FunctionStmt{
-        name: fn_name,
-        params,
-        return_type,
-        body
+        FunctionStmt{
+            name: fn_name,
+            params,
+            return_type,
+            body
+        }
     })
 }
 
 pub fn parse_if_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    parser.expect_next(If)?;
+    spanned!(parser, {
+        parser.expect_next(If)?;
 
-    let parentheses = parser.consume_if_next(OpenBracket)?;
+        let parentheses = parser.consume_if_next(OpenBracket)?;
 
-    let condition = parse_expression(registry, parser, DEFAULT)?;
+        let condition = parse_expression(registry, parser, DEFAULT)?;
 
-    if parentheses {
-        parser.expect_next(CloseBracket)?;
-    }
-
-    let body = _parse_block_stmt(registry, parser)?;
-
-    let mut else_branch = None;
-
-    if parser.consume_if_next(Else)? {
-        // elif
-        if parser.is_next(If)? {
-            else_branch = Some(parse_if_statement(registry, parser)?.boxed());
-        } else {
-            else_branch = Some(parse_block_stmt(registry, parser)?.boxed());
+        if parentheses {
+            parser.expect_next(CloseBracket)?;
         }
-    }
 
-    Ok(IfStmt {
-        condition,
-        body,
-        else_branch
+        let body = _parse_block_stmt(registry, parser)?;
+
+        let mut else_branch = None;
+
+        if parser.consume_if_next(Else)? {
+            // elif
+            if parser.is_next(If)? {
+                else_branch = Some(parse_if_statement(registry, parser)?.boxed());
+            } else {
+                else_branch = Some(parse_block_stmt(registry, parser)?.boxed());
+            }
+        }
+
+        IfStmt {
+            condition,
+            body,
+            else_branch
+        }
     })
 }
 
 pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    parser.expect_next(While)?;
-
-    let parentheses = parser.consume_if_next(OpenBracket)?;
-
-    let condition = parse_expression(registry, parser, DEFAULT)?;
-
-    if parentheses {
-        parser.expect_next(CloseBracket)?;
-    }
-
-    let body = _parse_block_stmt(registry, parser)?;
+    spanned!(parser, {
+        parser.expect_next(While)?;
     
-    Ok(WhileStmt {
-        condition,
-        body
+        let parentheses = parser.consume_if_next(OpenBracket)?;
+    
+        let condition = parse_expression(registry, parser, DEFAULT)?;
+    
+        if parentheses {
+            parser.expect_next(CloseBracket)?;
+        }
+    
+        let body = _parse_block_stmt(registry, parser)?;
+    
+        WhileStmt {
+            condition,
+            body
+        }
     })
 }
 
 pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
-    parser.expect_next(Struct)?;
+    spanned!(parser, {
+        parser.expect_next(Struct)?;
 
-    let struct_name = parser.expect_next_identifier()?;
+        let struct_name = parser.expect_next_identifier()?;
 
-    parser.expect_next(SimpleToken::OpenBracket)?;
+        parser.expect_next(SimpleToken::OpenBracket)?;
 
-    let mut fields = vec![];
+        let mut fields = vec![];
 
-    loop {
-        if parser.consume_if_next(CloseBracket)? {
-            break;
+        loop {
+            if parser.consume_if_next(CloseBracket)? {
+                break;
+            }
+
+            let param_name = parser.expect_next_identifier()?;
+            parser.expect_next(Colon)?;
+            let param_type = parse_type(registry, parser, DEFAULT)?;
+
+            fields.push(Parameter{name: param_name, param_type});
+
+            if !parser.consume_if_next(Comma)? {
+                parser.expect_next(CloseBracket)?;
+                break;
+            }
         }
 
-        let param_name = parser.expect_next_identifier()?;
-        parser.expect_next(Colon)?;
-        let param_type = parse_type(registry, parser, DEFAULT)?;
+        let body;
 
-        fields.push(Parameter{name: param_name, param_type});
+        if parser.is_next(OpenCurly)? {
+            body = _parse_block_stmt(registry, parser)?;
+        }  else {
 
-        if !parser.consume_if_next(Comma)? {
-            parser.expect_next(CloseBracket)?;
-            break;
+            // a struct without methods
+            parser.expect_next(Semicolon)?;
+            body = vec![];
         }
-    }
-    
-    let body;
-   
-    if parser.is_next(OpenCurly)? {
-        body = _parse_block_stmt(registry, parser)?;
-    }  else {
-        
-        // a struct without methods
-        parser.expect_next(Semicolon)?;
-        body = vec![];
-    }
 
-    Ok(StructStmt {
-        name: struct_name,
-        fields,
-        body
+        StructStmt {
+            name: struct_name,
+            fields,
+            body
+        }
     })
 }

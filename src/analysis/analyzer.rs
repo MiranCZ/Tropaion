@@ -43,9 +43,9 @@ impl Analyzer {
 
     /// record all top-level structs and functions which can be used everywhere
     fn record_top_level(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
-        if let BlockStmt{ body } = &self.root.clone() {
+        if let BlockStmt{ body } = &self.root.node.clone() {
             for x in body {
-                match x {
+                match &x.node {
                     Statement::CommentStmt(_) | Statement::MultilineCommentStmt(_) => {},
                     Statement::VarDeclarationStmt {..} => {
                         // will resolve after functions and structs
@@ -80,7 +80,7 @@ impl Analyzer {
                         let mut table = SymbolTable::new();
 
                         for x in body {
-                            match x {
+                            match &x.node {
                                 FunctionStmt {name, return_type, params, .. } => {
                                     let t = FunctionType {
                                         name: name.clone(),
@@ -128,9 +128,9 @@ impl Analyzer {
     }
 
     fn record_consts(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
-        if let BlockStmt{ body } = self.root.clone() {
+        if let BlockStmt{ body } = self.root.node.clone() {
             for x in body {
-                match x {
+                match x.node {
                     Statement::VarDeclarationStmt {name, is_const, value, explicit_type} => {
                         if !is_const {
                             return Err(ExpectedConst(name));

@@ -1,5 +1,5 @@
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::statement::TypedStmt;
+use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::Load;
 use crate::error::compilation_error::EmptyRes;
@@ -8,8 +8,8 @@ use crate::error::ok;
 impl TypedStmt {
 
     pub fn gen_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedStmt::BlockStmt { body } => {
+        match &self.node {
+            Statement::BlockStmt { body } => {
                 generator.new_scope();
 
                 for b in body {
@@ -18,15 +18,15 @@ impl TypedStmt {
 
                 generator.end_scope()?;
             }
-            TypedStmt::ExpressionStmt(e) => {
+            Statement::ExpressionStmt(e) => {
                 e.generate_bytecode(registry, generator, Load)?;
             }
-            TypedStmt::VarDeclarationStmt {name, value, .. } => {
+            Statement::VarDeclarationStmt {name, value, .. } => {
                 value.generate_bytecode(registry, generator, Load)?;
 
                 generator.store_new_var(name.clone(), registry, value.get_type())?;
             }
-            TypedStmt::IfStmt { condition, body, else_branch } => {
+            Statement::IfStmt { condition, body, else_branch } => {
                 condition.generate_bytecode(registry, generator, Load)?;
                 generator.new_skippable_scope_eq();
 
@@ -49,7 +49,7 @@ impl TypedStmt {
                     generator.end_scope()?;
                 }
             }
-            TypedStmt::WhileStmt { condition, body } => {
+            Statement::WhileStmt { condition, body } => {
                 condition.generate_bytecode(registry, generator, Load)?;
 
                 generator.new_skippable_scope_eq();
@@ -64,7 +64,7 @@ impl TypedStmt {
 
                 generator.end_scope()?;
             }
-            TypedStmt::FunctionStmt {name, body, params, .. } => {
+            Statement::FunctionStmt {name, body, params, .. } => {
                 generator.comment(format!("fn {name} -- START"));
                 generator.fn_start(name.clone());
 
@@ -87,20 +87,20 @@ impl TypedStmt {
 
                 generator.comment(format!("return of {name} -- END"));
             }
-            TypedStmt::StructStmt {body, .. } => {
+            Statement::StructStmt {body, .. } => {
                 for b in body {
                     b.gen_bytecode(registry, generator)?;
                 }
             }
-            TypedStmt::ReturnStmt(e) => {
+            Statement::ReturnStmt(e) => {
                  e.generate_bytecode(registry, generator, Load)?;
 
                 generator.ret(e.get_type().get(registry).word_size(registry));
             }
 
             // ignored (at least for now)
-            TypedStmt::CommentStmt(_) => {}
-            TypedStmt::MultilineCommentStmt(_) => {}
+            Statement::CommentStmt(_) => {}
+            Statement::MultilineCommentStmt(_) => {}
         }
 
         ok()

@@ -29,10 +29,10 @@ impl Compiler {
     }
 
     fn collect_functions(&mut self, registry: &TypeRegistry ,stmt: &TypedStmt) {
-        match stmt {
+        match &stmt.node {
             BlockStmt { body, .. } |
-            TypedStmt::IfStmt { body, .. } |
-            TypedStmt::WhileStmt { body, .. } |
+            Statement::IfStmt { body, .. } |
+            Statement::WhileStmt { body, .. } |
             StructStmt { body, .. } => {
                 for b in body {
                     self.collect_functions(registry,b)
