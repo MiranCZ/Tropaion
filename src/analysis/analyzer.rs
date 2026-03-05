@@ -1,10 +1,15 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
-use crate::ast::ast_type::{AstType, MemberInfo};
+use crate::ast::ast_type::MemberInfo;
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
+use crate::error::analysis_error::AnalysisError::{ExpectedConst, IllegalScopelessStatement, IllegalStatementInStruct, StatementMismatch};
+use crate::error::analysis_error::StatementType::Block;
+use crate::error::analysis_error::{AnalysisError, EmptyRes};
+use crate::error::ok;
+use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
-use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -21,23 +26,23 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
-        self.record_top_level(registry);
-        self.record_consts(registry);
+    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> Result<TypedStmt, AnalysisError> {
+        self.record_top_level(registry)?;
+        self.record_consts(registry)?;
 
 
-        let resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table);
+        let resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
 
         // TODO semantic analysis would probs be nice xd
 
         let resolved_root = resolved_root.mangle_functions(registry).transform_methods(registry, &self.symbol_table);
 
-        resolved_root
+        Ok(resolved_root)
     }
 
 
     /// record all top-level structs and functions which can be used everywhere
-    fn record_top_level(&mut self, registry: &mut TypeRegistry) {
+    fn record_top_level(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
         if let BlockStmt{ body } = &self.root.clone() {
             for x in body {
                 match x {
@@ -55,7 +60,7 @@ impl Analyzer {
 
                         let func_type = registry.register(t);
 
-                        self.record_function(registry, func_type);
+                        self.record_function(registry, func_type)?;
                     },
 
                     StructStmt {name, fields, body } => {
@@ -84,12 +89,12 @@ impl Analyzer {
                                     };
                                     let func_type = registry.register(t);
 
-                                    Self::_record_function(&mut table,registry ,func_type);
+                                    Self::_record_function(&mut table,registry ,func_type)?;
                                 },
 
                                 Statement::CommentStmt(..) | Statement::MultilineCommentStmt(..) => {}
 
-                                _ => panic!("invalid statement inside struct {x:?}")
+                                _ => return Err(IllegalStatementInStruct(x.clone()))
                             }
                         }
 
@@ -111,30 +116,32 @@ impl Analyzer {
 
                         self.symbol_table.record(name.clone(), struct_type);
                     },
-                    _ => panic!("Invalid statement {x:?}")
+                    
+                    _ => return Err(IllegalScopelessStatement(x.clone()))
                 }
             }
 
-            return;
+            return ok();
         }
 
-        panic!("not a block statement? {:?}",self.root)
+        Err(StatementMismatch {expected: Block, got: self.root.clone()})
     }
 
-    fn record_consts(&mut self, registry: &mut TypeRegistry) {
+    fn record_consts(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
         if let BlockStmt{ body } = self.root.clone() {
             for x in body {
                 match x {
                     Statement::VarDeclarationStmt {name, is_const, value, explicit_type} => {
                         if !is_const {
-                            panic!("Top-level variables must be constant!")
+                            return Err(ExpectedConst(name));
                         }
 
-                        let inferred_type = value.resolve_type(registry, &mut self.symbol_table);
+                        let inferred_type = value.resolve_type(registry, &mut self.symbol_table)?;
 
+                        // FIXME want to have `loose_equals` here probs?
                         if let Some(explicit) = explicit_type.clone() {
                             if explicit != inferred_type.get_type() {
-                                panic!("Explicit is not the same as inferred {:?} {:?}", explicit_type, inferred_type);
+                                return Err(AnalysisError::illegal_type_assignment(explicit, inferred_type.get_type(), registry));
                             }
 
                             // TODO assignable from
@@ -147,18 +154,18 @@ impl Analyzer {
                 }
             }
 
-            return;
+            return ok();
         }
 
-        panic!("not a block statement? {:?}",self.root)
+        Err(StatementMismatch {expected: Block, got: self.root.clone()})
     }
 
 
-    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) {
+    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) -> EmptyRes {
         Self::_record_function(&mut self.symbol_table,registry ,func)
     }
 
-    fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) {
+    fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> EmptyRes {
         if let FunctionType {name, ..} = func.get(registry) {
             let t = symbol_table.get(name.clone());
 
@@ -172,12 +179,14 @@ impl Analyzer {
                 if let FunctionsType { mut overloads, ..} = t.get(registry) {
                     overloads.push(func);
                 } else {
-                    panic!("Invalid overload {name} {:?}", t.get(registry))
+                    panic!("Invalid overload {name} {:?}", t.get(registry).format(registry))
                 }
             }
         } else {
-            panic!("{func:?}")
+            return Err(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry));
         }
+        
+        ok()
     }
 
 }

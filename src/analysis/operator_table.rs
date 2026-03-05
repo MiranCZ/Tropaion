@@ -2,7 +2,8 @@ use crate::ast::ast_type::AstType;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, VertBarAssign, BitXor, BoolAnd, BoolOr, Dash, DashAssign, Equals, Greater, GreaterEquals, LeftLeft, LeftLeftAssign, Less, LessEquals, NotEquals, Percent, PercentAssign, Plus, PlusAssign, RightRight, RightRightAssign, Slash, SlashAssign, Star, StarAssign, VerticalBar, AmpersandAssign, BitXorAssign, Assign};
 use std::collections::HashMap;
-use crate::analysis::type_registry::TypeRegistry;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::error::analysis_error::AnalysisError;
 
 type SimpleType = usize;
 
@@ -25,27 +26,33 @@ impl OperatorTable {
         new
     }
 
-    pub fn get_op_result(&self,registry: &TypeRegistry ,right: AstType, op: SimpleToken, left: AstType) -> Option<AstType> {
-        if right.loose_equals(&left, registry) {
+    pub fn get_op_result(&self,registry: &TypeRegistry ,right_type: TypeEntry, op: SimpleToken, left_type: TypeEntry) -> Result<AstType, AnalysisError> {
+        if right_type.get(registry).loose_equals(&left_type.get(registry), registry) {
             if let Equals = op {
-                return Some(AstType::Bool);
+                return Ok(AstType::Bool);
             }
             if let NotEquals = op {
-                return Some(AstType::Bool);
+                return Ok(AstType::Bool);
             }
         }
-        println!("Evaluating {op:?}\n{right:?}\n{left:?}");
+        println!("Evaluating {op:?}\n{right_type:?}\n{left_type:?}");
 
-        let right = from_ast_type(right, registry);
-        let left = from_ast_type(left, registry);
+        let right = from_ast_type(right_type.get(registry), registry);
+        let left = from_ast_type(left_type.get(registry), registry);
+
+        let (right, left) = if let Some(r) = right && let Some(l) = left {
+            (r, l)
+        } else {
+            return Err(AnalysisError::illegal_binary_expression(left_type, op, right_type, registry));
+        };
 
         let result = self.table.get(&(right, op, left));
 
         if let Some(res) = result {
-            return Some(to_ast_type(*res));
+            return Ok(to_ast_type(*res));
         }
 
-        None
+        Err(AnalysisError::illegal_binary_expression(left_type, op, right_type, registry))
     }
 
     fn init(&mut self) {
@@ -102,16 +109,16 @@ impl OperatorTable {
     }
 }
 
-fn from_ast_type(t: AstType, registry: &TypeRegistry) -> SimpleType {
+fn from_ast_type(t: AstType, registry: &TypeRegistry) -> Option<SimpleType> {
     if let AstType::NullableType {underlying} = t {
         return from_ast_type(underlying.get(registry), registry)
     }
 
     match t {
-        AstType::Bool => Bool,
-        AstType::Int => Int,
-        AstType::Float => Float,
-        _ => panic!("Not a simple type {:?}", t),
+        AstType::Bool => Some(Bool),
+        AstType::Int => Some(Int),
+        AstType::Float => Some(Float),
+        _ => None,
     }
 }
 

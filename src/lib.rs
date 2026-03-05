@@ -60,6 +60,12 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let resolved_root = analyzer.analyze(&mut registry);
 
+    let resolved_root = if let Ok(v) = resolved_root {
+        v
+    } else {
+        panic!("Error: {}", resolved_root.err().unwrap());
+    };
+
     let mut comp = Compiler::new(resolved_root);
 
     let res = comp.compile(&mut registry);
@@ -105,6 +111,12 @@ fn interpret(text: &str) {
 
 
             let resolved_root = analyzer.analyze(&mut registry);
+
+            let resolved_root = if let Ok(v) = resolved_root {
+                v
+            } else {
+                panic!("Error: {}", resolved_root.err().unwrap());
+            };
 
             println!("{:#?}", resolved_root);
 

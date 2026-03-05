@@ -6,6 +6,8 @@ use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::error::analysis_error::AnalysisError;
+use crate::error::analysis_error::AnalysisError::IllegalCall;
 use crate::lexer::token::Token::Identifier;
 
 pub type UntypedExpr = Expression<()>;
@@ -68,8 +70,8 @@ impl <T> Expression<T> {
 
 impl UntypedExpr {
 
-    pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> TypedExpr {
-        match self {
+    pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<TypedExpr, AnalysisError> {
+        Ok(match self {
             NullableExpr(..) => panic!("internal API"),
 
             NullLiteralExpr(_) => {
@@ -109,13 +111,13 @@ impl UntypedExpr {
                 if values.is_empty() {
                     let typ = ArrayType {underlying: registry.register(UnknownType)};
 
-                    return ArrayLiteralExpr(registry.register(typ), vec![]);
+                    return Ok(ArrayLiteralExpr(registry.register(typ), vec![]));
                 }
 
                 let mut typed_values = vec![];
 
                 for v in values {
-                    typed_values.push(v.resolve_type(registry, symbol_table));
+                    typed_values.push(v.resolve_type(registry, symbol_table)?);
                 }
 
                 let mut underlying = typed_values[0].get_type();
@@ -144,65 +146,62 @@ impl UntypedExpr {
                     let info = tuple.1;
 
                     if let Some(v) = info && v {
-                        return MemberExpr {
+                        MemberExpr {
                             t: t.clone(),
-                            member: IdentifierExpr((), "this".to_string()).resolve_type(registry, symbol_table).boxed(),
+                            member: IdentifierExpr((), "this".to_string()).resolve_type(registry, symbol_table)?.boxed(),
                             property: IdentifierExpr(t, identifier).boxed()
-                        };
+                        }
                     } else {
-                        return IdentifierExpr(t, identifier);
+                        IdentifierExpr(t, identifier)
                     }
+                } else {
+                    return Err(AnalysisError::UnknownType(identifier));
                 }
-                panic!("Failed to resolve symbol {identifier}");
-
             }
             IncrementExpr(_, expr) => {
-                let typed = expr.resolve_type(registry, symbol_table);
+                let typed = expr.resolve_type(registry, symbol_table)?;
 
-                return IncrementExpr(typed.get_type(), typed.boxed());
+                IncrementExpr(typed.get_type(), typed.boxed())
             }
             DecrementExpr(_, expr) => {
-                let typed = expr.resolve_type(registry, symbol_table);
+                let typed = expr.resolve_type(registry, symbol_table)?;
 
-                return DecrementExpr(typed.get_type(), typed.boxed());
+                DecrementExpr(typed.get_type(), typed.boxed())
             }
             PrefixExpr { operator, expr,.. } => {
-                let typed = expr.resolve_type(registry, symbol_table);
+                let typed = expr.resolve_type(registry, symbol_table)?;
 
-                return PrefixExpr {t: typed.get_type(), operator, expr: typed.boxed()};
+                PrefixExpr {t: typed.get_type(), operator, expr: typed.boxed()}
             }
             BinaryExpr {left, operator, right, .. } => {
-                let typed_left = left.resolve_type(registry, symbol_table);
-                let typed_right = right.resolve_type(registry, symbol_table);
+                let typed_left = left.resolve_type(registry, symbol_table)?;
+                let typed_right = right.resolve_type(registry, symbol_table)?;
 
-                let result_type = symbol_table.op_table.get_op_result(registry, typed_left.get_type().get(registry), operator, typed_right.get_type().get(registry));
+                let result_type = symbol_table.op_table.get_op_result(registry, typed_left.get_type(), operator, typed_right.get_type())?;
 
-                if result_type.is_none() {
-                    panic!("Not a valid binary expression {:?} {:?} {:?} {registry:#?}",typed_left.get_type(), operator, typed_right.get_type());
-                }
-                let t = registry.register(result_type.unwrap());
+                let t = registry.register(result_type);
 
-                return BinaryExpr {t, left: typed_left.boxed(), operator, right:typed_right.boxed()};
+                BinaryExpr {t, left: typed_left.boxed(), operator, right:typed_right.boxed()}
             }
             AssignExpr {assignee, value, .. } => {
-                let mut typed_assignee = assignee.resolve_type(registry, symbol_table);
-                let mut typed_value = value.resolve_type(registry, symbol_table);
+                let mut typed_assignee = assignee.resolve_type(registry, symbol_table)?;
+                let mut typed_value = value.resolve_type(registry, symbol_table)?;
 
                 let assign_result = typed_assignee.get_type().get(registry).get_assign_result(typed_value.get_type().get(registry), registry);
                 if let Some(t) = assign_result{
                     typed_assignee.set_type(registry, t.clone());
                     typed_value.set_type(registry, t);
                 } else {
-                    panic!("Assignment expr arms do not match {:?} vs {:?} \n{:#?}",typed_assignee.get_type(), typed_value.get_type(), registry);
+                    return Err(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry));
                 }
 
                 let t = typed_assignee.get_type();
 
-                return AssignExpr {t, assignee: typed_assignee.boxed(), value: typed_value.boxed()};
+                AssignExpr {t, assignee: typed_assignee.boxed(), value: typed_value.boxed()}
             }
             Expression::ArrayAccessExpr {property, index, ..} => {
-                let property = property.resolve_type(registry, symbol_table);
-                let index = index.resolve_type(registry, symbol_table);
+                let property = property.resolve_type(registry, symbol_table)?;
+                let index = index.resolve_type(registry, symbol_table)?;
 
                 let underlying;
                 if let ArrayType {underlying: u} = property.get_type().get(registry) {
@@ -221,7 +220,7 @@ impl UntypedExpr {
                 let mut types = vec![];
 
                 for v in values {
-                    types.push(v.resolve_type(registry, symbol_table));
+                    types.push(v.resolve_type(registry, symbol_table)?);
                 }
 
 
@@ -229,10 +228,10 @@ impl UntypedExpr {
 
                 let tuple_type = registry.register(t);
 
-                return TupleExpr {t: tuple_type, values: types};
+                TupleExpr {t: tuple_type, values: types}
             }
             MemberExpr {member, property , .. } => {
-                let member_type = member.resolve_type(registry, symbol_table);
+                let member_type = member.resolve_type(registry, symbol_table)?;
 
                 // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
                 let mut struct_scope = false;
@@ -244,27 +243,27 @@ impl UntypedExpr {
                     }
                 }
 
-                let property_type = property.resolve_type(registry, symbol_table);
+                let property_type = property.resolve_type(registry, symbol_table)?;
 
                 // drop the struct scope
                 if struct_scope {
                     symbol_table.pop();
                 }
 
-                return MemberExpr {
+                MemberExpr {
                     t: property_type.get_type(),
                     member: member_type.boxed(),
                     property: property_type.boxed()
-                };
+                }
             }
             CallExpr {func, args, .. } => {
-                let mut resolved_func = func.clone().resolve_type(registry, symbol_table);
+                let mut resolved_func = func.clone().resolve_type(registry, symbol_table)?;
 
                 if let FunctionsType {overloads, name, ..} = resolved_func.get_type().get(registry) {
                     let mut resolved_args = vec![];
 
                     for arg in args.clone() {
-                        resolved_args.push(arg.resolve_type(registry, symbol_table));
+                        resolved_args.push(arg.resolve_type(registry, symbol_table)?);
                     }
 
                     // FIXME leaking the void here a bit
@@ -291,7 +290,6 @@ impl UntypedExpr {
                     }
 
 
-
                     if let AstType::FunctionType {return_type, ..} = func.get(registry) {
                         // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
                         resolved_func.change_type(registry, func.get(registry));
@@ -315,14 +313,14 @@ impl UntypedExpr {
                                 }.boxed()
                             };
 
-                            return res;
+                            return Ok(res);
                         }
 
-                        return CallExpr {
+                        return Ok(CallExpr {
                             t: return_type.duplicate(registry),
                             func: resolved_func.boxed(),
                             args: resolved_args
-                        };
+                        });
                     }
                 }
 
@@ -331,7 +329,7 @@ impl UntypedExpr {
                     let mut resolved_args = vec![];
 
                     for arg in args {
-                        resolved_args.push(arg.resolve_type(registry, symbol_table));
+                        resolved_args.push(arg.resolve_type(registry, symbol_table)?);
                     }
 
                     if fields.len() != resolved_args.len() {
@@ -348,16 +346,16 @@ impl UntypedExpr {
 
                     }
 
-                    return CallExpr {
+                    return Ok(CallExpr {
                         t: resolved_func.get_type().duplicate(registry),
                         func: resolved_func.boxed(),
                         args: resolved_args
-                    };
+                    });
                 }
 
-                panic!("Calling something else than a function or a struct constructor! {:?} {:?} {:?} {:#?}", func, resolved_func, symbol_table.symbols, registry);
+                return Err(AnalysisError::illegal_call(resolved_func.get_type(), registry));
             }
-        }
+        })
     }
 
 }

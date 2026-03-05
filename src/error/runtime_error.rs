@@ -3,10 +3,12 @@ use crate::compiler::bytecode::ByteCode;
 use crate::interpreter::value::{Value, ValueType};
 
 
+// FIXME this is not runtime error related but overall helper
 #[derive(Debug, PartialEq)]
 pub enum ValueTypeVariant {
     Null, Int, Float, Address,
-    Number, Nullable, Array
+    
+    Bool, Number, Nullable, Array, Function, Struct
 }
 
 impl ValueTypeVariant {
