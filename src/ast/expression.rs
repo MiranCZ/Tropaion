@@ -277,7 +277,7 @@ impl UntypedExpr {
                             }
 
                             for i in 0..resolved_args.len() {
-                                if !params[i].get(registry).equals(&resolved_args[i].get_type().get(registry), registry) {
+                                if !params[i].get(registry).loose_equals(&resolved_args[i].get_type().get(registry), registry) {
                                     continue 'overloadLoop;
                                 }
                             }
