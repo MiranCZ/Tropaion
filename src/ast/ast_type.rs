@@ -83,7 +83,7 @@ impl AstType {
 
                 return res + ")";
             },
-            AstType::FunctionsType { name, .. } => format!("{name}(..?)"),
+            AstType::FunctionsType { name, .. } => format!("{name}(..)"),
             AstType::FunctionType { name, .. } => format!("{name}()"),
             AstType::StructType {name, .. } => name.clone()
         }
@@ -104,7 +104,10 @@ impl AstType {
 
     pub fn _equals(&self, other: &Self, registry: &TypeRegistry, loose: bool) -> bool {
         match (self, other) {
-            (AstType::UnknownType, AstType::UnknownType) => true,
+            // unknown can be derived into any type
+            (AstType::UnknownType, _) if loose => true,
+            (_, AstType::UnknownType) if loose => true,
+
             (AstType::Void, AstType::Void) => true,
             (AstType::Bool, AstType::Bool) => true,
             (AstType::Int, AstType::Int) => true,
