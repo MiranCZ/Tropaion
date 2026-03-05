@@ -18,21 +18,21 @@ pub enum Statement<T> {
     BlockStmt {
         body: StatementBlock<T>
     },
-    ExpressionStmt(Expression<T>),
+    ExpressionStmt(Spanned<Expression<T>>),
     VarDeclarationStmt {
         name: String,
         is_const: bool,
-        value: Expression<T>,
+        value: Spanned<Expression<T>>,
         explicit_type: Option<TypeEntry>
     },
     IfStmt {
-        condition: Expression<T>,
+        condition: Spanned<Expression<T>>,
         body: StatementBlock<T>,
         // either another `if_stmt` or `block_stmt`
         else_branch: Option<Box<Spanned<Statement<T>>>>
     },
     WhileStmt {
-        condition: Expression<T>,
+        condition: Spanned<Expression<T>>,
         body: StatementBlock<T>,
     },
     FunctionStmt {
@@ -46,7 +46,7 @@ pub enum Statement<T> {
         fields: Vec<Parameter>,
         body: StatementBlock<T>
     },
-    ReturnStmt(Expression<T>),
+    ReturnStmt(Spanned<Expression<T>>),
     CommentStmt(String),
     MultilineCommentStmt(String)
 }

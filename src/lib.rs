@@ -24,7 +24,7 @@ pub fn main() {
     fn main() -> [int] {
         let a = [1, 2, 3];
 
-        a[1] = 4;@
+        a[1] = 4;
 
         return a;
     }

@@ -8,10 +8,14 @@ use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::IllegalCall;
+use crate::error::context::Span;
 use crate::lexer::token::Token::Identifier;
+use crate::util::spanned::Spanned;
 
-pub type UntypedExpr = Expression<()>;
-pub type TypedExpr = Expression<TypeEntry>;
+pub type UntypedExpr = Spanned<Expression<()>>;
+pub type TypedExpr = Spanned<Expression<TypeEntry>>;
+
+type SpannedExpr<T> = Spanned<Expression<T>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<T> {
@@ -20,45 +24,45 @@ pub enum Expression<T> {
     IntLiteralExpr(T, i32),
     FloatLiteralExpr(T, f32),
     StringLiteralExpr(T, String),
-    ArrayLiteralExpr(T, Vec<Expression<T>>),
+    ArrayLiteralExpr(T, Vec<SpannedExpr<T>>),
     IdentifierExpr(T, String),
-    NullableExpr(T, Box<Expression<T>>),
-    IncrementExpr(T, Box<Expression<T>>),
-    DecrementExpr(T, Box<Expression<T>>),
+    NullableExpr(T, Box<SpannedExpr<T>>),
+    IncrementExpr(T, Box<SpannedExpr<T>>),
+    DecrementExpr(T, Box<SpannedExpr<T>>),
     PrefixExpr {
         t: T,
         operator: SimpleToken,
-        expr: Box<Expression<T>>
+        expr: Box<SpannedExpr<T>>
     },
     BinaryExpr {
         t: T,
-        left: Box<Expression<T>>,
+        left: Box<SpannedExpr<T>>,
         operator: SimpleToken,
-        right: Box<Expression<T>>
+        right: Box<SpannedExpr<T>>
     },
     AssignExpr {
         t: T,
-        assignee: Box<Expression<T>>,
-        value: Box<Expression<T>>
+        assignee: Box<SpannedExpr<T>>,
+        value: Box<SpannedExpr<T>>
     },
     TupleExpr {
         t: T,
-        values: Vec<Expression<T>>
+        values: Vec<SpannedExpr<T>>
     },
     ArrayAccessExpr {
         t: T,
-        property: Box<Expression<T>>,
-        index: Box<Expression<T>>
+        property: Box<SpannedExpr<T>>,
+        index: Box<SpannedExpr<T>>
     },
     MemberExpr {
         t: T,
-        member: Box<Expression<T>>,
-        property: Box<Expression<T>>
+        member: Box<SpannedExpr<T>>,
+        property: Box<SpannedExpr<T>>
     },
     CallExpr {
         t: T,
-        func: Box<Expression<T>>,
-        args: Vec<Expression<T>>
+        func: Box<SpannedExpr<T>>,
+        args: Vec<SpannedExpr<T>>
     }
 }
 
@@ -71,7 +75,7 @@ impl <T> Expression<T> {
 impl UntypedExpr {
 
     pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<TypedExpr, AnalysisError> {
-        Ok(match self {
+        let expr = match self.node {
             NullableExpr(..) => panic!("internal API"),
 
             NullLiteralExpr(_) => {
@@ -111,32 +115,32 @@ impl UntypedExpr {
                 if values.is_empty() {
                     let typ = ArrayType {underlying: registry.register(UnknownType)};
 
-                    return Ok(ArrayLiteralExpr(registry.register(typ), vec![]));
-                }
+                    ArrayLiteralExpr(registry.register(typ), vec![])
+                } else {
+                    let mut typed_values = vec![];
 
-                let mut typed_values = vec![];
-
-                for v in values {
-                    typed_values.push(v.resolve_type(registry, symbol_table)?);
-                }
-
-                let mut underlying = typed_values[0].get_type();
-
-                for v in &typed_values {
-                    if let Some(res) = underlying.get(registry).get_assign_result(v.get_type().get(registry), registry) {
-                        underlying = registry.register(res);
-                    } else if let Some(res) = v.get_type().get(registry).get_assign_result(underlying.get(registry), registry) {
-                        underlying = registry.register(res);
+                    for v in values {
+                        typed_values.push(v.resolve_type(registry, symbol_table)?);
                     }
+
+                    let mut underlying = typed_values[0].get_type();
+
+                    for v in &typed_values {
+                        if let Some(res) = underlying.get(registry).get_assign_result(v.get_type().get(registry), registry) {
+                            underlying = registry.register(res);
+                        } else if let Some(res) = v.get_type().get(registry).get_assign_result(underlying.get(registry), registry) {
+                            underlying = registry.register(res);
+                        }
+                    }
+
+                    for v in typed_values.iter_mut() {
+                        v.set_type(registry, underlying.get(registry))
+                    }
+
+                    let array_type = ArrayType { underlying };
+
+                    ArrayLiteralExpr(registry.register(array_type), typed_values)
                 }
-
-                for v in typed_values.iter_mut() {
-                    v.set_type(registry, underlying.get(registry))
-                }
-
-                let array_type = ArrayType {underlying};
-
-                ArrayLiteralExpr(registry.register(array_type), typed_values)
             }
             IdentifierExpr(_, identifier) => {
                 let v = symbol_table.get_with_info(identifier.clone());
@@ -148,8 +152,8 @@ impl UntypedExpr {
                     if let Some(v) = info && v {
                         MemberExpr {
                             t: t.clone(),
-                            member: IdentifierExpr((), "this".to_string()).resolve_type(registry, symbol_table)?.boxed(),
-                            property: IdentifierExpr(t, identifier).boxed()
+                            member: Spanned::new(IdentifierExpr((), "this".to_string()), self.span.from, self.span.from).resolve_type(registry, symbol_table)?.boxed(),
+                            property: Spanned::of(IdentifierExpr(t, identifier), self.span).boxed()
                         }
                     } else {
                         IdentifierExpr(t, identifier)
@@ -257,107 +261,112 @@ impl UntypedExpr {
                 }
             }
             CallExpr {func, args, .. } => {
-                let mut resolved_func = func.clone().resolve_type(registry, symbol_table)?;
-
-                if let FunctionsType {overloads, name, ..} = resolved_func.get_type().get(registry) {
-                    let mut resolved_args = vec![];
-
-                    for arg in args.clone() {
-                        resolved_args.push(arg.resolve_type(registry, symbol_table)?);
-                    }
-
-                    // FIXME leaking the void here a bit
-                    let mut func = registry.register(Void);
-
-                    'overloadLoop:
-                    for overload in overloads.iter() {
-                        if let AstType::FunctionType {name, params, ..} = overload.get(registry) {
-                            if params.len() != resolved_args.len() {
-                                continue;
-                            }
-
-                            for i in 0..resolved_args.len() {
-                                if !params[i].get(registry).loose_equals(&resolved_args[i].get_type().get(registry), registry) {
-                                    continue 'overloadLoop;
-                                }
-                            }
-
-                            func = *overload;
-                            break;
-                        } else {
-                            panic!();
-                        }
-                    }
-
-
-                    if let AstType::FunctionType {return_type, ..} = func.get(registry) {
-                        // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
-                        resolved_func.change_type(registry, func.get(registry));
-
-                        if let MemberExpr {t, member, property} = &resolved_func
-                            && let IdentifierExpr(t, name) = &**member && name == "this"
-                        {
-
-                            let return_type = return_type.duplicate(registry);
-
-                            let mut property = property.clone();
-                            property.change_type(registry, func.get(registry));
-
-                            let res =  MemberExpr {
-                                t: return_type,
-                                member: member.clone().boxed(),
-                                property: CallExpr {
-                                    t: return_type,
-                                    func: property.clone(),
-                                    args: resolved_args
-                                }.boxed()
-                            };
-
-                            return Ok(res);
-                        }
-
-                        return Ok(CallExpr {
-                            t: return_type.duplicate(registry),
-                            func: resolved_func.boxed(),
-                            args: resolved_args
-                        });
-                    }
-                }
-
-                // calling constructor of a struct
-                if let AstType::StructType {fields, ..} = resolved_func.get_type().get(registry) {
-                    let mut resolved_args = vec![];
-
-                    for arg in args {
-                        resolved_args.push(arg.resolve_type(registry, symbol_table)?);
-                    }
-
-                    if fields.len() != resolved_args.len() {
-                        panic!("Invalid constructor call");
-                    }
-
-                    for i in 0..fields.len() {
-                        let f = &fields[i].0;
-                        let a = &mut resolved_args[i];
-
-                        if let Some(ass_res) = f.get(registry).get_assign_result(a.get_type().get(registry), registry) {
-                            a.set_type(registry, ass_res);
-                        }
-
-                    }
-
-                    return Ok(CallExpr {
-                        t: resolved_func.get_type().duplicate(registry),
-                        func: resolved_func.boxed(),
-                        args: resolved_args
-                    });
-                }
-
-                return Err(AnalysisError::illegal_call(resolved_func.get_type(), registry));
+                Self::resolve_call_expr(registry, symbol_table, func, args)?
             }
-        })
+        };
+
+        Ok(Spanned::of(expr, self.span))
     }
 
+    fn resolve_call_expr(registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable, func: Box<SpannedExpr<()>>, args: Vec<SpannedExpr<()>>) -> Result<Expression<TypeEntry>, AnalysisError> {
+        let mut resolved_func = func.clone().resolve_type(registry, symbol_table)?;
+
+        if let FunctionsType { overloads, name, .. } = resolved_func.get_type().get(registry) {
+            let mut resolved_args = vec![];
+
+            for arg in args.clone() {
+                resolved_args.push(arg.resolve_type(registry, symbol_table)?);
+            }
+
+            // FIXME leaking the void here a bit
+            let mut func = registry.register(Void);
+
+            'overloadLoop:
+            for overload in overloads.iter() {
+                if let AstType::FunctionType { name, params, .. } = overload.get(registry) {
+                    if params.len() != resolved_args.len() {
+                        continue;
+                    }
+
+                    for i in 0..resolved_args.len() {
+                        if !params[i].get(registry).loose_equals(&resolved_args[i].get_type().get(registry), registry) {
+                            continue 'overloadLoop;
+                        }
+                    }
+
+                    func = *overload;
+                    break;
+                } else {
+                    panic!();
+                }
+            }
+
+
+            if let AstType::FunctionType { return_type, .. } = func.get(registry) {
+                // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
+                resolved_func.change_type(registry, func.get(registry));
+
+                if let MemberExpr { t, member, property } = &resolved_func.node
+                    && let IdentifierExpr(t, name) = &member.node && name == "this"
+                {
+                    let return_type = return_type.duplicate(registry);
+
+                    let mut property = property.clone();
+                    property.change_type(registry, func.get(registry));
+
+                    let res = MemberExpr {
+                        t: return_type,
+                        member: member.clone().boxed(),
+                        property: Spanned::of(CallExpr {
+                            t: return_type,
+                            func: property.clone(),
+                            args: resolved_args
+
+                            // FIXME I think the span should be combined with args here
+                        }, property.span).boxed()
+                    };
+
+                    return Ok(res);
+                }
+
+                return Ok(CallExpr {
+                    t: return_type.duplicate(registry),
+                    func: resolved_func.boxed(),
+                    args: resolved_args
+                });
+            }
+        }
+
+        // calling constructor of a struct
+        if let AstType::StructType { fields, .. } = resolved_func.get_type().get(registry) {
+            let mut resolved_args = vec![];
+
+            for arg in args {
+                resolved_args.push(arg.resolve_type(registry, symbol_table)?);
+            }
+
+            if fields.len() != resolved_args.len() {
+                panic!("Invalid constructor call");
+            }
+
+            for i in 0..fields.len() {
+                let f = &fields[i].0;
+                let a = &mut resolved_args[i];
+
+                if let Some(ass_res) = f.get(registry).get_assign_result(a.get_type().get(registry), registry) {
+                    a.set_type(registry, ass_res);
+                }
+            }
+
+            return Ok(CallExpr {
+                t: resolved_func.get_type().duplicate(registry),
+                func: resolved_func.boxed(),
+                args: resolved_args
+            });
+        }
+
+        return Err(AnalysisError::illegal_call(resolved_func.get_type(), registry));
+    }
 }
 
 pub fn deref(t: TypeEntry, registry: &TypeRegistry) -> AstType {
@@ -372,7 +381,7 @@ pub fn deref(t: TypeEntry, registry: &TypeRegistry) -> AstType {
 
 impl TypedExpr {
     pub fn get_type(&self) -> TypeEntry {
-        match self {
+        match &self.node {
             NullLiteralExpr(t) => *t,
             BoolLiteralExpr(t, ..) => *t,
             IntLiteralExpr(t, ..) => *t,
@@ -404,7 +413,7 @@ impl TypedExpr {
         if let NullableType {underlying} = typ {
 
             // already null-like, only set underlying value
-            if let NullLiteralExpr(t) = self {
+            if let NullLiteralExpr(t) = &mut self.node {
                 t.mutate(registry, NullableType {underlying});
 
                 return;
@@ -417,20 +426,20 @@ impl TypedExpr {
             self.get_type().mutate(registry, NullableType {underlying});
 
             // make expression mutable
-            *self = NullableExpr(self.get_type(),self.clone().boxed());
+            self.node = NullableExpr(self.get_type(),self.clone().boxed());
 
             return;
         }
 
 
-        match self {
+        match &mut self.node {
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!("{typ:?}"),
             StringLiteralExpr(..) => panic!(),
             IntLiteralExpr(t, v) => {
                 t.mutate(registry, Float);
                 
-                *self = FloatLiteralExpr(*t, *v as f32)
+                self.node = FloatLiteralExpr(*t, *v as f32)
             },
             NullLiteralExpr(t) => {
                 if let NullableType {..} = typ {
@@ -461,12 +470,12 @@ impl TypedExpr {
     pub fn change_type(&mut self,registry: &mut TypeRegistry ,typ: AstType) {
         let new_type = registry.register(typ.clone());
 
-        match self {
+        match &mut self.node {
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!(),
             StringLiteralExpr(..) => panic!(),
             IntLiteralExpr(t, v) => {
-                *self = FloatLiteralExpr(registry.register(Float),*v as f32)
+                self.node = FloatLiteralExpr(registry.register(Float),*v as f32)
             },
             NullLiteralExpr(t) => {
                 if let NullableType {..} = typ {
@@ -494,39 +503,41 @@ impl TypedExpr {
 
 }
 
-pub fn bool(b: bool) -> UntypedExpr {
+type Expr = Expression<()>;
+
+pub fn bool(b: bool) -> Expr {
     BoolLiteralExpr((), b)
 }
 
-pub fn int(i: i32) -> UntypedExpr {
+pub fn int(i: i32) -> Expr {
     IntLiteralExpr((), i)
 }
 
-pub fn float(f: f32) -> UntypedExpr {
+pub fn float(f: f32) -> Expr {
     FloatLiteralExpr((), f)
 }
 
-pub fn string(s: String) -> UntypedExpr {
+pub fn string(s: String) -> Expr {
     StringLiteralExpr((), s)
 }
 
-pub fn identifier(identifier: String) -> UntypedExpr {
+pub fn identifier(identifier: String) -> Expr {
     IdentifierExpr((), identifier)
 }
 
-pub fn array_literal(values: Vec<UntypedExpr>) -> UntypedExpr {
+pub fn array_literal(values: Vec<UntypedExpr>) -> Expr {
     ArrayLiteralExpr((), values)
 }
 
-pub fn increment(expr: UntypedExpr) -> UntypedExpr {
+pub fn increment(expr: UntypedExpr) -> Expr {
     IncrementExpr((), expr.boxed())
 }
 
-pub fn decrement(expr: UntypedExpr) -> UntypedExpr {
+pub fn decrement(expr: UntypedExpr) -> Expr {
     DecrementExpr((), expr.boxed())
 }
 
-pub fn prefix(operator: SimpleToken, expr: UntypedExpr) -> UntypedExpr {
+pub fn prefix(operator: SimpleToken, expr: UntypedExpr) -> Expr {
     PrefixExpr {
         t: (),
         operator,
@@ -534,7 +545,7 @@ pub fn prefix(operator: SimpleToken, expr: UntypedExpr) -> UntypedExpr {
     }
 }
 
-pub fn binary(left: UntypedExpr, operator: SimpleToken, right: UntypedExpr) -> UntypedExpr {
+pub fn binary(left: UntypedExpr, operator: SimpleToken, right: UntypedExpr) -> Expr {
     BinaryExpr {
         t: (),
         left: left.boxed(),
@@ -543,9 +554,9 @@ pub fn binary(left: UntypedExpr, operator: SimpleToken, right: UntypedExpr) -> U
     }
 }
 
-pub fn assign(assignee: UntypedExpr, operator: SimpleToken, value: UntypedExpr) -> UntypedExpr {
+pub fn assign(assignee: UntypedExpr, operator: SimpleToken, value: UntypedExpr) -> Expr {
     let binary = |op| {
-        assign(assignee.clone(), Assign, binary(assignee.clone(),op,value.clone()))
+        assign(assignee.clone(), Assign, Spanned::of(binary(assignee.clone(),op,value.clone()), Span::combined(assignee.span, value.span)))
     };
 
     match operator {
@@ -570,7 +581,7 @@ pub fn assign(assignee: UntypedExpr, operator: SimpleToken, value: UntypedExpr) 
     }
 }
 
-pub fn array_access(property: UntypedExpr, index: UntypedExpr) -> UntypedExpr {
+pub fn array_access(property: UntypedExpr, index: UntypedExpr) -> Expr {
     ArrayAccessExpr {
         t: (),
         property: property.boxed(),
@@ -578,14 +589,14 @@ pub fn array_access(property: UntypedExpr, index: UntypedExpr) -> UntypedExpr {
     }
 }
 
-pub fn tuple(values: Vec<UntypedExpr>) -> UntypedExpr {
+pub fn tuple(values: Vec<UntypedExpr>) -> Expr {
     TupleExpr {
         t: (),
         values
     }
 }
 
-pub fn member(member: UntypedExpr, property: UntypedExpr) -> UntypedExpr {
+pub fn member(member: UntypedExpr, property: UntypedExpr) -> Expr {
     MemberExpr {
         t: (),
         member: member.boxed(),
@@ -593,7 +604,7 @@ pub fn member(member: UntypedExpr, property: UntypedExpr) -> UntypedExpr {
     }
 }
 
-pub fn call(func: UntypedExpr, args: Vec<UntypedExpr>) -> UntypedExpr {
+pub fn call(func: UntypedExpr, args: Vec<UntypedExpr>) -> Expr {
     CallExpr {
         t: (),
         func: func.boxed(),

@@ -1,5 +1,15 @@
 use crate::error::context::Span;
 
+#[macro_export]
+macro_rules! spanned {
+    ($parser:expr, $body:block) => {{
+        let from = $parser.current_span().from;
+        let inner = { $body };
+        let to = $parser.current_span().to;
+        Ok(crate::util::spanned::Spanned::new(inner, from, to))
+    }};
+}
+
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Spanned<T> {

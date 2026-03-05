@@ -3,7 +3,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, PrefixExpr, TupleExpr};
-use crate::ast::expression::TypedExpr;
+use crate::ast::expression::{Expression, TypedExpr};
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::ast::statement::{Parameter, Statement, TypedStmt};
 use crate::util::spanned::Spanned;
@@ -99,14 +99,14 @@ impl TypedStmt {
 
 impl TypedExpr {
     fn mangle_functions(self, registry: &mut TypeRegistry, owner: String) -> TypedExpr {
-        match self {
-            TypedExpr::NullLiteralExpr(..) |
-            TypedExpr::BoolLiteralExpr(..) |
-            TypedExpr::IntLiteralExpr(..) |
-            TypedExpr::FloatLiteralExpr(..) |
-            TypedExpr::NullableExpr(..) |
-            TypedExpr::StringLiteralExpr(..) => self,
-            TypedExpr::ArrayLiteralExpr(t, values) => {
+        let expr = match self.node {
+            Expression::NullLiteralExpr(..) |
+            Expression::BoolLiteralExpr(..) |
+            Expression::IntLiteralExpr(..) |
+            Expression::FloatLiteralExpr(..) |
+            Expression::NullableExpr(..) |
+            Expression::StringLiteralExpr(..) => self.node,
+            Expression::ArrayLiteralExpr(t, values) => {
                 let mut mangled_values = vec![];
 
                 for v in values {
@@ -209,7 +209,9 @@ impl TypedExpr {
                     IdentifierExpr(t, name)
                 }
             }
-        }
+        };
+
+        Spanned::of(expr, self.span)
     }
 }
 

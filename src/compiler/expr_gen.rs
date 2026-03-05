@@ -2,7 +2,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::NullableType;
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::NullableExpr;
-use crate::ast::expression::{deref, TypedExpr};
+use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, Store, StoreField};
 use crate::error::compilation_error::CompilationError::{IllegalBinOperator, InvalidOperator, MemberNotFound, StructTooLarge};
@@ -58,23 +58,23 @@ impl TypedExpr {
     }
 
     pub fn load(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, dereference: bool) -> EmptyRes {
-        match self {
-            TypedExpr::NullLiteralExpr(_) => {
+        match &self.node {
+            Expression::NullLiteralExpr(_) => {
                 generator.null_const();
             }
-            TypedExpr::BoolLiteralExpr(_, b) => {
+            Expression::BoolLiteralExpr(_, b) => {
                 if *b {
                     generator.i_const(1);
                 } else {
                     generator.i_const(0);
                 }
             }
-            TypedExpr::IntLiteralExpr(_, i) => generator.i_const(*i),
-            TypedExpr::FloatLiteralExpr(_, f) => generator.f_const(*f),
-            TypedExpr::StringLiteralExpr(..) => {
+            Expression::IntLiteralExpr(_, i) => generator.i_const(*i),
+            Expression::FloatLiteralExpr(_, f) => generator.f_const(*f),
+            Expression::StringLiteralExpr(..) => {
                 todo!()
             }
-            TypedExpr::ArrayLiteralExpr(t, values) => {
+            Expression::ArrayLiteralExpr(t, values) => {
                 generator.heap_alloc(values.len() as u32);
 
                 let mut offset = 0;
@@ -89,7 +89,7 @@ impl TypedExpr {
                     offset += 1;
                 }
             }
-            TypedExpr::IdentifierExpr(t, name) => {
+            Expression::IdentifierExpr(t, name) => {
                 match t.get(registry) {
                     AstType::Bool |
                     AstType::Int => generator.i_load(name.clone()),
@@ -124,7 +124,7 @@ impl TypedExpr {
                 // FIXME should here be 1 or size of `t`?
                 generator.create_stack_ptr(1);
             }
-            TypedExpr::IncrementExpr(_, e) => {
+            Expression::IncrementExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
 
                 generator.i_const(1);
@@ -132,7 +132,7 @@ impl TypedExpr {
 
                 e.generate_bytecode(registry, generator, Store)?;
             }
-            TypedExpr::DecrementExpr(_, e) => {
+            Expression::DecrementExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
 
                 generator.i_const(1);
@@ -140,7 +140,7 @@ impl TypedExpr {
 
                 e.generate_bytecode(registry, generator, Store)?;
             }
-            TypedExpr::PrefixExpr { operator, expr, .. } => {
+            Expression::PrefixExpr { operator, expr, .. } => {
                 match operator {
                     SimpleToken::Dash => {
                         generator.i_const(0);
@@ -156,7 +156,7 @@ impl TypedExpr {
                     _ => return Err(InvalidOperator(*operator))
                 }
             }
-            TypedExpr::BinaryExpr {left, operator, right, .. } => {
+            Expression::BinaryExpr {left, operator, right, .. } => {
                 match operator {
                     SimpleToken::BoolOr => {
                         left.generate_bytecode(registry, generator, LoadDeref)?;
@@ -209,16 +209,16 @@ impl TypedExpr {
                     _ => return Err(IllegalBinOperator(*operator))
                 }
             }
-            TypedExpr::AssignExpr {assignee, value, .. } => {
+            Expression::AssignExpr {assignee, value, .. } => {
                 value.generate_bytecode(registry, generator, Load)?;
                 assignee.generate_bytecode(registry, generator, Store)?;
             }
-            TypedExpr::TupleExpr { values, .. } => {
+            Expression::TupleExpr { values, .. } => {
                 for x in values {
                     x.generate_bytecode(registry, generator, Load)?;
                 }
             }
-            TypedExpr::MemberExpr { member, property, .. } => {
+            Expression::MemberExpr { member, property, .. } => {
                 if let AstType::StructType {fields, children, ..} = deref(member.get_type(), registry) {
                     member.generate_bytecode(registry, generator, LoadDeref)?;
 
@@ -229,10 +229,10 @@ impl TypedExpr {
                     return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }
             }
-            TypedExpr::ArrayAccessExpr {property, index, ..} => {
+            Expression::ArrayAccessExpr {property, index, ..} => {
                 property.generate_bytecode(registry, generator, Operation::LoadRefOffset(*index.clone()))?;
             }
-            TypedExpr::CallExpr {func, args, .. } => {
+            Expression::CallExpr {func, args, .. } => {
                 Self::generate_call_expr_load(registry, generator, func, args)?;
             },
 
@@ -285,23 +285,23 @@ impl TypedExpr {
     }
 
     pub fn store(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedExpr::IdentifierExpr(t, name) => {
+        match &self.node {
+            Expression::IdentifierExpr(t, name) => {
                 generator.store_value(registry, name, *t)?;
             },
-            TypedExpr::IncrementExpr(_, e) => {
+            Expression::IncrementExpr(_, e) => {
                 todo!()
             }
-            TypedExpr::DecrementExpr(_, e) => {
+            Expression::DecrementExpr(_, e) => {
                 todo!()
             }
-            TypedExpr::PrefixExpr { .. } => {
+            Expression::PrefixExpr { .. } => {
                 todo!()
             }
-            TypedExpr::TupleExpr { values, .. } => {
+            Expression::TupleExpr { values, .. } => {
                 panic!("Tuples are immutable!");
             }
-            TypedExpr::MemberExpr { member, property, .. } => {
+            Expression::MemberExpr { member, property, .. } => {
                 if let AstType::StructType {fields, ..} = member.get_type().get(registry) {
                     member.generate_bytecode(registry, generator, Load)?;
 
@@ -312,7 +312,7 @@ impl TypedExpr {
                     return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }
             }
-            TypedExpr::ArrayAccessExpr {property, index, ..} => {
+            Expression::ArrayAccessExpr {property, index, ..} => {
                 property.generate_bytecode(registry, generator, Operation::StoreRefOffset(*index.clone()))?;
             }
             _ => panic!("Invalid STORE for {self:?}")
@@ -322,8 +322,8 @@ impl TypedExpr {
     }
 
     pub fn load_field(&self,registry: &TypeRegistry ,fields: Vec<MemberInfo>, children: HashMap<String, MemberInfo>, generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedExpr::IdentifierExpr(t, name) => {
+        match &self.node {
+            Expression::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
                     if f.1 == *name {
                         generator.load_offset_value(registry, f.2 as u32, *t)?;
@@ -340,7 +340,7 @@ impl TypedExpr {
                     return Err(MemberNotFound(name.clone()));
                 }
             }
-            TypedExpr::CallExpr { func, args, .. } => {
+            Expression::CallExpr { func, args, .. } => {
                 Self::generate_call_expr_load(registry, generator, func, args)?;
             }
 
@@ -351,8 +351,8 @@ impl TypedExpr {
     }
 
     pub fn store_field(&self,registry: &TypeRegistry ,fields: Vec<MemberInfo>, generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedExpr::IdentifierExpr(t, name) => {
+        match &self.node {
+            Expression::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
                     if f.1 == *name {
                         generator.store_offset_value(registry, f.2 as u32, *t)?;
@@ -370,8 +370,8 @@ impl TypedExpr {
 
 
     pub fn load_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedExpr::IdentifierExpr(t, name) => {
+        match &self.node {
+            Expression::IdentifierExpr(t, name) => {
                 generator.a_load(name.clone());
                 index.generate_bytecode(registry, generator, Load)?;
 
@@ -394,8 +394,8 @@ impl TypedExpr {
 
 
     pub fn store_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
-        match self {
-            TypedExpr::IdentifierExpr(t, name) => {
+        match &self.node {
+            Expression::IdentifierExpr(t, name) => {
                 generator.a_load(name.clone());
                 index.generate_bytecode(registry, generator, Load)?;
 

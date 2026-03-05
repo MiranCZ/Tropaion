@@ -10,19 +10,22 @@ use crate::parser::handlers::{LedInfo, NudHandler, ReturnedExpression, Statement
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::{parse_comment_smt, parse_multiline_comment_smt};
 use crate::parser::Parser;
+use crate::spanned;
 
 impl Token {
     pub fn nud(&self, lookup: &Lookup) -> Option<NudHandler> {
         fn handle_literal(_registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedExpression {
             let token = parser.next()?;
 
-            Ok(match token {
-                Identifier(v) => IdentifierExpr((), v.clone()),
-                NumberIntLiteral(v) => IntLiteralExpr((), v),
-                NumberFloatLiteral(v) => FloatLiteralExpr((), v),
-                StringLiteral(v) => StringLiteralExpr((), v.clone()),
+            spanned!(parser, {
+                match token {
+                    Identifier(v) => IdentifierExpr((), v.clone()),
+                    NumberIntLiteral(v) => IntLiteralExpr((), v),
+                    NumberFloatLiteral(v) => FloatLiteralExpr((), v),
+                    StringLiteral(v) => StringLiteralExpr((), v.clone()),
 
-                _ => panic!()
+                    _ => panic!()
+                }
             })
         }
 

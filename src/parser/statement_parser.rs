@@ -14,15 +14,7 @@ use crate::parser::{binding_power, Parser};
 use crate::parser::handlers::ReturnedStatement;
 use crate::parser::type_parser::parse_type;
 use crate::util::spanned::Spanned;
-
-macro_rules! spanned {
-    ($parser:expr, $body:block) => {{
-        let from = $parser.current_span().from;
-        let inner = { $body };
-        let to = $parser.current_span().to;
-        Ok(Spanned::new(inner, from, to))
-    }};
-}
+use crate::spanned;
 
 pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
