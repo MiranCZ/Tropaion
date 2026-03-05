@@ -289,7 +289,9 @@ impl AstType {
             }
             AstType::FunctionType { .. } => panic!("Functions do not have names!"),
             AstType::StructType {name, .. } => format!("L{name};"),
-            _ => panic!()
+            AstType::NullableType {underlying} => underlying.get(registry).get_type_name(registry),
+            
+            _ => panic!("{self:?}")
         }
     }
 
