@@ -10,9 +10,11 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::{Statement, UntypedStmt};
 use crate::ast::statement::Statement::BlockStmt;
+use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberIntLiteral, SimpleTokenType, EOF};
 use crate::lexer::token::{SimpleToken, Token};
+use crate::lexer::TokenInfo;
 use crate::parser::lookups::lookup::Lookup;
 use crate::parser::statement_parser::parse_statement;
 use crate::parser::type_lookups::type_lookup::TypeLookup;
@@ -20,13 +22,13 @@ use crate::parser::type_lookups::type_lookup::TypeLookup;
 pub struct Parser {
     lookup: Lookup,
     type_lookup: TypeLookup,
-    tokens: Vec<Token>,
+    tokens: Vec<TokenInfo>,
     pos: usize
 }
 
 impl Parser {
 
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<TokenInfo>) -> Self {
         Self {
             lookup: Lookup::new(),
             type_lookup: TypeLookup::new(),
@@ -39,17 +41,33 @@ impl Parser {
         &self.lookup
     }
 
-    pub fn parse(&mut self, registry: &mut TypeRegistry) -> Result<UntypedStmt, ParserError> {
+    pub fn parse(&mut self, registry: &mut TypeRegistry) -> Result<UntypedStmt, ErrorContext<ParserError>> {
         let mut body = Vec::new();
 
         loop {
-            let token = self.peek()?;
+            let token = self.peek();
+
+            let token = if let Ok(t) = token {
+                t
+            } else {
+                let err = token.err().unwrap();
+
+                return Err(ErrorContext::new(err, self.current_line()));
+            };
 
             if token == EOF {
                 break;
             }
 
-            body.push(parse_statement(registry, self)?);
+            let stmt = parse_statement(registry, self);
+            let stmt = if let Ok(s) = stmt {
+                s
+            } else {
+                let err = stmt.err().unwrap();
+
+                return Err(ErrorContext::new(err, self.current_line()));
+            };
+            body.push(stmt);
         }
 
         Ok(BlockStmt{
@@ -66,7 +84,7 @@ impl Parser {
 
         self.pos += 1;
 
-        Ok(token.clone())
+        Ok(token.token.clone())
     }
 
     pub fn has_next(&self) -> bool {
@@ -148,7 +166,19 @@ impl Parser {
             return Err(ParserError::EOFError);
         }
 
-        Ok(self.tokens[self.pos].clone())
+        Ok(self.tokens[self.pos].token.clone())
+    }
+
+    pub fn current_line(&self) -> u32 {
+        if self.pos >= self.tokens.len() {
+            if self.tokens.len() == 0 {
+                return 0;
+            }
+
+            return self.tokens[0].line;
+        }
+
+        self.tokens[self.pos].line
     }
 
 

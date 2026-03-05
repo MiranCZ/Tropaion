@@ -4,9 +4,16 @@ use std::cmp::Reverse;
 use std::f32::consts::E;
 use std::num::ParseFloatError;
 use strum::IntoEnumIterator;
+use crate::error::context::ErrorContext;
 use crate::error::lexer_error::LexerError;
 
 pub mod token;
+
+#[derive(Debug, Clone)]
+pub struct TokenInfo {
+    pub token: Token,
+    pub line: u32
+}
 
 pub struct Lexer {
     str: Vec<char>,
@@ -22,14 +29,22 @@ impl Lexer {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Token>, LexerError> {
+    pub fn parse(&mut self) -> Result<Vec<TokenInfo>, ErrorContext<LexerError>> {
         let mut res = vec![];
        
         loop {
-            let next = self.read_next()?;
+            let read = self.read_next();
 
-            if next == EOF {
-                res.push(EOF);
+            let read = if let Ok(r) = read {
+                r
+            } else {
+                return Err(ErrorContext::new(read.err().unwrap(), self.current_line()));
+            };
+
+            let next = TokenInfo{token: read, line: self.current_line()};
+
+            if next.token == EOF {
+                res.push(next);
                 break;
             }
             
@@ -283,6 +298,10 @@ impl Lexer {
         }
 
         Err(LexerError::UnknownToken(ch))
+    }
+
+    fn current_line(&self) -> u32 {
+        self.str[0..self.pos].iter().filter(|ch| **ch == '\n').count() as u32 + 1
     }
 
 }

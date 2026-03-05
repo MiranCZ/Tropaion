@@ -150,6 +150,13 @@ fn interpret(text: &str) {
 
             let now = Instant::now();
             let result = interpret.run_function("main_".to_string());
+
+            let result = if let Ok(r) = result {
+                r
+            } else {
+                panic!("{}", result.err().unwrap());
+            };
+
             println!("Took {:?}", now.elapsed());
             println!("RESULT: {result:?}")
         }
