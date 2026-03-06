@@ -2,7 +2,7 @@ use thiserror::Error;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::{Statement, UntypedStmt};
-use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalTypeAssignment, TypeMismatch};
+use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalTypeAssignment, TypeMismatch};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 
@@ -53,9 +53,14 @@ pub enum AnalysisError {
         right: String,
     },
 
-    #[error("Type {called_type} cannot be called")]
+    #[error("Type '{called_type}' cannot be called")]
     IllegalCall {
         called_type: String
+    },
+
+    #[error("Type '{typ}' cannot be indexed")]
+    IllegalIndexing {
+        typ: String
     }
 }
 
@@ -83,6 +88,12 @@ impl AnalysisError {
     pub fn illegal_call(called: TypeEntry, registry: &TypeRegistry) -> AnalysisError {
         IllegalCall {
             called_type: called.get(registry).format(registry)
+        }
+    }
+
+    pub fn illegal_indexing(indexed: TypeEntry, registry: &TypeRegistry) -> AnalysisError {
+        IllegalIndexing {
+            typ: indexed.get(registry).format(registry)
         }
     }
 

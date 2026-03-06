@@ -75,6 +75,10 @@ impl <T> Expression<T> {
 impl UntypedExpr {
 
     pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<TypedExpr, ErrorContext<AnalysisError>> {
+        let ctx = |err| {
+            ErrorContext::of(err, self.span)
+        };
+
         let expr = match self.node {
             NullableExpr(..) => panic!("internal API"),
 
@@ -159,7 +163,7 @@ impl UntypedExpr {
                         IdentifierExpr(t, identifier)
                     }
                 } else {
-                    return Err(ErrorContext::of(AnalysisError::UnknownType(identifier), self.span));
+                    return Err(ctx(AnalysisError::UnknownType(identifier)));
                 }
             }
             IncrementExpr(_, expr) => {
@@ -186,7 +190,7 @@ impl UntypedExpr {
                 let result_type = if let Ok(t) = result_type {
                     t
                 } else {
-                    return Err(ErrorContext::of(result_type.err().unwrap(), self.span));
+                    return Err(ctx(result_type.err().unwrap()));
                 };
 
                 let t = registry.register(result_type);
@@ -202,7 +206,7 @@ impl UntypedExpr {
                     typed_assignee.set_type(registry, t.clone());
                     typed_value.set_type(registry, t);
                 } else {
-                    return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry), self.span));
+                    return Err(ctx(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry)));
                 }
 
                 let t = typed_assignee.get_type();
@@ -217,7 +221,7 @@ impl UntypedExpr {
                 if let ArrayType {underlying: u} = property.get_type().get(registry) {
                     underlying = u;
                 } else {
-                    panic!("Invalid type for array access! {:?}", property.get_type().get(registry));
+                    return Err(ctx(AnalysisError::illegal_indexing(property.get_type(), registry)));
                 }
 
                 ArrayAccessExpr {

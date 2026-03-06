@@ -23,11 +23,8 @@ pub fn main() {
     let text = r#"
     fn main() -> int {
         let x = 5;
-        let y = "hello";
 
-        if x == y {
-            return 1;
-        }
+        let y = x[0];
 
         return 0;
     }
