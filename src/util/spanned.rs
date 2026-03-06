@@ -5,7 +5,17 @@ macro_rules! spanned {
     ($parser:expr, $body:block) => {{
         let from = $parser.current_span().from;
         let inner = { $body };
-        let to = $parser.current_span().to;
+        let to = $parser.current_span().from;
+        Ok(crate::util::spanned::Spanned::new(inner, from, to))
+    }};
+}
+
+#[macro_export]
+macro_rules! spanned_led {
+    ($parser:expr, $left:expr, $body:block) => {{
+        let from = $left.span.from;
+        let inner = { $body };
+        let to = $parser.current_span().from;
         Ok(crate::util::spanned::Spanned::new(inner, from, to))
     }};
 }

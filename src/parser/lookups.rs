@@ -15,9 +15,9 @@ use crate::spanned;
 impl Token {
     pub fn nud(&self, lookup: &Lookup) -> Option<NudHandler> {
         fn handle_literal(_registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedExpression {
-            let token = parser.next()?;
-
             spanned!(parser, {
+                let token = parser.next()?;
+
                 match token {
                     Identifier(v) => IdentifierExpr((), v.clone()),
                     NumberIntLiteral(v) => IntLiteralExpr((), v),

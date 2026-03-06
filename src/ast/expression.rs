@@ -8,7 +8,7 @@ use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::IllegalCall;
-use crate::error::context::Span;
+use crate::error::context::{ErrorContext, Span};
 use crate::lexer::token::Token::Identifier;
 use crate::util::spanned::Spanned;
 
@@ -74,7 +74,7 @@ impl <T> Expression<T> {
 
 impl UntypedExpr {
 
-    pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<TypedExpr, AnalysisError> {
+    pub fn resolve_type(self, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<TypedExpr, ErrorContext<AnalysisError>> {
         let expr = match self.node {
             NullableExpr(..) => panic!("internal API"),
 
@@ -159,7 +159,7 @@ impl UntypedExpr {
                         IdentifierExpr(t, identifier)
                     }
                 } else {
-                    return Err(AnalysisError::UnknownType(identifier));
+                    return Err(ErrorContext::of(AnalysisError::UnknownType(identifier), self.span));
                 }
             }
             IncrementExpr(_, expr) => {
@@ -181,7 +181,13 @@ impl UntypedExpr {
                 let typed_left = left.resolve_type(registry, symbol_table)?;
                 let typed_right = right.resolve_type(registry, symbol_table)?;
 
-                let result_type = symbol_table.op_table.get_op_result(registry, typed_left.get_type(), operator, typed_right.get_type())?;
+                let result_type = symbol_table.op_table.get_op_result(registry, typed_left.get_type(), operator, typed_right.get_type());
+
+                let result_type = if let Ok(t) = result_type {
+                    t
+                } else {
+                    return Err(ErrorContext::of(result_type.err().unwrap(), self.span));
+                };
 
                 let t = registry.register(result_type);
 
@@ -196,7 +202,7 @@ impl UntypedExpr {
                     typed_assignee.set_type(registry, t.clone());
                     typed_value.set_type(registry, t);
                 } else {
-                    return Err(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry));
+                    return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry), self.span));
                 }
 
                 let t = typed_assignee.get_type();
@@ -261,14 +267,14 @@ impl UntypedExpr {
                 }
             }
             CallExpr {func, args, .. } => {
-                Self::resolve_call_expr(registry, symbol_table, func, args)?
+                Self::resolve_call_expr(self.span, registry, symbol_table, func, args)?
             }
         };
 
         Ok(Spanned::of(expr, self.span))
     }
 
-    fn resolve_call_expr(registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable, func: Box<SpannedExpr<()>>, args: Vec<SpannedExpr<()>>) -> Result<Expression<TypeEntry>, AnalysisError> {
+    fn resolve_call_expr(span: Span, registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable, func: Box<SpannedExpr<()>>, args: Vec<SpannedExpr<()>>) -> Result<Expression<TypeEntry>, ErrorContext<AnalysisError>> {
         let mut resolved_func = func.clone().resolve_type(registry, symbol_table)?;
 
         if let FunctionsType { overloads, name, .. } = resolved_func.get_type().get(registry) {
@@ -365,7 +371,7 @@ impl UntypedExpr {
             });
         }
 
-        return Err(AnalysisError::illegal_call(resolved_func.get_type(), registry));
+        Err(ErrorContext::of(AnalysisError::illegal_call(resolved_func.get_type(), registry), span))
     }
 }
 

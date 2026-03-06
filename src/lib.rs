@@ -21,12 +21,15 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() -> [int] {
-        let a = [1, 2, 3];
+    fn main() -> int {
+        let x = 5;
+        let y = "hello";
 
-        a[1] = 4;
+        if x == y {
+            return 1;
+        }
 
-        return a;
+        return 0;
     }
     "#;
 
@@ -93,7 +96,7 @@ fn interpret(text: &str) {
     println!();
 
     if let Err(e) = tokens {
-        panic!("{e}");
+        panic!("{}", e.format(text.chars().collect()));
     }
     let tokens = tokens.unwrap();
 
@@ -116,7 +119,7 @@ fn interpret(text: &str) {
             let resolved_root = if let Ok(v) = resolved_root {
                 v
             } else {
-                panic!("Error: {}", resolved_root.err().unwrap());
+                panic!("{}", resolved_root.err().unwrap().format(text.chars().collect()));
             };
 
             println!("{:#?}", resolved_root);

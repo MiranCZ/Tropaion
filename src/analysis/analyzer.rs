@@ -10,6 +10,7 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
+use crate::error::context::{ErrorContext, Span};
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -26,7 +27,7 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> Result<TypedStmt, AnalysisError> {
+    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
         self.record_top_level(registry)?;
         self.record_consts(registry)?;
 
@@ -42,7 +43,7 @@ impl Analyzer {
 
 
     /// record all top-level structs and functions which can be used everywhere
-    fn record_top_level(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
+    fn record_top_level(&mut self, registry: &mut TypeRegistry) -> Result<(), ErrorContext<AnalysisError>> {
         if let BlockStmt{ body } = &self.root.node.clone() {
             for x in body {
                 match &x.node {
@@ -94,7 +95,7 @@ impl Analyzer {
 
                                 Statement::CommentStmt(..) | Statement::MultilineCommentStmt(..) => {}
 
-                                _ => return Err(IllegalStatementInStruct(x.clone()))
+                                _ => return Err(ErrorContext::of(IllegalStatementInStruct(x.clone()), x.span))
                             }
                         }
 
@@ -117,23 +118,23 @@ impl Analyzer {
                         self.symbol_table.record(name.clone(), struct_type);
                     },
                     
-                    _ => return Err(IllegalScopelessStatement(x.clone()))
+                    _ => return Err(ErrorContext::of(IllegalScopelessStatement(x.clone()), x.span))
                 }
             }
 
             return ok();
         }
 
-        Err(StatementMismatch {expected: Block, got: self.root.clone()})
+        Err(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()}, self.root.span))
     }
 
-    fn record_consts(&mut self, registry: &mut TypeRegistry) -> EmptyRes {
+    fn record_consts(&mut self, registry: &mut TypeRegistry) -> Result<(), ErrorContext<AnalysisError>> {
         if let BlockStmt{ body } = self.root.node.clone() {
             for x in body {
                 match x.node {
                     Statement::VarDeclarationStmt {name, is_const, value, explicit_type} => {
                         if !is_const {
-                            return Err(ExpectedConst(name));
+                            return Err(ErrorContext::of(ExpectedConst(name), x.span));
                         }
 
                         let inferred_type = value.resolve_type(registry, &mut self.symbol_table)?;
@@ -141,7 +142,7 @@ impl Analyzer {
                         // FIXME want to have `loose_equals` here probs?
                         if let Some(explicit) = explicit_type.clone() {
                             if explicit != inferred_type.get_type() {
-                                return Err(AnalysisError::illegal_type_assignment(explicit, inferred_type.get_type(), registry));
+                                return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(explicit, inferred_type.get_type(), registry), x.span));
                             }
 
                             // TODO assignable from
@@ -157,15 +158,15 @@ impl Analyzer {
             return ok();
         }
 
-        Err(StatementMismatch {expected: Block, got: self.root.clone()})
+        Err(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()},self.root.span))
     }
 
 
-    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) -> EmptyRes {
+    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
         Self::_record_function(&mut self.symbol_table,registry ,func)
     }
 
-    fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> EmptyRes {
+    fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
         if let FunctionType {name, ..} = func.get(registry) {
             let t = symbol_table.get(name.clone());
 
@@ -183,7 +184,8 @@ impl Analyzer {
                 }
             }
         } else {
-            return Err(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry));
+            // FIXME add span
+            return Err(ErrorContext::of(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry), Span::new(0, 0)));
         }
         
         ok()

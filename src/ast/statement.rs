@@ -6,6 +6,7 @@ use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, F
 use crate::error::analysis_error::AnalysisError;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::fmt::Debug;
+use crate::error::context::ErrorContext;
 use crate::util::spanned::Spanned;
 
 pub type UntypedStmt = Spanned<Statement<()>>;
@@ -68,8 +69,8 @@ pub struct Parameter {
 
 impl UntypedStmt {
 
-    pub fn resolve_type(self,registry: &mut TypeRegistry ,symbol_table: &mut TypeSymTable) -> Result<TypedStmt, AnalysisError> {
-        fn resolve_smt_block(body: StatementBlock<()>,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<StatementBlock<TypeEntry>, AnalysisError> {
+    pub fn resolve_type(self,registry: &mut TypeRegistry ,symbol_table: &mut TypeSymTable) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
+        fn resolve_smt_block(body: StatementBlock<()>,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<StatementBlock<TypeEntry>, ErrorContext<AnalysisError>> {
             let mut typed_body = vec![];
 
             symbol_table.push();
@@ -80,6 +81,10 @@ impl UntypedStmt {
 
             Ok(typed_body)
         }
+
+        let ctx = |err| {
+           ErrorContext::of(err, self.span)
+        };
 
         let typed_stmt = match self.node {
             BlockStmt { body } => {
@@ -103,7 +108,7 @@ impl UntypedStmt {
                     if let Some(new_t) = t.get(registry).get_assign_result(typed_value.get_type().get(registry), registry) {
                         typed_value.set_type(registry, new_t);
                     } else {
-                        return Err(AnalysisError::illegal_type_assignment(t, typed_value.get_type(), registry));
+                        return Err(ctx(AnalysisError::illegal_type_assignment(t, typed_value.get_type(), registry)));
                     }
 
                     resolved_expl_type = Some(t);
@@ -116,7 +121,7 @@ impl UntypedStmt {
                 let typed_condition = condition.resolve_type(registry, symbol_table)?;
 
                 if typed_condition.get_type().get(registry) != Bool {
-                    return Err(AnalysisError::type_mismatch(ValueTypeVariant::Bool, typed_condition.get_type(), registry));
+                    return Err(ctx(AnalysisError::type_mismatch(ValueTypeVariant::Bool, typed_condition.get_type(), registry)));
                 }
                 let mut typed_else_branch = None;
                 if let Some(branch) = else_branch {
@@ -129,7 +134,7 @@ impl UntypedStmt {
                 let typed_condition = condition.resolve_type(registry, symbol_table)?;
 
                 if typed_condition.get_type().get(registry) != Bool {
-                    return Err(AnalysisError::type_mismatch(ValueTypeVariant::Bool, typed_condition.get_type(), registry));
+                    return Err(ctx(AnalysisError::type_mismatch(ValueTypeVariant::Bool, typed_condition.get_type(), registry)));
                 }
 
                 WhileStmt {condition: typed_condition, body: resolve_smt_block(body, registry, symbol_table)?}
@@ -168,7 +173,7 @@ impl UntypedStmt {
                         symbol_table.record_with_info(p.0, p.1.0, true);
                     }
                 } else {
-                    return Err(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, registry));
+                    return Err(ctx(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, registry)));
                 }
 
                 let body = resolve_smt_block(body, registry, symbol_table)?;

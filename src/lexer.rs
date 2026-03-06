@@ -298,6 +298,7 @@ impl Lexer {
             return Ok(Identifier(identifier));
         }
 
+        self.pos += 1;
         Err(LexerError::UnknownToken(ch))
     }
 

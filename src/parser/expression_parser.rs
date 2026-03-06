@@ -10,7 +10,7 @@ use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
-use crate::spanned;
+use crate::{spanned, spanned_led};
 
 pub fn parse_expression(registry: &mut TypeRegistry, parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
     let token = parser.peek()?;
@@ -60,7 +60,7 @@ pub fn parse_prefix_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> Ret
 }
 
 pub fn parse_binary_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         let operator = parser.expect_next_simple()?;
 
         let right = parse_expression(registry,parser, binding_power)?;
@@ -110,14 +110,14 @@ pub fn parse_array_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> Retu
 }
 
 pub fn parse_increment_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         parser.next()?;
         expression::increment(left)
     })
 }
 
 pub fn parse_decrement_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, _bp: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         parser.next()?;
         expression::decrement(left)
     })
@@ -155,7 +155,7 @@ pub fn parse_parenthesis_expr(registry: &mut TypeRegistry,parser: &mut Parser) -
 }
 
 pub fn parse_member_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         parser.expect_next(Dot)?;
 
         let right = parse_expression(registry,parser, binding_power)?;
@@ -165,7 +165,7 @@ pub fn parse_member_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: 
 }
 
 pub fn parse_assignment_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         let operator = parser.expect_next_simple()?;
 
         let value = parse_expression(registry, parser, binding_power)?;
@@ -176,7 +176,7 @@ pub fn parse_assignment_expr(registry: &mut TypeRegistry,parser: &mut Parser, le
 
 
 pub fn parse_array_access_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         parser.expect_next(OpenSquare)?;
 
         let index = parse_expression(registry, parser, binding_power)?;
@@ -188,7 +188,7 @@ pub fn parse_array_access_expr(registry: &mut TypeRegistry,parser: &mut Parser, 
 }
 
 pub fn parse_call_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
-    spanned!(parser, {
+    spanned_led!(parser, left, {
         parser.expect_next(OpenBracket)?;
 
         let mut args = vec![];
