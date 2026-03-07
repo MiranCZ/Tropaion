@@ -191,11 +191,17 @@ fn test_funcs() {
 #[test]
 pub fn test_overloads() {
     let loop_stmt = r#"
-    fn other(i: int) -> int{
+    struct Eh();
+
+    fn other(i: Eh) -> Eh {
         return i;
     }
 
     fn other(i: float) -> float {
+        return i;
+    }
+
+    fn other(i: int) -> int{
         return i;
     }
 

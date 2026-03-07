@@ -179,6 +179,7 @@ impl Analyzer {
             } else if let Some(t) = t {
                 if let FunctionsType { mut overloads, ..} = t.get(registry) {
                     overloads.push(func);
+                    t.mutate(registry, FunctionsType {name, overloads});
                 } else {
                     panic!("Invalid overload {name} {:?}", t.get(registry).format(registry))
                 }
