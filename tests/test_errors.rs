@@ -2,6 +2,7 @@ use Tropaion::analysis::type_registry::TypeRegistry;
 use Tropaion::error::analysis_error::AnalysisError;
 use Tropaion::error::lexer_error::LexerError;
 use Tropaion::{analysis, lexer};
+use Tropaion::error::analysis_error::AnalysisError::RedundantNullable;
 use Tropaion::parser::Parser;
 
 fn test_lexer_error(code: &str, expected: LexerError) {
@@ -81,4 +82,15 @@ fn test_unterminated() {
     "#;
 
     test_lexer_error(code, LexerError::UnclosedComment);
+}
+
+#[test]
+fn test_double_nullable() {
+    let code = r#"
+    fn main() {
+        let x: int?? = null;
+    }
+    "#;
+
+    test_analysis_error(code, RedundantNullable);
 }

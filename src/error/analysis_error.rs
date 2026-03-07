@@ -67,7 +67,13 @@ pub enum AnalysisError {
     DanglingReturn,
 
     #[error("Tried applying the '!!' operator to type {0} which is not a nullable type")]
-    IllegalNullDeref(String)
+    IllegalNullDeref(String),
+
+    #[error("Cannot make a single type nullable multiple times")]
+    RedundantNullable,
+
+    #[error("Failed to resolve symbol {0}")]
+    ResolutionFailed(String)
 }
 
 impl AnalysisError {

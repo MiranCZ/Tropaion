@@ -5,6 +5,9 @@ use crate::analysis::symbol_table::TypeSymTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, NullableType, ReferenceType, StructType, TupleType};
 use crate::ast::statement::TypedStmt;
+use crate::error::analysis_error::AnalysisError;
+use crate::error::analysis_error::AnalysisError::{RedundantNullable, ResolutionFailed};
+use crate::error::context::ErrorContext;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -198,64 +201,70 @@ impl AstType {
 }
 
 impl AstType {
-    
-    pub fn resolve_type(self,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> AstType {
-        match self {
+
+    // FIXME missing span info for error handling
+    pub fn resolve_type(self,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<AstType, ErrorContext<AnalysisError>> {
+        Ok(match self {
             AstType::SymbolType(name) => {
                 let opt = symbol_table.get(name.clone());
 
                 if let Some(t) = opt {
-                    return t.get(registry);
+                    return Ok(t.get(registry));
                 }
-                panic!("Failed to resolve symbol {name}")
+
+                return Err(ErrorContext::new(ResolutionFailed(name), 0, 0));
             }
             ReferenceType {underlying, .. } => {
-                underlying.resolve_type(registry, symbol_table);
+                underlying.resolve_type(registry, symbol_table)?;
 
                 ReferenceType {underlying}
             }
             NullableType {underlying} => {
-                underlying.resolve_type(registry, symbol_table);
+                underlying.resolve_type(registry, symbol_table)?;
+
+                if matches!(underlying.get(registry), NullableType {..}) {
+                    return Err(ErrorContext::new(RedundantNullable, 0, 0));
+                }
 
                 NullableType {underlying}
             }
             ArrayType {underlying} => {
-                underlying.resolve_type(registry, symbol_table);
+                underlying.resolve_type(registry, symbol_table)?;
 
                 ArrayType {underlying}
             }
             TupleType(mut arr) => {
                 for a in arr.iter_mut() {
-                    a.resolve_type(registry, symbol_table);
+                    a.resolve_type(registry, symbol_table)?;
                 }
 
                 TupleType(arr)
             }
             FunctionsType { name, mut overloads } => {
                 for a in overloads.iter_mut() {
-                    a.resolve_type(registry, symbol_table);
+                    a.resolve_type(registry, symbol_table)?;
                 }
 
                 FunctionsType {name, overloads}
             }
             FunctionType { name, mut params, return_type } => {
-                return_type.resolve_type(registry, symbol_table);
+                return_type.resolve_type(registry, symbol_table)?;
 
                 for a in params.iter_mut() {
-                    a.resolve_type(registry, symbol_table);
+                    a.resolve_type(registry, symbol_table)?;
                 }
 
                 FunctionType {name, params, return_type}
             }
             StructType {name, mut fields, mut children} => {
                 for f in fields.iter_mut() {
-                    f.0.resolve_type(registry, symbol_table);
+                    f.0.resolve_type(registry, symbol_table)?;
                 }
 
                 for e in children.iter_mut() {
                     let mem = e.1;
                     
-                    mem.0.resolve_type(registry, symbol_table);
+                    mem.0.resolve_type(registry, symbol_table)?;
                 }
 
                 StructType {name, fields, children}
@@ -263,7 +272,7 @@ impl AstType {
 
 
             _ => self
-        }
+        })
     }
     
 }

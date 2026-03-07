@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::UnknownType;
-
+use crate::error::analysis_error::{AnalysisError, EmptyRes};
+use crate::error::context::ErrorContext;
+use crate::error::ok;
 
 type TypeEntryKey = u64;
 
@@ -25,12 +27,14 @@ impl TypeEntry {
         self.mutate(parent, new_t);
     }
     
-    pub fn resolve_type(&self, parent: &mut TypeRegistry, symbol_table: &mut TypeSymTable) {
+    pub fn resolve_type(&self, parent: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<(), ErrorContext<AnalysisError>> {
         let typ = self.get(parent);
         
-        let resolved = typ.resolve_type(parent, symbol_table);
+        let resolved = typ.resolve_type(parent, symbol_table)?;
         
         self.mutate(parent, resolved);
+        
+        ok()
     }
     
     pub fn get(&self, parent: &TypeRegistry) -> AstType {

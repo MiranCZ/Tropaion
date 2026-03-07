@@ -103,7 +103,7 @@ impl UntypedStmt {
                 let mut resolved_expl_type = None;
 
                 if let Some(t) = explicit_type {
-                    t.resolve_type(registry, symbol_table);
+                    t.resolve_type(registry, symbol_table)?;
 
                     if let Some(new_t) = t.get(registry).get_assign_result(typed_value.get_type().get(registry), registry) {
                         typed_value.set_type(registry, new_t);
@@ -140,11 +140,11 @@ impl UntypedStmt {
                 WhileStmt {condition: typed_condition, body: resolve_smt_block(body, registry, symbol_table)?}
             }
             FunctionStmt { name, mut params, return_type, body } => {
-                return_type.resolve_type(registry, symbol_table);
+                return_type.resolve_type(registry, symbol_table)?;
 
 
                 for p in params.iter_mut() {
-                    p.param_type.resolve_type(registry, symbol_table);
+                    p.param_type.resolve_type(registry, symbol_table)?;
                 }
 
                 symbol_table.push();
@@ -163,7 +163,7 @@ impl UntypedStmt {
             }
             StructStmt { name, mut fields, body } => {
                 for p in fields.iter_mut() {
-                    p.param_type.resolve_type(registry, symbol_table);
+                    p.param_type.resolve_type(registry, symbol_table)?;
                 }
 
                 symbol_table.push();
