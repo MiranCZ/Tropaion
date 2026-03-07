@@ -4,7 +4,7 @@ use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, True};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, True, TwoExcl};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
@@ -184,6 +184,15 @@ pub fn parse_array_access_expr(registry: &mut TypeRegistry,parser: &mut Parser, 
         parser.expect_next(CloseSquare)?;
 
         expression::array_access(left, index)
+    })
+}
+
+
+pub fn parse_null_deref(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
+    spanned_led!(parser, left, {
+        parser.expect_next(TwoExcl)?;
+
+        expression::null_deref(left)
     })
 }
 

@@ -142,6 +142,9 @@ impl TypedExpr {
 
                 e.generate_bytecode(registry, generator, Store)?;
             }
+            Expression::NullDerefExpr(_, e) => {
+                e.generate_bytecode(registry, generator, LoadDeref)?;
+            }
             Expression::PrefixExpr { operator, expr, .. } => {
                 match operator {
                     SimpleToken::Dash => {

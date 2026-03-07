@@ -1,12 +1,13 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{ArrayType, Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
-use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::error::analysis_error::AnalysisError;
+use crate::error::analysis_error::AnalysisError::IllegalNullDeref;
 use crate::error::context::{ErrorContext, Span};
 use crate::lexer::token::Token::Identifier;
 use crate::util::spanned::Spanned;
@@ -28,6 +29,7 @@ pub enum Expression<T> {
     NullableExpr(T, Box<SpannedExpr<T>>),
     IncrementExpr(T, Box<SpannedExpr<T>>),
     DecrementExpr(T, Box<SpannedExpr<T>>),
+    NullDerefExpr(T, Box<SpannedExpr<T>>),
     PrefixExpr {
         t: T,
         operator: SimpleToken,
@@ -174,6 +176,14 @@ impl UntypedExpr {
                 let typed = expr.resolve_type(registry, symbol_table)?;
 
                 DecrementExpr(typed.get_type(), typed.boxed())
+            }
+            NullDerefExpr(_, expr) => {
+                let typed = expr.resolve_type(registry, symbol_table)?;
+                if let NullableType {underlying} = typed.get_type().get(registry) {
+                    NullDerefExpr(underlying, typed.boxed())
+                } else {
+                    return Err(ctx(AnalysisError::illegal_null_deref(typed.get_type(), registry)));
+                }
             }
             PrefixExpr { operator, expr,.. } => {
                 let typed = expr.resolve_type(registry, symbol_table)?;
@@ -408,6 +418,7 @@ impl TypedExpr {
             IntLiteralExpr(t, ..) => *t,
             FloatLiteralExpr(t, ..) => *t,
             StringLiteralExpr(t, ..) => *t,
+            NullDerefExpr(t, ..) => *t,
             ArrayLiteralExpr(t, ..) => *t,
             IdentifierExpr(t, _) => *t,
             NullableExpr(t,_) => *t,
@@ -469,6 +480,7 @@ impl TypedExpr {
                     panic!("was set to {typ:?}")
                 }
             }
+            NullDerefExpr(t, ..) |
             ArrayLiteralExpr(t, ..) |
             IdentifierExpr(t, _) |
             NullableExpr(t, _) |
@@ -505,6 +517,7 @@ impl TypedExpr {
                     panic!()
                 }
             }
+            NullDerefExpr(t, _) |
             ArrayLiteralExpr(t, _) |
             NullableExpr(t, _) |
             IdentifierExpr(t, _) |
@@ -556,6 +569,10 @@ pub fn increment(expr: UntypedExpr) -> Expr {
 
 pub fn decrement(expr: UntypedExpr) -> Expr {
     DecrementExpr((), expr.boxed())
+}
+
+pub fn null_deref(expr: UntypedExpr) -> Expr {
+    NullDerefExpr((), expr.boxed())
 }
 
 pub fn prefix(operator: SimpleToken, expr: UntypedExpr) -> Expr {

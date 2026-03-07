@@ -3,7 +3,7 @@ use crate::ast::statement::Statement::StructStmt;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, CALL, COMMA, COMPARING, LOGICAL_ADD, LOGICAL_MULT, MEMBER, NUMERIC_ADD, NUMERIC_MULT, UNARY};
-use crate::parser::expression_parser::{parse_array_access_expr, parse_array_expr, parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_call_expr, parse_decrement_expr, parse_increment_expr, parse_member_expr, parse_null_expr, parse_parenthesis_expr, parse_prefix_expr};
+use crate::parser::expression_parser::{parse_array_access_expr, parse_array_expr, parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_call_expr, parse_decrement_expr, parse_increment_expr, parse_member_expr, parse_null_deref, parse_null_expr, parse_parenthesis_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
 use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_if_statement, parse_return_stmt, parse_struct_statement, parse_var_declaration_stmnt, parse_while_statement};
 
@@ -106,6 +106,8 @@ impl Lookup {
 
         led(OpenSquare, UNARY, parse_array_access_expr);
 
+        led(TwoExcl, MEMBER, parse_null_deref);
+        
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);
 

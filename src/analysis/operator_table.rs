@@ -110,10 +110,6 @@ impl OperatorTable {
 }
 
 fn from_ast_type(t: AstType, registry: &TypeRegistry) -> Option<SimpleType> {
-    if let AstType::NullableType {underlying} = t {
-        return from_ast_type(underlying.get(registry), registry)
-    }
-
     match t {
         AstType::Bool => Some(Bool),
         AstType::Int => Some(Int),

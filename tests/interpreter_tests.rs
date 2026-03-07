@@ -228,6 +228,7 @@ pub fn test_nulls() {
         if y > 1 {
             x = 7;
         }
+        let x: int = x!!;
 
         return x+y;
     }
@@ -585,6 +586,22 @@ fn test_not() {
     "#;
 
     test_simple_code("main", code, 0);
+}
+
+#[test]
+fn test_null_deref() {
+    let code = r#"
+    fn main() -> int {
+        let x: int? = null;
+        x = 5;
+
+        let y = x!! + 3;
+
+        return y;
+    }
+    "#;
+
+    test_simple_code("main", code, 8);
 }
 
 #[test]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
-use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, PrefixExpr, TupleExpr};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, NullDerefExpr, PrefixExpr, TupleExpr};
 use crate::ast::expression::{Expression, TypedExpr};
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::ast::statement::{Parameter, Statement, TypedStmt};
@@ -123,6 +123,10 @@ impl TypedExpr {
             DecrementExpr(t, e) => {
                 t.mangle_function(registry, owner.clone());
                 DecrementExpr(t, e.mangle_functions(registry, owner.clone()).boxed())
+            }
+            NullDerefExpr(t, e) => {
+                t.mangle_function(registry, owner.clone());
+                NullDerefExpr(t, e.mangle_functions(registry, owner.clone()).boxed())
             }
             PrefixExpr { t, operator, expr } => {
                 t.mangle_function(registry, owner.clone());

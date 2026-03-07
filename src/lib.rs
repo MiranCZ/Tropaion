@@ -10,7 +10,7 @@ use crate::interpreter::value::Value;
 use crate::parser::Parser;
 
 pub mod lexer;
-mod parser;
+pub mod parser;
 mod ast;
 pub mod error;
 pub mod analysis;
@@ -22,11 +22,12 @@ mod util;
 pub fn main() {
     let text = r#"
     fn main() -> int {
-        let x = 5;
-        let y: int? = null;
-        let z = x + y;
+        let x: int? = null;
+        x = 5;
 
-        return 0;
+        let y = x!! + 3;
+
+        return y;
     }
     "#;
 

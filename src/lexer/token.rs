@@ -63,6 +63,7 @@ pub enum SimpleToken {
     Arrow, // ->
 
     Question,
+    TwoExcl,
 
     PlusPlus,
     MinusMinus,
@@ -143,6 +144,7 @@ impl SimpleToken {
             BoolOr => "||",
             BitXor => "^",
             Question => "?",
+            TwoExcl => "!!",
             Assign => "=",
             PlusAssign => "+=",
             DashAssign => "-=",
