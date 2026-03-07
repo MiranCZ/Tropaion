@@ -320,7 +320,7 @@ impl BytecodeGen {
         self.push_insn(Nop);
     }
 
-    pub fn null_const(&mut self) {
+    pub fn null_ptr(&mut self) {
         self.push_insn(NullPtr);
     }
 
@@ -489,6 +489,7 @@ impl BytecodeGen {
     }
 
     pub fn call(&mut self, name: &String) {
+        println!("Calling {name}, {:?}", self.functions);
         let info = self.functions.get(name).unwrap();
 
         self.push_insn(Call(info.index));

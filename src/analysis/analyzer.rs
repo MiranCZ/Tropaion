@@ -36,7 +36,7 @@ impl Analyzer {
 
         // TODO semantic analysis would probs be nice xd
 
-        let resolved_root = resolved_root.mangle_functions(registry).transform_methods(registry, &self.symbol_table);
+        let resolved_root = resolved_root.mangle_functions(registry)?.transform_methods(registry, &self.symbol_table);
 
         Ok(resolved_root)
     }

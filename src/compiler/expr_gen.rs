@@ -38,7 +38,7 @@ impl TypedExpr {
             Load => self.load(registry, generator)?,
             LoadDeref => {
                 self.load(registry, generator)?;
-                
+
                 if let NullableType {underlying} = self.get_type().get(registry) {
                     generator.load_offset_value(registry, 0, underlying)?;
                 }
@@ -68,7 +68,7 @@ impl TypedExpr {
     pub fn load(&self, registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
         match &self.node {
             Expression::NullLiteralExpr(_) => {
-                generator.null_const();
+                generator.null_ptr();
             }
             Expression::BoolLiteralExpr(_, b) => {
                 if *b {
@@ -229,13 +229,49 @@ impl TypedExpr {
                     x.generate_bytecode(registry, generator, Load)?;
                 }
             }
-            Expression::MemberExpr { member, property, .. } => {
+            Expression::MemberExpr { member, property, null_safe,.. } => {
                 if let AstType::StructType {fields, children, ..} = deref(member.get_type(), registry) {
-                    member.generate_bytecode(registry, generator, LoadDeref)?;
+                    member.generate_bytecode(registry, generator, Load)?;
+
+                    if *null_safe {
+                        generator.dup();
+                        generator.null_ptr();
+                        generator.cmp_eq();
+                        generator.new_skippable_scope_ne(); // if the value is not null just do normally
+                    }
+
+                    // dereference
+                    if let NullableType {underlying} = member.get_type().get(registry) {
+                        generator.load_offset_value(registry, 0, underlying)?;
+                    } else if *null_safe {
+                        panic!("Null-safe call on not-null type?? {}", member.get_type().get(registry).format(registry));
+                    }
+
 
                     property.generate_bytecode(registry, generator, LoadField {
                          fields, children
                     })?;
+
+                    if *null_safe {
+                        generator.store_internal_value(registry, property.get_type())?;
+
+                        // FIXME should here be 1 or size of `t`?
+                        generator.create_stack_ptr(1);
+
+                        generator.comment("Ended member expr generation".to_string());
+
+                        // else
+                        generator.nop();
+                        generator.end_scope()?;
+                        generator.pop_insn();
+                        generator.new_scope();
+
+                        generator.push_scope_exit_insn();
+
+                        generator.pop(); // the address was duplicated for comparison, that was null, so the other is not needed
+                        generator.null_ptr();
+                        generator.end_scope()?;
+                    }
                 } else {
                     return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }

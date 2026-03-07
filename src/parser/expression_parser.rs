@@ -4,7 +4,7 @@ use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
 use crate::ast::statement::Parameter;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, True, TwoExcl};
+use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, QuestionDot, True, TwoExcl};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
@@ -156,11 +156,16 @@ pub fn parse_parenthesis_expr(registry: &mut TypeRegistry,parser: &mut Parser) -
 
 pub fn parse_member_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: UntypedExpr, binding_power: Bp) -> ReturnedExpression {
     spanned_led!(parser, left, {
-        parser.expect_next(Dot)?;
+        let mut null_safe = false;
+        if parser.consume_if_next(QuestionDot)? {
+            null_safe = true;
+        } else {
+            parser.expect_next(Dot)?;
+        }
 
         let right = parse_expression(registry,parser, binding_power)?;
 
-        expression::member(left, right)
+        expression::member(left, right, null_safe)
     })
 }
 

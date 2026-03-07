@@ -1,58 +1,60 @@
 use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::{AstType, MemberInfo};
-use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
-use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, NullDerefExpr, PrefixExpr, TupleExpr};
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, NullableType, StructType};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, CallExpr, DecrementExpr, IdentifierExpr, IncrementExpr, MemberExpr, NullDerefExpr, NullableExpr, PrefixExpr, TupleExpr};
 use crate::ast::expression::{Expression, TypedExpr};
 use crate::ast::statement::Statement::{BlockStmt, ExpressionStmt, FunctionStmt, IfStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::ast::statement::{Parameter, Statement, TypedStmt};
+use crate::error::analysis_error::AnalysisError;
+use crate::error::context::ErrorContext;
 use crate::util::spanned::Spanned;
 
 impl TypedStmt {
 
 
-    pub fn mangle_functions(self, registry: &mut TypeRegistry) -> TypedStmt {
+    pub fn mangle_functions(self, registry: &mut TypeRegistry) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
         self._mangle_functions(registry, String::new())
     }
 
-    fn _mangle_functions(self,registry: &mut TypeRegistry, owner: String) -> TypedStmt {
+    fn _mangle_functions(self,registry: &mut TypeRegistry, owner: String) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
         let stmt = match self.node {
             BlockStmt { body } => {
                 let mut mangled_body = vec![];
 
                 for b in body {
-                    mangled_body.push(b._mangle_functions(registry, owner.clone()));
+                    mangled_body.push(b._mangle_functions(registry, owner.clone())?);
                 }
 
                 BlockStmt{body: mangled_body}
             }
-            ExpressionStmt(e) => ExpressionStmt(e.mangle_functions(registry, owner.clone())),
+            ExpressionStmt(e) => ExpressionStmt(e.mangle_functions(registry, owner.clone())?),
             VarDeclarationStmt { name, is_const, value, explicit_type } => {
-                let mangled_value = value.mangle_functions(registry, owner.clone());
+                let mangled_value = value.mangle_functions(registry, owner.clone())?;
 
                 VarDeclarationStmt {name, is_const, value: mangled_value, explicit_type}
             }
             IfStmt {condition, body, else_branch } => {
-                let mangled_condition = condition.mangle_functions(registry, owner.clone());
+                let mangled_condition = condition.mangle_functions(registry, owner.clone())?;
                 let mut mangled_body = vec![];
 
                 for b in body {
-                    mangled_body.push(b._mangle_functions(registry, owner.clone()));
+                    mangled_body.push(b._mangle_functions(registry, owner.clone())?);
                 }
 
                 let mangled_branch = match else_branch {
                     None => None,
-                    Some(v) => Some(v._mangle_functions(registry, owner.clone()).boxed())
+                    Some(v) => Some(v._mangle_functions(registry, owner.clone())?.boxed())
                 };
 
                 IfStmt {condition: mangled_condition, body: mangled_body, else_branch: mangled_branch}
             }
             WhileStmt {condition, body } => {
-                let mangled_condition = condition.mangle_functions(registry, owner.clone());
+                let mangled_condition = condition.mangle_functions(registry, owner.clone())?;
                 let mut mangled_body = vec![];
 
                 for b in body {
-                    mangled_body.push(b._mangle_functions(registry, owner.clone()));
+                    mangled_body.push(b._mangle_functions(registry, owner.clone())?);
                 }
 
                 WhileStmt {condition: mangled_condition, body: mangled_body}
@@ -64,7 +66,7 @@ impl TypedStmt {
                 let mut mangled_body = vec![];
 
                 for b in body {
-                    mangled_body.push(b._mangle_functions(registry, owner.clone()));
+                    mangled_body.push(b._mangle_functions(registry, owner.clone())?);
                 }
 
                 FunctionStmt {name, params, body: mangled_body, return_type}
@@ -81,36 +83,35 @@ impl TypedStmt {
                 };
 
                 for b in body {
-                    mangled_body.push(b._mangle_functions(registry, owner.clone()));
+                    mangled_body.push(b._mangle_functions(registry, owner.clone())?);
                 }
 
                 StructStmt {name, fields, body: mangled_body}
             }
-            ReturnStmt(e) => ReturnStmt(e.mangle_functions(registry, owner.clone())),
+            ReturnStmt(e) => ReturnStmt(e.mangle_functions(registry, owner.clone())?),
             Statement::CommentStmt(_) => self.node,
             Statement::MultilineCommentStmt(_) => self.node
         };
         
-        Spanned::of(stmt, self.span)
+        Ok(Spanned::of(stmt, self.span))
     }
 
 }
 
 
 impl TypedExpr {
-    fn mangle_functions(self, registry: &mut TypeRegistry, owner: String) -> TypedExpr {
+    fn mangle_functions(self, registry: &mut TypeRegistry, owner: String) -> Result<TypedExpr, ErrorContext<AnalysisError>> {
         let expr = match self.node {
             Expression::NullLiteralExpr(..) |
             Expression::BoolLiteralExpr(..) |
             Expression::IntLiteralExpr(..) |
             Expression::FloatLiteralExpr(..) |
-            Expression::NullableExpr(..) |
             Expression::StringLiteralExpr(..) => self.node,
             Expression::ArrayLiteralExpr(t, values) => {
                 let mut mangled_values = vec![];
 
                 for v in values {
-                    mangled_values.push(v.mangle_functions(registry, owner.clone()));
+                    mangled_values.push(v.mangle_functions(registry, owner.clone())?);
                 }
             
                 ArrayLiteralExpr(t,mangled_values)
@@ -118,26 +119,30 @@ impl TypedExpr {
 
             IncrementExpr(t, e) => {
                 t.mangle_function(registry, owner.clone());
-                IncrementExpr(t, e.mangle_functions(registry, owner.clone()).boxed())
+                IncrementExpr(t, e.mangle_functions(registry, owner.clone())?.boxed())
             }
             DecrementExpr(t, e) => {
                 t.mangle_function(registry, owner.clone());
-                DecrementExpr(t, e.mangle_functions(registry, owner.clone()).boxed())
+                DecrementExpr(t, e.mangle_functions(registry, owner.clone())?.boxed())
             }
             NullDerefExpr(t, e) => {
                 t.mangle_function(registry, owner.clone());
-                NullDerefExpr(t, e.mangle_functions(registry, owner.clone()).boxed())
+                NullDerefExpr(t, e.mangle_functions(registry, owner.clone())?.boxed())
+            }
+            NullableExpr(t, e) => {
+                t.mangle_function(registry, owner.clone());
+                NullableExpr(t, e.mangle_functions(registry, owner.clone())?.boxed())
             }
             PrefixExpr { t, operator, expr } => {
                 t.mangle_function(registry, owner.clone());
-                let mangled_expr = expr.mangle_functions(registry, owner.clone()).boxed();
+                let mangled_expr = expr.mangle_functions(registry, owner.clone())?.boxed();
 
                 PrefixExpr {t, operator, expr: mangled_expr}
             }
             BinaryExpr { t, left, operator, right } => {
                 t.mangle_function(registry, owner.clone());
-                let left = left.mangle_functions(registry, owner.clone()).boxed();
-                let right = right.mangle_functions(registry, owner.clone()).boxed();
+                let left = left.mangle_functions(registry, owner.clone())?.boxed();
+                let right = right.mangle_functions(registry, owner.clone())?.boxed();
 
                 BinaryExpr {t, left, operator, right}
             }
@@ -146,7 +151,7 @@ impl TypedExpr {
                 let mut mangled_values = vec![];
 
                 for v in values {
-                    mangled_values.push(v.mangle_functions(registry, owner.clone()));
+                    mangled_values.push(v.mangle_functions(registry, owner.clone())?);
                 }
 
                 TupleExpr {t, values: mangled_values}
@@ -154,28 +159,34 @@ impl TypedExpr {
 
             AssignExpr { t, assignee, value } => {
                 t.mangle_function(registry, owner.clone());
-                let assignee = assignee.mangle_functions(registry, owner.clone()).boxed();
-                let value = value.mangle_functions(registry, owner.clone()).boxed();
+                let assignee = assignee.mangle_functions(registry, owner.clone())?.boxed();
+                let value = value.mangle_functions(registry, owner.clone())?.boxed();
 
                 AssignExpr {t, assignee, value}
             }
             ArrayAccessExpr {t,property, index} => {
-                let property = property.mangle_functions(registry, owner.clone()).boxed();
-                let index = index.mangle_functions(registry, owner).boxed();
+                let property = property.mangle_functions(registry, owner.clone())?.boxed();
+                let index = index.mangle_functions(registry, owner)?.boxed();
                 
                 ArrayAccessExpr {
                     t, property, index
                 }
             }
-            MemberExpr { t, member, property } => {
+            MemberExpr { t, member, property, null_safe } => {
                 t.mangle_function(registry, owner.clone());
-                let member = member.mangle_functions(registry, owner.clone()).boxed();
+                let member = member.mangle_functions(registry, owner.clone())?.boxed();
 
                 let mut repl = owner.clone();
 
-                // println!("MEMBER {:?}",member.get_type());
-                
-                if let StructType {name, ..} = member.get_type().get(registry) {
+                let mut typ = member.get_type().get(registry);
+                if let NullableType {underlying} = typ {
+                    if !null_safe {
+                        return Err(ErrorContext::of(AnalysisError::NullableAccess, self.span));
+                    }
+                    typ = underlying.get(registry);
+                }
+
+                if let StructType {name, ..} = typ {
                     repl = if owner.is_empty() {
                         name.clone()
                     } else {
@@ -186,18 +197,18 @@ impl TypedExpr {
                 }
                 let owner = repl;
 
-                let property = property.mangle_functions(registry, owner.clone()).boxed();
+                let property = property.mangle_functions(registry, owner.clone())?.boxed();
 
-                MemberExpr {t, member, property}
+                MemberExpr {t, member, property, null_safe}
             }
             CallExpr { t, func, args } => {
                 t.mangle_function(registry, owner.clone());
-                let func = func.mangle_functions(registry, owner.clone()).boxed();
+                let func = func.mangle_functions(registry, owner.clone())?.boxed();
 
                 let mut mangled_args = vec![];
 
                 for a in args {
-                    mangled_args.push(a.mangle_functions(registry, owner.clone()));
+                    mangled_args.push(a.mangle_functions(registry, owner.clone())?);
                 }
 
                 CallExpr {t, func, args: mangled_args}
@@ -215,7 +226,7 @@ impl TypedExpr {
             }
         };
 
-        Spanned::of(expr, self.span)
+        Ok(Spanned::of(expr, self.span))
     }
 }
 

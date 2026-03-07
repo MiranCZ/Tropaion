@@ -73,7 +73,10 @@ pub enum AnalysisError {
     RedundantNullable,
 
     #[error("Failed to resolve symbol {0}")]
-    ResolutionFailed(String)
+    ResolutionFailed(String),
+
+    #[error("Nullable values cannot be directly accessed with `.`")]
+    NullableAccess
 }
 
 impl AnalysisError {

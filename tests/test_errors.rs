@@ -2,7 +2,7 @@ use Tropaion::analysis::type_registry::TypeRegistry;
 use Tropaion::error::analysis_error::AnalysisError;
 use Tropaion::error::lexer_error::LexerError;
 use Tropaion::{analysis, lexer};
-use Tropaion::error::analysis_error::AnalysisError::RedundantNullable;
+use Tropaion::error::analysis_error::AnalysisError::{NullableAccess, RedundantNullable};
 use Tropaion::parser::Parser;
 
 fn test_lexer_error(code: &str, expected: LexerError) {
@@ -93,4 +93,27 @@ fn test_double_nullable() {
     "#;
 
     test_analysis_error(code, RedundantNullable);
+}
+
+#[test]
+fn test_unsafe_call() {
+    let code = r#"
+    struct A(i: int);
+
+    fn do_stuff(inp: bool) -> int {
+        let a: A? = A(5);
+
+        if inp {
+            a = null;
+        }
+
+        return a.i;
+    }
+
+    fn main() {
+        do_stuff(false);
+    }
+    "#;
+
+    test_analysis_error(code, NullableAccess);
 }

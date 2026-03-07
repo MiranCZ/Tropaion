@@ -58,7 +58,8 @@ pub enum Expression<T> {
     MemberExpr {
         t: T,
         member: Box<SpannedExpr<T>>,
-        property: Box<SpannedExpr<T>>
+        property: Box<SpannedExpr<T>>,
+        null_safe: bool
     },
     CallExpr {
         t: T,
@@ -158,7 +159,8 @@ impl UntypedExpr {
                         MemberExpr {
                             t: t.clone(),
                             member: Spanned::new(IdentifierExpr((), "this".to_string()), self.span.from, self.span.from).resolve_type(registry, symbol_table)?.boxed(),
-                            property: Spanned::of(IdentifierExpr(t, identifier), self.span).boxed()
+                            property: Spanned::of(IdentifierExpr(t, identifier), self.span).boxed(),
+                            null_safe: false
                         }
                     } else {
                         IdentifierExpr(t, identifier)
@@ -253,7 +255,7 @@ impl UntypedExpr {
 
                 TupleExpr {t: tuple_type, values: types}
             }
-            MemberExpr {member, property , .. } => {
+            MemberExpr {member, property , null_safe, .. } => {
                 let member_type = member.resolve_type(registry, symbol_table)?;
 
                 // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
@@ -266,7 +268,13 @@ impl UntypedExpr {
                     }
                 }
 
-                let property_type = property.resolve_type(registry, symbol_table)?;
+                let mut property_type = property.resolve_type(registry, symbol_table)?;
+                let mut typ = property_type.get_type();
+
+                if null_safe {
+                    let nullable = NullableType {underlying: typ};
+                    typ = registry.register(nullable)
+                }
 
                 // drop the struct scope
                 if struct_scope {
@@ -274,9 +282,10 @@ impl UntypedExpr {
                 }
 
                 MemberExpr {
-                    t: property_type.get_type(),
+                    t: typ,
                     member: member_type.boxed(),
-                    property: property_type.boxed()
+                    property: property_type.boxed(),
+                    null_safe
                 }
             }
             CallExpr {func, args, .. } => {
@@ -336,7 +345,7 @@ impl UntypedExpr {
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
                 resolved_func.change_type(registry, func.get(registry));
 
-                if let MemberExpr { t, member, property } = &resolved_func.node
+                if let MemberExpr { t, member, property, null_safe } = &resolved_func.node
                     && let IdentifierExpr(t, name) = &member.node && name == "this"
                 {
                     let return_type = return_type.duplicate(registry);
@@ -347,6 +356,7 @@ impl UntypedExpr {
                     let res = MemberExpr {
                         t: return_type,
                         member: member.clone().boxed(),
+                        null_safe: *null_safe,
                         property: Spanned::of(CallExpr {
                             t: return_type,
                             func: property.clone(),
@@ -633,11 +643,12 @@ pub fn tuple(values: Vec<UntypedExpr>) -> Expr {
     }
 }
 
-pub fn member(member: UntypedExpr, property: UntypedExpr) -> Expr {
+pub fn member(member: UntypedExpr, property: UntypedExpr, null_safe: bool) -> Expr {
     MemberExpr {
         t: (),
         member: member.boxed(),
-        property: property.boxed()
+        property: property.boxed(),
+        null_safe
     }
 }
 

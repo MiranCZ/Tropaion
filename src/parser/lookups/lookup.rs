@@ -79,6 +79,8 @@ impl Lookup {
         led(BitXor, LOGICAL_MULT, parse_binary_expr);
 
         led(Dot, MEMBER, parse_member_expr);
+        led(QuestionDot, MEMBER, parse_member_expr);
+
         led(OpenBracket, CALL, parse_call_expr);
 
         led(Equals, COMPARING, parse_binary_expr);
@@ -107,7 +109,7 @@ impl Lookup {
         led(OpenSquare, UNARY, parse_array_access_expr);
 
         led(TwoExcl, MEMBER, parse_null_deref);
-        
+
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);
 

@@ -494,7 +494,7 @@ fn test_null_comparison() {
             return 4;
         }
 
-        if p3.x != p4.x {
+        if p3.x != p4?.x {
             return 5;
         }
 
@@ -645,4 +645,35 @@ fn test_autoboxing() {
 
 
     test_simple_code("main", code, 10);
+}
+
+#[test]
+fn test_safe_calls() {
+    let code = r#"
+    struct Rect(a: int, b: int) {
+        fn area() -> int {
+            return a * b;
+        }
+    }
+
+    fn main() -> int {
+        let r: Rect? = Rect(4, 5);
+
+        if r?.area() == 20 {
+            r = null;
+
+            if r?.area() == 20 || r?.area() != null {
+                return 2;
+            }
+
+            return 0;
+        }
+
+        return 1;
+    }
+    "#;
+
+
+
+    test_simple_code("main", code, 0);
 }
