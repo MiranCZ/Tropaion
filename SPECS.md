@@ -162,10 +162,39 @@ fn main() {
 # Null
 
 the `null` keyword can be used to represent the absence of something.
-If a type can be null a `?` suffix must be used after its type (eq. `int?`).
 
-at this moment, there are no guardrails for working with types that could be `null`
-and can be used as a normal value.
+## Basics
+- If a type can be null a `?` suffix must be used after its type (eq. `let x: int? = null;`).
+- Can be deconstructed into non-nulls using `??` (eq. `let y: int = x ?? 27;` - evaluates into x with value or `27`)
+- the `?.` operator for func calls, either calls if not-null or returns null (eq. `some_struct?.some_func()`)
+- the `!!` operator for making a nullable obj not-null (eq. `let z: int = x!!;`), the obj being null results in a runtime error
+
+## Promotion
+- any non-null type can be implicitly promoted to a nullable one
+
+```
+fn do_stuff(x: int?) {
+ // ...
+}
+
+do_stuff(12); // '12' gets promoted to type `int?` from `int` at compile time
+```
+
+## Narrowing
+- this is "*slightly*" hard but it would be cool to have type narrowing
+```
+let x: int? = some_fn();
+
+if x != null {
+  // x is known to not be null
+  let y: int = 2 * x; // valid since 'x' cannot be null
+  
+  x = null; // ALSO VALID! 'x' is still nullable
+  
+  let z = 2 * x; // invalid since 'x' is no longer guaranteed to be non-null
+}
+```
+
 
 # Memory model
 *all of this is very WIP, really need to think about all of this more*
