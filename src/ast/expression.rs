@@ -7,7 +7,6 @@ use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft
 use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::error::analysis_error::AnalysisError;
-use crate::error::analysis_error::AnalysisError::IllegalCall;
 use crate::error::context::{ErrorContext, Span};
 use crate::lexer::token::Token::Identifier;
 use crate::util::spanned::Spanned;
@@ -312,7 +311,19 @@ impl UntypedExpr {
             }
 
 
-            if let AstType::FunctionType { return_type, .. } = func.get(registry) {
+            if let AstType::FunctionType { return_type, params, .. } = func.get(registry) {
+                // resolve argument types
+                for i in 0..params.len() {
+                    let arg = &mut resolved_args[i];
+                    let p = params[i];
+
+                    if let Some(r) = p.get(registry).get_assign_result(arg.get_type().get(registry), registry) {
+                        arg.set_type(registry, r);
+                    } else {
+                        return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(p, arg.get_type(), registry),arg.span));
+                    }
+                }
+
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
                 resolved_func.change_type(registry, func.get(registry));
 
