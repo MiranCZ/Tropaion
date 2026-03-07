@@ -686,7 +686,28 @@ fn test_type_wrapping() {
         let x: int? = null;
 
         x = i;
-        
+
+        return 0;
+    }
+    "#;
+
+    test_simple_code("main", code, 0);
+}
+
+#[test]
+fn test_scopes() {
+    let code = r#"
+    struct Box(field: bool);
+
+    fn main() -> int {
+        if true {
+            let bad_item = Box(true);
+        }
+
+        let sword = Box(false);
+
+        let y = sword.field;
+
         return 0;
     }
     "#;

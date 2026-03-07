@@ -465,7 +465,7 @@ impl BytecodeGen {
 
 
     pub fn create_stack_ptr(&mut self, consume_words: u16) {
-        let offset = self.local_count - consume_words;
+        let offset = self.scope_local_count - consume_words;
 
         self.push_insn(CreateStackPtr {offset, consume_words});
     }
