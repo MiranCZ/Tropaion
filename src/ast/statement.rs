@@ -149,6 +149,8 @@ impl UntypedStmt {
 
                 symbol_table.push();
 
+                symbol_table.record_return_type(return_type);
+
                 for p in params.clone() {
                     symbol_table.record(p.name, p.param_type);
                 }
@@ -183,7 +185,23 @@ impl UntypedStmt {
                 StructStmt {name, fields, body}
             }
             ReturnStmt(expr) => {
-                ReturnStmt(expr.resolve_type(registry, symbol_table)?)
+                let mut typed_expr = expr.resolve_type(registry, symbol_table)?;
+
+                let return_type = symbol_table.get_return_type();
+
+                let return_type = if let Some(r) = return_type {
+                    r
+                } else {
+                    return Err(ctx(AnalysisError::DanglingReturn));
+                };
+
+                if let Some(r) = return_type.get(registry).get_assign_result(typed_expr.get_type().get(registry), registry) {
+                    typed_expr.set_type(registry, r);
+                } else {
+                    return Err(ctx(AnalysisError::illegal_type_assignment(return_type, typed_expr.get_type(), registry)));
+                }
+
+                ReturnStmt(typed_expr)
             }
             CommentStmt(s) => {
                 CommentStmt(s)

@@ -61,7 +61,10 @@ pub enum AnalysisError {
     #[error("Type '{typ}' cannot be indexed")]
     IllegalIndexing {
         typ: String
-    }
+    },
+
+    #[error("Invalid place for a return")]
+    DanglingReturn
 }
 
 impl AnalysisError {

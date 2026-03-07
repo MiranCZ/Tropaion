@@ -86,3 +86,15 @@ impl <T: Clone, E: Clone> SymbolTable<T, E> {
     }
     
 }
+
+impl TypeSymTable {
+
+    pub fn record_return_type(&mut self, t: TypeEntry) {
+        self.record("::return".to_string(), t);
+    }
+
+    pub fn get_return_type(&self) -> Option<TypeEntry> {
+        self.get("::return".to_string())
+    }
+
+}
