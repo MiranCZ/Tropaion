@@ -135,7 +135,7 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            // println!("values {:?}", &self.stack[0..self.pointer]);
+            // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
             // println!("\t{insn:?}\n");
 
             self.execute(insn)?;
@@ -684,7 +684,7 @@ impl Interpreter {
 
             let mut v = stack[i];
 
-            if let RefValue {ptr, len} = v && ptr > new_ptr {
+            if let RefValue {ptr, len} = v && ptr >= new_ptr {
                 v = Self::promote_ref(ptr, len, new_ptr, heap, stack, promoted);
             }
 

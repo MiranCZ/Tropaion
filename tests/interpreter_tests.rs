@@ -265,6 +265,26 @@ fn test_struct_promotion() {
 
 
     test_simple_code("main", code, 15);
+
+
+    let code = r#"
+    struct Point(x: int, y: int);
+
+    fn create_point(x: int, y: int) -> Point? {
+        let p: Point? = Point(x, y);
+
+        return p;
+    }
+
+    fn main() -> int {
+        let p = create_point(10, 20);
+        let p = p!!;
+
+        return p.x + p.y;
+    }
+    "#;
+
+    test_simple_code("main", code, 30);
 }
 
 #[test]

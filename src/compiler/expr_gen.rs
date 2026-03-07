@@ -35,8 +35,14 @@ impl TypedExpr {
     pub fn generate_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, operation: Operation) -> EmptyRes {
         generator.push_span(self.span);
         match operation {
-            Load => self.load(registry, generator, false)?,
-            LoadDeref => self.load(registry, generator, true)?,
+            Load => self.load(registry, generator)?,
+            LoadDeref => {
+                self.load(registry, generator)?;
+                
+                if let NullableType {underlying} = self.get_type().get(registry) {
+                    generator.load_offset_value(registry, 0, underlying)?;
+                }
+            },
             Store => self.store(registry, generator)?,
             LoadField {fields, children} => {
                 self.load_field(registry, fields, children, generator)?;
@@ -59,7 +65,7 @@ impl TypedExpr {
         ok()
     }
 
-    pub fn load(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, dereference: bool) -> EmptyRes {
+    pub fn load(&self, registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
         match &self.node {
             Expression::NullLiteralExpr(_) => {
                 generator.null_const();
@@ -102,9 +108,7 @@ impl TypedExpr {
                     AstType::NullableType {underlying: t} => {
                         generator.a_load(name.clone());
 
-                        if dereference {
-                            generator.load_offset_value(registry, 0, t)?;
-                        }
+
 
                     },
 
@@ -144,6 +148,8 @@ impl TypedExpr {
             }
             Expression::NullDerefExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
+
+                generator.comment("Dereferencing here".to_string());
             }
             Expression::PrefixExpr { operator, expr, .. } => {
                 match operator {
