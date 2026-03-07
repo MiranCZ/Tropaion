@@ -215,7 +215,13 @@ impl UntypedExpr {
                 let assign_result = typed_assignee.get_type().get(registry).get_assign_result(typed_value.get_type().get(registry), registry);
                 if let Some(t) = assign_result{
                     typed_assignee.set_type(registry, t.clone());
-                    typed_value.set_type(registry, t);
+
+                    if matches!(typed_assignee.get_type().get(registry), NullableType {..}) && !matches!(typed_value.get_type().get(registry), NullableType {..}) {
+                        let nullable = registry.register(NullableType {underlying: typed_value.get_type()});
+
+                        let expr = NullableExpr(nullable, typed_value.clone().boxed());
+                        typed_value = Spanned::of(expr, typed_value.span);
+                    }
                 } else {
                     return Err(ctx(AnalysisError::illegal_type_assignment(typed_assignee.get_type(), typed_value.get_type(), registry)));
                 }

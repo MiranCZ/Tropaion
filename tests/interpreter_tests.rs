@@ -677,3 +677,19 @@ fn test_safe_calls() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_type_wrapping() {
+    let code = r#"
+    fn main() -> int {
+        let i: int = 5;
+        let x: int? = null;
+
+        x = i;
+        
+        return 0;
+    }
+    "#;
+
+    test_simple_code("main", code, 0);
+}
