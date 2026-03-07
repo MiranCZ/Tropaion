@@ -176,7 +176,7 @@ impl Parser {
                 return Span::new(0, 0);
             }
 
-            return self.tokens[0].span;
+            return self.tokens[self.tokens.len()-1].span;
         }
 
         self.tokens[self.pos].span
