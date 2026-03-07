@@ -714,3 +714,88 @@ fn test_scopes() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_a_lot() {
+    let code = r#"
+    struct Item(power: int, is_cursed: bool);
+
+    struct Player(hp: int, score: int, current_item: Item?) {
+
+        fn heal(amount: int) -> int {
+            this.hp += amount;
+            return this.hp;
+        }
+
+        fn equip(i: Item?) -> bool {
+            if i == null {
+                this.current_item = null;
+                return false;
+            }
+
+            if i!!.is_cursed {
+                this.hp -= 10;
+                return false;
+            }
+
+            this.current_item = i;
+            return true;
+        }
+
+        fn attack(base_dmg: int) -> int {
+            let bonus = 0;
+
+            if this.current_item != null {
+                bonus = this.current_item!!.power;
+            }
+
+            this.score += base_dmg + bonus;
+            return base_dmg + bonus;
+        }
+    }
+
+    fn calculate_bonus(n: int) -> int {
+        if n <= 1 {
+            return 1;
+        }
+        return n + calculate_bonus(n - 1);
+    }
+
+    fn main() -> int {
+        let p: Player = Player(100, 0, null);
+
+        let events = [10, 20, 0, 50, 5];
+
+        let i = 0;
+        while i < 5 {
+            let dmg = events[i];
+
+            if dmg == 0 {
+                p.heal(15);
+
+                let i = 100;
+                p.score += i;
+            }
+            else if dmg > 40 {
+                let bad_item = Item(50, true);
+                p.equip(bad_item);
+            }
+            else {
+                let sword = Item(5, false);
+                p.equip(sword);
+                p.attack(dmg);
+            }
+
+            i++;
+        }
+
+        let final_bonus = calculate_bonus(5);
+        p.score += final_bonus;
+
+        return p.hp + p.score;
+    }
+    "#;
+
+
+    test_simple_code("main", code, 270);
+}
