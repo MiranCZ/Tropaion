@@ -580,3 +580,26 @@ fn test_not() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_autoboxing() {
+    let code = r#"
+    fn calc(i: int?) -> int {
+        if i == null {
+            return 0;
+        }
+
+        return i;
+    }
+
+    fn main() -> int {
+        let x: int = 2;
+        let y: int? = 3;
+
+        return calc(5) + calc(null) + calc(x) + calc(y);
+    }
+    "#;
+
+
+    test_simple_code("main", code, 10);
+}
