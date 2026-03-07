@@ -1,11 +1,12 @@
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter, LowerExp};
 use crate::error::ok;
+use crate::util::either::Either;
 
 #[derive(Debug)]
 pub struct ErrorContext<T> {
     pub error: T,
-    pub span: Span,
+    pub span: Either<Span, usize>,
     pub message: Option<String>
 }
 
@@ -31,33 +32,21 @@ impl Span {
     }
 }
 
-// FIXME we need the input text to process errors
-impl <T: Display> Display for ErrorContext<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.error.fmt(f)?;
-
-        f.write_str(" on line ")?;
-
-        Display::fmt(&self.span, f)?;
-
-        ok()
-    }
-}
-
-impl Display for Span {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.from, f)?;
-        Debug::fmt("-", f)?;
-        Debug::fmt(&self.to, f)
-    }
-}
 
 impl <T> ErrorContext<T> {
 
     pub fn new(error: T, from: usize, to: usize) -> Self {
         Self {
             error,
-            span: Span::new(from, to),
+            span: Either::Left(Span::new(from, to)),
+            message: None
+        }
+    }
+
+    pub fn line(error: T, line: usize) -> Self {
+        Self {
+            error,
+            span: Either::Right(line),
             message: None
         }
     }
@@ -65,7 +54,7 @@ impl <T> ErrorContext<T> {
     pub fn of(error: T, span: Span) -> Self {
         Self {
             error,
-            span,
+            span: Either::Left(span),
             message: None
         }
     }
@@ -80,8 +69,17 @@ impl <T> ErrorContext<T> {
 impl <T: Display> ErrorContext<T> {
 
     pub fn format(&self, str: Vec<char>) -> String {
-        let from = self.span.from;
-        let to = self.span.to;
+        match self.span {
+            Either::Left(l) => Self::format_span_err(l, &self.error, str),
+            Either::Right(r) => {
+                format!("{} on line {r}", self.error)
+            }
+        }
+    }
+
+    fn format_span_err(span: Span, error: &T, str: Vec<char>) -> String {
+        let from = span.from;
+        let to = span.to;
 
         let mut line = String::new();
         let mut single_line = true;
@@ -100,7 +98,7 @@ impl <T: Display> ErrorContext<T> {
             let start_line = str[0..from].iter().filter(|ch| **ch == '\n').count() + 1;
             let end_line = str[0..to].iter().filter(|ch| **ch == '\n').count() + 1;
 
-            return format!("{} on lines {start_line}-{end_line}", self.error);
+            return format!("{} on lines {start_line}-{end_line}", error);
         }
 
         let mut before = String::new();
@@ -124,7 +122,7 @@ impl <T: Display> ErrorContext<T> {
         }
 
         let line_num = str[0..from].iter().filter(|ch| **ch == '\n').count() + 1;
-        let l1 = format!("{} on line {line_num}", self.error);
+        let l1 = format!("{} on line {line_num}", error);
 
         let mut can_ignore = true;
         for i in from..to {
@@ -141,5 +139,4 @@ impl <T: Display> ErrorContext<T> {
 
         format!("{l1}\n{line}\n{before}\n")
     }
-
 }

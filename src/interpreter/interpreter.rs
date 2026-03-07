@@ -1,9 +1,11 @@
 use std::cell::Ref;
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
 use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
+use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
 use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
@@ -56,6 +58,7 @@ struct StackFrame {
 
 pub struct Interpreter {
     instructions: Vec<ByteCode>,
+    line_maps: Vec<usize>,
     functions: Vec<FunctionInfo>,
     function_mapping: HashMap<String, FunctionInfo>,
 
@@ -74,7 +77,7 @@ type ValueRes = Result<Value, RuntimeError>;
 impl Interpreter {
 
 
-    pub fn new(instructions: Vec<ByteCode>, functions_map: HashMap<String, FunctionInfo>) -> Self {
+    pub fn new(instructions: Vec<ByteCode>, line_maps: Vec<usize>, functions_map: HashMap<String, FunctionInfo>) -> Self {
         let mut functions = Vec::with_capacity(functions_map.len());
         functions.resize(functions_map.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
 
@@ -89,7 +92,7 @@ impl Interpreter {
         stack.resize(STACK_SIZE, Null);
 
         Self {
-            instructions, functions,
+            instructions,line_maps ,functions,
             function_mapping: functions_map,
 
             insn_addr: 0,
@@ -101,7 +104,22 @@ impl Interpreter {
         }
     }
 
-    pub fn run_function(&mut self, function: String) -> Result<(Vec<Value>, &Heap), RuntimeError> {
+
+    pub fn run_function(&mut self, function: String) -> Result<(Vec<Value>, &Heap), ErrorContext<RuntimeError>> {
+        let res = self._run_function(function);
+
+        if let Ok(v) = res {
+            return Ok((v, &self.heap));
+        } else if let Err(e) = res {
+            let line_num = self.line_maps[min(self.insn_addr, self.line_maps.len()-1)];
+
+            return Err(ErrorContext::line(e, line_num));
+        }
+
+        panic!()
+    }
+
+    fn _run_function(&mut self, function: String) -> Result<Vec<Value>, RuntimeError> {
         let fun = self.function_mapping.get(&function);
 
         let fun = if let Some(fun) = fun {
@@ -130,7 +148,7 @@ impl Interpreter {
             result.push(*v);
         }
 
-        Ok((result, &self.heap))
+        Ok(result)
     }
 
     fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {

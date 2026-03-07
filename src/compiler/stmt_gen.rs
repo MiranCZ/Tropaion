@@ -8,6 +8,16 @@ use crate::error::ok;
 impl TypedStmt {
 
     pub fn gen_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen) -> EmptyRes {
+        generator.push_span(self.span);
+
+        self._generate_bytecode(registry, generator)?;
+
+        generator.pop_span();
+
+        ok()
+    }
+
+    fn _generate_bytecode(&self, registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
         match &self.node {
             Statement::BlockStmt { body } => {
                 generator.new_scope();
@@ -21,7 +31,7 @@ impl TypedStmt {
             Statement::ExpressionStmt(e) => {
                 e.generate_bytecode(registry, generator, Load)?;
             }
-            Statement::VarDeclarationStmt {name, value, .. } => {
+            Statement::VarDeclarationStmt { name, value, .. } => {
                 value.generate_bytecode(registry, generator, Load)?;
 
                 generator.store_new_var(name.clone(), registry, value.get_type())?;
@@ -38,7 +48,7 @@ impl TypedStmt {
                     // generator.push_scope_exit_insn();
                     generator.nop();
                     generator.end_scope()?;
-                    generator.instructions.pop();
+                    generator.pop_insn();
 
                     generator.new_scope();
                     generator.push_scope_exit_insn();
@@ -64,7 +74,7 @@ impl TypedStmt {
 
                 generator.end_scope()?;
             }
-            Statement::FunctionStmt {name, body, params, .. } => {
+            Statement::FunctionStmt { name, body, params, .. } => {
                 generator.comment(format!("fn {name} -- START"));
                 generator.fn_start(name.clone());
 
@@ -87,13 +97,13 @@ impl TypedStmt {
 
                 generator.comment(format!("return of {name} -- END"));
             }
-            Statement::StructStmt {body, .. } => {
+            Statement::StructStmt { body, .. } => {
                 for b in body {
                     b.gen_bytecode(registry, generator)?;
                 }
             }
             Statement::ReturnStmt(e) => {
-                 e.generate_bytecode(registry, generator, Load)?;
+                e.generate_bytecode(registry, generator, Load)?;
 
                 generator.ret(e.get_type().get(registry).word_size(registry));
             }
@@ -102,8 +112,6 @@ impl TypedStmt {
             Statement::CommentStmt(_) => {}
             Statement::MultilineCommentStmt(_) => {}
         }
-
-        ok()
+        Ok(())
     }
-
 }

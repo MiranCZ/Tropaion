@@ -23,8 +23,8 @@ pub fn main() {
     let text = r#"
     fn main() -> int {
         let x = 5;
-
-        let y = x[0];
+        let y: int? = null;
+        let z = x + y;
 
         return 0;
     }
@@ -40,7 +40,7 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     let tokens = lexer.parse();
 
     if let Err(e) = tokens {
-        panic!("{e}");
+        panic!("{}", e.format(text.chars().collect()));
     }
     
     let tokens = tokens.unwrap();
@@ -52,7 +52,7 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     let parsed = parser.parse(&mut registry);
 
     if let Err(e) = parsed {
-        panic!("{e}");
+        panic!("{}", e.format(text.chars().collect()));
     }
 
     let parsed = parsed.unwrap();
@@ -64,20 +64,20 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     let resolved_root = if let Ok(v) = resolved_root {
         v
     } else {
-        panic!("Error: {}", resolved_root.err().unwrap());
+        panic!("{}", resolved_root.err().unwrap().format(text.chars().collect()));
     };
 
-    let mut comp = Compiler::new(resolved_root);
+    let mut comp = Compiler::new(resolved_root, text.chars().collect());
 
     let res = comp.compile(&mut registry);
 
-    let (instructions, functions) = if let Ok((i, f)) = res {
-        (i, f)
+    let (instructions, lines, functions) = if let Ok((i, l, f)) = res {
+        (i,l, f)
     } else {
         panic!("Error {:?}", res.err().unwrap());
     };
 
-    let interpret = Interpreter::new(instructions, functions);
+    let interpret = Interpreter::new(instructions, lines, functions);
 
     interpret
 }
@@ -121,7 +121,7 @@ fn interpret(text: &str) {
 
             println!("{:#?}", resolved_root);
 
-            let mut comp = Compiler::new(resolved_root);
+            let mut comp = Compiler::new(resolved_root, text.chars().collect());
 
 
             println!();
@@ -132,8 +132,8 @@ fn interpret(text: &str) {
 
             let res = comp.compile(&mut registry);
 
-            let (instructions, functions) = if let Ok((i, f)) = res {
-                (i, f)
+            let (instructions, lines, functions) = if let Ok((i, l, f)) = res {
+                (i,l, f)
             } else {
                 panic!("Error {:?}", res.err().unwrap());
             };
@@ -147,7 +147,7 @@ fn interpret(text: &str) {
 
             println!();
 
-            let mut interpret = Interpreter::new(instructions, functions);
+            let mut interpret = Interpreter::new(instructions, lines, functions);
 
             let now = Instant::now();
             let result = interpret.run_function("main_".to_string());
@@ -155,13 +155,13 @@ fn interpret(text: &str) {
             let result = if let Ok(r) = result {
                 r
             } else {
-                panic!("{}", result.err().unwrap());
+                panic!("{}", result.err().unwrap().format(text.chars().collect()));
             };
 
             println!("Took {:?}", now.elapsed());
             println!("RESULT: {result:?}")
         }
-        Err(e) => panic!("{e}")
+        Err(e) => panic!("{}", e.format(text.chars().collect()))
     }
 }
 

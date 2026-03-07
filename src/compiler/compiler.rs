@@ -13,19 +13,19 @@ pub struct Compiler {
 
 
 impl Compiler {
-    pub fn new(root: TypedStmt) -> Self {
+    pub fn new(root: TypedStmt, text: Vec<char>) -> Self {
         Self {
             root,
-            generator: BytecodeGen::new()
+            generator: BytecodeGen::new(text)
         }
     }
 
-    pub fn compile(mut self, registry: &TypeRegistry) -> Result<(Vec<ByteCode>, HashMap<String, FunctionInfo>), CompilationError> {
+    pub fn compile(mut self, registry: &TypeRegistry) -> Result<(Vec<ByteCode>, Vec<usize>, HashMap<String, FunctionInfo>), CompilationError> {
         self.collect_functions(registry, &self.root.clone());
 
         self.root.gen_bytecode(registry, &mut self.generator)?;
 
-        Ok((self.generator.instructions, self.generator.functions))
+        Ok((self.generator.instructions, self.generator.lines, self.generator.functions))
     }
 
     fn collect_functions(&mut self, registry: &TypeRegistry ,stmt: &TypedStmt) {

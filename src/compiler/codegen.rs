@@ -6,6 +6,7 @@ use crate::compiler::bytecode::ByteCode;
 use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, StackFrame, Sub, Swap};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
+use crate::error::context::Span;
 use crate::error::ok;
 use crate::interpreter::value::ValueType;
 
@@ -49,26 +50,42 @@ pub struct FunctionInfo {
 #[derive(Debug)]
 pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
+    pub lines: Vec<usize>,
     scopes: Vec<ScopeInfo>,
+    line_stack: Vec<usize>,
     local_count: u16,
     scope_local_count: u16,
     symbol_table: SymbolTable<u16, ()>,
     pub functions: HashMap<String, FunctionInfo>,
-    func_count: u16
+    func_count: u16,
+    text: Vec<char>
 }
 
 impl BytecodeGen {
 
-    pub fn new() -> Self {
+    pub fn new(text: Vec<char>) -> Self {
         Self {
             instructions: vec![],
+            lines: vec![],
             scopes: vec![],
+            line_stack: vec![],
             local_count: 0,
             scope_local_count: 0,
             symbol_table: SymbolTable::new(),
             functions: HashMap::new(),
-            func_count: 0
+            func_count: 0,
+            text
         }
+    }
+
+    pub fn push_span(&mut self, span: Span) {
+        let line = self.text[0..span.from].iter().filter(|ch| **ch == '\n').count() + 1;
+
+        self.line_stack.push(line);
+    }
+
+    pub fn pop_span(&mut self) {
+        self.line_stack.pop();
     }
 
     pub fn new_scope(&mut self) {
@@ -191,8 +208,24 @@ impl BytecodeGen {
         self.func_count += 1;
     }
 
+    pub fn pop_insn(&mut self) {
+        self.instructions.pop();
+        self.lines.pop();
+    }
+
     fn push_insn(&mut self, insn: ByteCode) {
+        let line = self.get_line();
+
         self.instructions.push(insn);
+        self.lines.push(line);
+    }
+
+    fn get_line(&self) -> usize {
+        if let Some(l) = self.line_stack.last() {
+            return *l;
+        }
+
+        0
     }
 
     fn index(&self) -> i32 {

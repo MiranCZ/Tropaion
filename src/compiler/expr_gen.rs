@@ -33,6 +33,7 @@ impl TypedExpr {
 
 
     pub fn generate_bytecode(&self,registry: &TypeRegistry ,generator: &mut BytecodeGen, operation: Operation) -> EmptyRes {
+        generator.push_span(self.span);
         match operation {
             Load => self.load(registry, generator, false)?,
             LoadDeref => self.load(registry, generator, true)?,
@@ -53,6 +54,7 @@ impl TypedExpr {
             }
 
         };
+        generator.pop_span();
 
         ok()
     }
