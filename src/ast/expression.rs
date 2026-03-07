@@ -327,10 +327,9 @@ impl UntypedExpr {
                     let arg = &mut resolved_args[i];
                     let p = params[i];
 
-                    if let Some(r) = p.get(registry).get_assign_result(arg.get_type().get(registry), registry) {
-                        arg.set_type(registry, r);
-                    } else {
-                        return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(p, arg.get_type(), registry),arg.span));
+                    // auto null-boxing
+                    if matches!(p.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
+                        *arg = Spanned::of(NullableExpr(registry.register(NullableType {underlying: arg.get_type()}), arg.clone().boxed()), arg.span);
                     }
                 }
 

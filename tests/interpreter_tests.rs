@@ -612,7 +612,7 @@ fn test_autoboxing() {
             return 0;
         }
 
-        return i;
+        return i!!;
     }
 
     fn main() -> int {
