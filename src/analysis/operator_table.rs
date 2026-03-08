@@ -36,8 +36,9 @@ impl OperatorTable {
                 return Ok(AstType::Bool);
             }
         }
+
         if matches!(op, SimpleToken::TwoQuestion) && let NullableType{underlying} = left_type.get(registry) {
-            if matches!(underlying.get(registry), NullableType {..}) {
+            if matches!(right_type.get(registry), NullableType {..}) {
                 return Err(AnalysisError::illegal_binary_expression(left_type, op, right_type, registry));
             }
 

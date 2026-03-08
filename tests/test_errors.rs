@@ -3,6 +3,7 @@ use Tropaion::error::analysis_error::AnalysisError;
 use Tropaion::error::lexer_error::LexerError;
 use Tropaion::{analysis, lexer};
 use Tropaion::error::analysis_error::AnalysisError::{NullableAccess, RedundantNullable};
+use Tropaion::lexer::token::SimpleToken;
 use Tropaion::parser::Parser;
 
 fn test_lexer_error(code: &str, expected: LexerError) {
@@ -116,4 +117,25 @@ fn test_unsafe_call() {
     "#;
 
     test_analysis_error(code, NullableAccess);
+}
+
+#[test]
+fn test_illegal_deconstruct() {
+    let code = r#"
+    fn main() -> int {
+        let a: int? = null;
+        let b: int? = 10;
+
+        // `int?` ?? `int?` should not be allowed
+        let c = b ?? a;
+
+        return c;
+    }
+    "#;
+
+    test_analysis_error(code, AnalysisError::IllegalBinaryExpression {
+        left: "int?".to_string(),
+        op: SimpleToken::TwoQuestion,
+        right: "int?".to_string()
+    });
 }

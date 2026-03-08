@@ -802,3 +802,34 @@ fn test_a_lot() {
 
     test_simple_code("main", code, 270);
 }
+
+#[test]
+fn test_null_deconstruct() {
+    let code = r#"
+    fn main() -> int {
+        let x: int? = 5;
+
+        let x = x ?? 0;
+
+        return x * 2;
+    }
+    "#;
+
+    test_simple_code("main", code, 10);
+
+
+    let code = r#"
+    fn main() -> int {
+        let a: int? = null;
+        let b: int? = null;
+        let c: int = 10;
+
+        // should be same as a ?? (b ?? c)
+        let x = a ?? b ?? c;
+
+        return x * 2;
+    }
+    "#;
+
+    test_simple_code("main", code, 20);
+}
