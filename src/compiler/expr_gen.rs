@@ -163,7 +163,10 @@ impl TypedExpr {
                         expr.generate_bytecode(registry, generator, LoadDeref)?;
                         generator.bool_not()
                     },
-                    SimpleToken::Tilde => todo!(),
+                    SimpleToken::Tilde => {
+                        expr.generate_bytecode(registry, generator, LoadDeref)?;
+                        generator.bit_not()
+                    },
 
                     _ => return Err(InvalidOperator(*operator))
                 }
@@ -241,6 +244,13 @@ impl TypedExpr {
                     SimpleToken::Star => generator.mul(),
                     SimpleToken::Slash => generator.div(),
                     SimpleToken::Percent => generator.modulo(),
+
+                    SimpleToken::VerticalBar => generator.or(),
+                    SimpleToken::Ampersand => generator.and(),
+                    SimpleToken::BitXor => generator.xor(),
+                    
+                    SimpleToken::LeftLeft => generator.shl(),
+                    SimpleToken::RightRight => generator.shr(),
                    
                     SimpleToken::Equals => generator.cmp_eq(),
                     SimpleToken::NotEquals => generator.cmp_ne(),

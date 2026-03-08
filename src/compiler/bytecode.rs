@@ -15,8 +15,13 @@ pub enum ByteCode {
 
     Or,
     And,
+    Xor,
+    BitNot,
     BoolNot,
-    
+
+    Shl,
+    Shr,
+
     Add,
     Sub,
     Mul,

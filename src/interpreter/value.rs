@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::interpreter::value::Value::*;
 use crate::interpreter::value::ValueType::*;
 
@@ -102,6 +102,54 @@ impl BitAnd for Value {
             IntValue(v) => IntValue(v & rhs.try_as_int()),
 
             _ => panic!("Invalid BitAnd for {self:?} {rhs:?}")
+        }
+    }
+}
+
+impl BitXor for Value {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(v ^ rhs.try_as_int()),
+
+            _ => panic!("Invalid BitXor for {self:?} {rhs:?}")
+        }
+    }
+}
+
+impl Shl for Value {
+    type Output = Self;
+
+    fn shl(self, rhs: Self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(v << rhs.try_as_int()),
+
+            _ => panic!("Invalid Shl for {self:?} {rhs:?}")
+        }
+    }
+}
+
+impl Shr for Value {
+    type Output = Self;
+
+    fn shr(self, rhs: Self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(v >> rhs.try_as_int()),
+
+            _ => panic!("Invalid Shr for {self:?} {rhs:?}")
+        }
+    }
+}
+
+impl Not for Value {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            IntValue(v) => IntValue(!v),
+
+            _ => panic!("Invalid Not for {self:?}")
         }
     }
 }

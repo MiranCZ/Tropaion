@@ -1,7 +1,7 @@
 use std::cell::Ref;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Add, BitAnd, BitOr, Div, Mul, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
@@ -173,7 +173,12 @@ impl Interpreter {
 
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
+            ByteCode::Xor => self.bitxor(),
+            ByteCode::BitNot => self.not(),
             ByteCode::BoolNot => self.bool_not(),
+            
+            ByteCode::Shl => self.shl(),
+            ByteCode::Shr => self.shr(),
 
             ByteCode::Add => self.add(),
             ByteCode::Sub => self.sub(),
@@ -478,6 +483,10 @@ impl Interpreter {
     
     math_op!(bitor);
     math_op!(bitand);
+    math_op!(bitxor);
+    
+    math_op!(shl);
+    math_op!(shr);
 
     math_op!(add);
     math_op!(sub);
@@ -490,6 +499,14 @@ impl Interpreter {
     cmp_op!(lt, <);
     cmp_op!(le, <=);
 
+    fn not(&mut self) -> Res {
+        let a = self.pop()?;
+        
+        self.push(a.not())?;
+        
+        ok()
+    }
+    
     fn eq(&mut self) -> Res {
         let b = self.pop()?;
         let a = self.pop()?;
