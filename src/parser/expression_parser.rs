@@ -185,7 +185,7 @@ pub fn parse_array_access_expr(registry: &mut TypeRegistry,parser: &mut Parser, 
     spanned_led!(parser, left, {
         parser.expect_next(OpenSquare)?;
 
-        let index = parse_expression(registry, parser, binding_power)?;
+        let index = parse_expression(registry, parser, COMMA.rbp)?;
 
         parser.expect_next(CloseSquare)?;
 
