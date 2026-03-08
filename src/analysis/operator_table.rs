@@ -26,7 +26,7 @@ impl OperatorTable {
         new
     }
 
-    pub fn get_op_result(&self,registry: &TypeRegistry ,right_type: TypeEntry, op: SimpleToken, left_type: TypeEntry) -> Result<AstType, AnalysisError> {
+    pub fn get_op_result(&self,registry: &TypeRegistry ,left_type: TypeEntry, op: SimpleToken, right_type: TypeEntry) -> Result<AstType, AnalysisError> {
         if right_type.get(registry).loose_equals(&left_type.get(registry), registry) {
             if let Equals = op {
                 return Ok(AstType::Bool);
