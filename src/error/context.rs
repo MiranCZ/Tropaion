@@ -78,7 +78,7 @@ impl <T: Display> ErrorContext<T> {
     }
 
     fn format_span_err(span: Span, error: &T, str: Vec<char>) -> String {
-        let from = span.from;
+        let mut from = span.from;
         let to = span.to;
 
         let mut line = String::new();
@@ -89,8 +89,13 @@ impl <T: Display> ErrorContext<T> {
 
             line += &*ch.to_string();
 
-            if ch == '\n' {
-                single_line = false;
+            if ch == '\n' && i != (to -1){
+                if line.chars().filter(|ch| !ch.is_whitespace()).collect::<Vec<char>>().len() == 0 {
+                    line.clear();
+                    from = i+1;
+                } else {
+                    single_line = false;
+                }
             }
         }
 

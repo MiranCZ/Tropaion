@@ -198,7 +198,7 @@ impl UntypedStmt {
                 if let Some(r) = return_type.get(registry).get_assign_result(typed_expr.get_type().get(registry), registry) {
                     typed_expr.set_type(registry, r);
                 } else {
-                    return Err(ctx(AnalysisError::illegal_type_assignment(return_type, typed_expr.get_type(), registry)));
+                    return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(typed_expr.get_type(), return_type, registry), typed_expr.span));
                 }
 
                 ReturnStmt(typed_expr)

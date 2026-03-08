@@ -16,7 +16,7 @@ pub enum StatementType {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum AnalysisError {
-    #[error("Type of {0} could not be determined")]
+    #[error("Unresolved symbol '{0}'")]
     UnknownType(String),
 
     #[error("Illegal statement placed inside struct {0:?}")]
@@ -31,10 +31,10 @@ pub enum AnalysisError {
         got: UntypedStmt
     },
 
-    #[error("Expected variable {0} to be a constant")]
+    #[error("Expected variable '{0}' to be a constant")]
     ExpectedConst(String),
 
-    #[error("Expected type to be {expected:?} got {got:?} instead")]
+    #[error("Expected type to be {expected:?} got {got} instead")]
     TypeMismatch {
         expected: ValueTypeVariant,
         got: String
