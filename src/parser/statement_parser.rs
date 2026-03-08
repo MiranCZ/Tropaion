@@ -3,6 +3,7 @@ use crate::ast::ast_type::AstType::Void;
 use crate::ast::statement::{Parameter, StatementBlock};
 use crate::ast::statement::Statement::*;
 use crate::ast::statement::Statement::ExpressionStmt;
+use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
@@ -85,7 +86,7 @@ pub fn parse_block_stmt(registry: &mut TypeRegistry, parser: &mut Parser) -> Ret
     })
 }
 
-fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<StatementBlock<()>, ParserError> {
+fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<StatementBlock<()>, ErrorContext<ParserError>> {
     parser.expect_next(SimpleToken::OpenCurly)?;
 
     let mut statements = vec![];

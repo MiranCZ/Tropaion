@@ -11,6 +11,7 @@ use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 use crate::{spanned, spanned_led};
+use crate::error::context::ErrorContext;
 
 pub fn parse_expression(registry: &mut TypeRegistry, parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
     let token = parser.peek()?;
@@ -18,7 +19,7 @@ pub fn parse_expression(registry: &mut TypeRegistry, parser: &mut Parser, bindin
     let nud_fn = token.nud(&parser.lookup);
 
     if nud_fn.is_none() {
-        return Err(ParserError::NUDMissing(token));
+        return Err(ErrorContext::of(ParserError::NUDMissing(token), parser.current_span()));
     }
 
     let nud_fn = nud_fn.unwrap();

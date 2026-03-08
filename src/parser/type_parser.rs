@@ -1,6 +1,7 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
+use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
 use crate::lexer::token::SimpleToken::{CloseBracket, Question, TwoQuestion};
@@ -14,7 +15,7 @@ pub fn parse_type(registry: &mut TypeRegistry,parser: &mut Parser, binding_power
     let nud_fn = token.type_nud(&parser.type_lookup);
 
     if nud_fn.is_none() {
-        return Err(ParserError::NUDMissing(token));
+        return Err(ErrorContext::of(ParserError::NUDMissing(token), parser.current_span()));
     }
 
     let nud_fn = nud_fn.unwrap();

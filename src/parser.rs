@@ -53,22 +53,20 @@ impl Parser {
             } else {
                 let err = token.err().unwrap();
 
-                return Err(ErrorContext::of(err, self.current_span()));
+                return Err(err);
             };
 
             if token == EOF {
                 break;
             }
 
-            let from = self.current_span().from;
             let stmt = parse_statement(registry, self);
             let stmt = if let Ok(s) = stmt {
                 s
             } else {
                 let err = stmt.err().unwrap();
 
-                let to = self.current_span().to;
-                return Err(ErrorContext::new(err, from, to));
+                return Err(err);
             };
             body.push(stmt);
         }
@@ -76,9 +74,9 @@ impl Parser {
         Ok(Spanned::new(BlockStmt{ body }, 0, self.current_span().to))
     }
 
-    pub fn next(&mut self) -> Result<Token, ParserError> {
+    pub fn next(&mut self) -> Result<Token, ErrorContext<ParserError>> {
         if self.pos >= self.tokens.len() {
-            return Err(ParserError::EOFError);
+            return Err(ErrorContext::of(ParserError::EOFError, self.current_span()));
         }
 
         let token = &self.tokens[self.pos];
@@ -88,18 +86,30 @@ impl Parser {
         Ok(token.token.clone())
     }
 
+    fn next_spanned(&mut self) -> Result<TokenInfo, ErrorContext<ParserError>> {
+        if self.pos >= self.tokens.len() {
+            return Err(ErrorContext::of(ParserError::EOFError, self.current_span()));
+        }
+
+        let token = &self.tokens[self.pos];
+
+        self.pos += 1;
+
+        Ok(token.clone())
+    }
+
     pub fn has_next(&self) -> bool {
         self.pos < self.tokens.len()
     }
 
-    pub fn is_next(&self, expected: SimpleToken) -> Result<bool, ParserError> {
+    pub fn is_next(&self, expected: SimpleToken) -> Result<bool, ErrorContext<ParserError>> {
         if let SimpleTokenType(v) = self.peek()? && v == expected {
             return Ok(true);
         }
         Ok(false)
     }
 
-    pub fn consume_if_next(&mut self, expected: SimpleToken) -> Result<bool, ParserError> {
+    pub fn consume_if_next(&mut self, expected: SimpleToken) -> Result<bool, ErrorContext<ParserError>> {
         if self.is_next(expected)? {
             self.next()?;
             return Ok(true);
@@ -107,64 +117,64 @@ impl Parser {
         Ok(false)
     }
 
-    pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ParserError> {
-        let next = self.next()?;
-        if let SimpleTokenType(v) = next && v == expected {
-            return Ok(next);
+    pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let SimpleTokenType(v) = next.token && v == expected {
+            return Ok(next.token);
         }
 
-        Err(ParserError::UnexpectedToken{expected: SimpleTokenType(expected), actual: next})
+        Err(ErrorContext::of(ParserError::UnexpectedToken{expected: SimpleTokenType(expected), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_simple(&mut self) -> Result<SimpleToken, ParserError> {
-        let next = self.next()?;
-        if let SimpleTokenType(v) = next {
+    pub fn expect_next_simple(&mut self) -> Result<SimpleToken, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let SimpleTokenType(v) = next.token {
             return Ok(v);
         }
 
-        Err(ParserError::MismatchedTokenType{expected: "SimpleToken".to_string(), actual: next})
+        Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "SimpleToken".to_string(), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_identifier(&mut self) -> Result<String, ParserError> {
-        let next = self.next()?;
-        if let Identifier(v) = next {
+    pub fn expect_next_identifier(&mut self) -> Result<String, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let Identifier(v) = next.token {
             return Ok(v);
         }
 
-        Err(ParserError::MismatchedTokenType{expected: "Identifier".to_string(), actual: next})
+        Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "Identifier".to_string(), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_int(&mut self) -> Result<i32, ParserError> {
-        let next = self.next()?;
-        if let NumberIntLiteral(v) = next {
+    pub fn expect_next_int(&mut self) -> Result<i32, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let NumberIntLiteral(v) = next.token {
             return Ok(v);
         }
 
-        Err(ParserError::MismatchedTokenType{expected: "NumberIntLiteral".to_string(), actual: next})
+        Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "NumberIntLiteral".to_string(), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_comment(&mut self) -> Result<String, ParserError> {
-        let next = self.next()?;
-        if let Comment(v) = next {
+    pub fn expect_next_comment(&mut self) -> Result<String, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let Comment(v) = next.token {
             return Ok(v);
         }
 
-        Err(ParserError::MismatchedTokenType{expected: "Comment".to_string(), actual: next})
+        Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "Comment".to_string(), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_multiline_comment(&mut self) -> Result<String, ParserError> {
-        let next = self.next()?;
-        if let MultilineComment(v) = next {
+    pub fn expect_next_multiline_comment(&mut self) -> Result<String, ErrorContext<ParserError>> {
+        let next = self.next_spanned()?;
+        if let MultilineComment(v) = next.token {
             return Ok(v);
         }
 
-        Err(ParserError::MismatchedTokenType{expected: "MultilineComment".to_string(), actual: next})
+        Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "MultilineComment".to_string(), actual: next.token}, next.span))
     }
 
 
-    pub fn peek(&self) -> Result<Token, ParserError> {
+    pub fn peek(&self) -> Result<Token, ErrorContext<ParserError>> {
         if self.pos >= self.tokens.len() {
-            return Err(ParserError::EOFError);
+            return Err(ErrorContext::of(ParserError::EOFError, self.current_span()));
         }
 
         Ok(self.tokens[self.pos].token.clone())
