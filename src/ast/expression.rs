@@ -343,9 +343,7 @@ impl UntypedExpr {
                     let p = params[i];
 
                     // auto null-boxing
-                    if matches!(p.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
-                        *arg = Spanned::of(NullableExpr(registry.register(NullableType {underlying: arg.get_type()}), arg.clone().boxed()), arg.span);
-                    }
+                    Self::box_arg(registry, arg, p);
                 }
 
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
@@ -396,12 +394,10 @@ impl UntypedExpr {
             }
 
             for i in 0..fields.len() {
-                let f = &fields[i].0;
-                let a = &mut resolved_args[i];
+                let field = &fields[i].0;
+                let arg = &mut resolved_args[i];
 
-                if let Some(ass_res) = f.get(registry).get_assign_result(a.get_type().get(registry), registry) {
-                    a.set_type(registry, ass_res);
-                }
+                Self::box_arg(registry, arg, *field);
             }
 
             return Ok(CallExpr {
@@ -412,6 +408,28 @@ impl UntypedExpr {
         }
 
         Err(ErrorContext::of(AnalysisError::illegal_call(resolved_func.get_type(), registry), span))
+    }
+
+    fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
+        // arg does not know its type
+        if matches!(arg.get_type().get(registry), UnknownType) {
+            arg.set_type(registry, desired.get(registry));
+            return;
+        }
+
+        // arg is '(<unknown>)?'
+        if let NullableType {underlying} = arg.get_type().get(registry) && matches!(underlying.get(registry), UnknownType) {
+            if !matches!(desired.get(registry), NullableType {..}) {
+                panic!("AAAA WTF");
+            }
+
+            arg.set_type(registry, desired.get(registry));
+            return;
+        }
+
+        if matches!(desired.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
+            *arg = Spanned::of(NullableExpr(registry.register(NullableType { underlying: arg.get_type() }), arg.clone().boxed()), arg.span);
+        }
     }
 }
 
