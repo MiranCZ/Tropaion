@@ -47,7 +47,7 @@ pub fn parse_type(registry: &mut TypeRegistry,parser: &mut Parser, binding_power
 pub fn parse_reference_type(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::Ampersand)?;
 
-    let expr = parse_type(registry, parser, DEFAULT)?;
+    let expr = parse_type(registry, parser, DEFAULT.rbp)?;
 
     Ok(registry.register(ReferenceType { underlying: expr }))
 }
@@ -55,7 +55,7 @@ pub fn parse_reference_type(registry: &mut TypeRegistry,parser: &mut Parser) -> 
 pub fn parse_array_type(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedType {
     parser.expect_next(SimpleToken::OpenSquare)?;
 
-    let expr = parse_type(registry, parser, DEFAULT)?;
+    let expr = parse_type(registry, parser, DEFAULT.rbp)?;
 
     parser.expect_next(SimpleToken::CloseSquare)?;
 
@@ -70,7 +70,7 @@ pub fn parse_tuple_type(registry: &mut TypeRegistry,parser: &mut Parser) -> Retu
 
     let mut result = vec![];
     loop {
-        let expr = parse_type(registry, parser, DEFAULT)?;
+        let expr = parse_type(registry, parser, DEFAULT.rbp)?;
 
         result.push(expr);
 

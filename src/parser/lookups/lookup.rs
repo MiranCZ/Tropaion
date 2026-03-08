@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::ast::statement::Statement::StructStmt;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
-use crate::parser::binding_power::{Bp, ASSIGNMENT, CALL, COMMA, COMPARING, LOGICAL_ADD, LOGICAL_MULT, MEMBER, NUMERIC_ADD, NUMERIC_MULT, UNARY};
+use crate::parser::binding_power::{BindingPower, Bp, ASSIGNMENT, CALL, COMMA, COMPARING, LOGICAL_ADD, LOGICAL_MULT, MEMBER, NULL_DECONSTRUCT, NUMERIC_ADD, NUMERIC_MULT, UNARY};
 use crate::parser::expression_parser::{parse_array_access_expr, parse_array_expr, parse_assignment_expr, parse_binary_expr, parse_bool_literal_expr, parse_call_expr, parse_decrement_expr, parse_increment_expr, parse_member_expr, parse_null_deref, parse_null_expr, parse_parenthesis_expr, parse_prefix_expr};
 use crate::parser::handlers::{LedHandler, LedInfo, NudHandler, StatementHandler};
 use crate::parser::statement_parser::{parse_fn_declaration_stmt, parse_if_statement, parse_return_stmt, parse_struct_statement, parse_var_declaration_stmnt, parse_while_statement};
@@ -40,8 +40,8 @@ impl Lookup {
             nud_lookup.insert(token, handler);
         };
 
-        let mut led = |token: SimpleToken, bp: Bp, handler: LedHandler| {
-            led_lookup.insert(token, LedInfo{handler, rbp: bp, lbp: bp-1});
+        let mut led = |token: SimpleToken, bp: BindingPower, handler: LedHandler| {
+            led_lookup.insert(token, LedInfo{handler, lbp: bp.lbp, rbp: bp.rbp});
         };
 
         let mut statement = |token: SimpleToken, handler: StatementHandler| {
@@ -106,10 +106,10 @@ impl Lookup {
         led(AmpersandAssign, ASSIGNMENT, parse_assignment_expr);
         led(BitXorAssign, ASSIGNMENT, parse_assignment_expr);
 
-        led(OpenSquare, UNARY, parse_array_access_expr);
+        led(OpenSquare, MEMBER, parse_array_access_expr);
 
         led(TwoExcl, MEMBER, parse_null_deref);
-        // led(TwoQuestion, NULL_DECONSTRUCT, parse_binary_expr);
+        led(TwoQuestion, NULL_DECONSTRUCT, parse_binary_expr);
 
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);

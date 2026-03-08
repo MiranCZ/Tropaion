@@ -53,7 +53,7 @@ pub fn parse_prefix_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> Ret
     spanned!(parser, {
         let operator = parser.expect_next_simple()?;
 
-        let expr = parse_expression(registry,parser, UNARY)?;
+        let expr = parse_expression(registry,parser, UNARY.rbp)?;
 
         expression::prefix(operator, expr)
     })
@@ -97,7 +97,7 @@ pub fn parse_array_expr(registry: &mut TypeRegistry,parser: &mut Parser) -> Retu
         let mut values = vec![];
 
         while !parser.consume_if_next(CloseSquare)? {
-            values.push(parse_expression(registry, parser, COMMA)?);
+            values.push(parse_expression(registry, parser, COMMA.rbp)?);
 
             if !parser.consume_if_next(Comma)? {
                 parser.expect_next(CloseSquare)?;
@@ -127,7 +127,7 @@ pub fn parse_parenthesis_expr(registry: &mut TypeRegistry,parser: &mut Parser) -
     spanned!(parser, {
         parser.expect_next(OpenBracket)?;
 
-        let expr = parse_expression(registry,parser, DEFAULT)?;
+        let expr = parse_expression(registry,parser, DEFAULT.rbp)?;
 
         // we are defining a tuple
         if parser.consume_if_next(Comma)? {
@@ -135,7 +135,7 @@ pub fn parse_parenthesis_expr(registry: &mut TypeRegistry,parser: &mut Parser) -
             values.push(expr);
 
             loop {
-                let value = parse_expression(registry,parser, DEFAULT)?;
+                let value = parse_expression(registry,parser, DEFAULT.rbp)?;
 
                 values.push(value);
 
@@ -208,7 +208,7 @@ pub fn parse_call_expr(registry: &mut TypeRegistry,parser: &mut Parser, left: Un
         let mut args = vec![];
 
         while !parser.consume_if_next(CloseBracket)? {
-            args.push(parse_expression(registry,parser, ASSIGNMENT)?);
+            args.push(parse_expression(registry,parser, ASSIGNMENT.rbp)?);
 
             if !parser.consume_if_next(Comma)? {
                 parser.expect_next(CloseBracket)?;

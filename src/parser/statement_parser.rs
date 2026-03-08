@@ -26,7 +26,7 @@ pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> Retu
             return Ok(f(registry, parser)?);
         }
 
-        let expression = parse_expression(registry, parser, binding_power::DEFAULT)?;
+        let expression = parse_expression(registry, parser, DEFAULT.rbp)?;
 
         parser.expect_next(SimpleToken::Semicolon)?;
 
@@ -61,12 +61,12 @@ pub fn parse_var_declaration_stmnt(registry: &mut TypeRegistry,parser: &mut Pars
 
         let mut explicit_type = None;
         if parser.consume_if_next(Colon)? {
-            explicit_type = Some(parse_type(registry, parser, DEFAULT)?);
+            explicit_type = Some(parse_type(registry, parser, DEFAULT.rbp)?);
         }
 
         parser.expect_next(SimpleToken::Assign)?;
 
-        let value = parse_expression(registry, parser, ASSIGNMENT)?;
+        let value = parse_expression(registry, parser, ASSIGNMENT.rbp)?;
 
         parser.expect_next(SimpleToken::Semicolon)?;
 
@@ -101,7 +101,7 @@ pub fn parse_return_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Ret
     spanned!(parser, {
         parser.expect_next(Return)?;
 
-        let expr = parse_expression(registry, parser, DEFAULT)?;
+        let expr = parse_expression(registry, parser, DEFAULT.rbp)?;
 
         parser.expect_next(Semicolon)?;
 
@@ -126,7 +126,7 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
 
             let param_name = parser.expect_next_identifier()?;
             parser.expect_next(Colon)?;
-            let param_type = parse_type(registry, parser, DEFAULT)?;
+            let param_type = parse_type(registry, parser, DEFAULT.rbp)?;
 
             params.push(Parameter{name: param_name, param_type});
 
@@ -138,7 +138,7 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
 
         let mut return_type = registry.register(Void);
         if parser.consume_if_next(Arrow)? {
-            return_type = parse_type(registry, parser, DEFAULT)?;
+            return_type = parse_type(registry, parser, DEFAULT.rbp)?;
         }
 
         let body = _parse_block_stmt(registry, parser)?;
@@ -158,7 +158,7 @@ pub fn parse_if_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> Re
 
         let parentheses = parser.consume_if_next(OpenBracket)?;
 
-        let condition = parse_expression(registry, parser, DEFAULT)?;
+        let condition = parse_expression(registry, parser, DEFAULT.rbp)?;
 
         if parentheses {
             parser.expect_next(CloseBracket)?;
@@ -191,7 +191,7 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
     
         let parentheses = parser.consume_if_next(OpenBracket)?;
     
-        let condition = parse_expression(registry, parser, DEFAULT)?;
+        let condition = parse_expression(registry, parser, DEFAULT.rbp)?;
     
         if parentheses {
             parser.expect_next(CloseBracket)?;
@@ -223,7 +223,7 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
 
             let param_name = parser.expect_next_identifier()?;
             parser.expect_next(Colon)?;
-            let param_type = parse_type(registry, parser, DEFAULT)?;
+            let param_type = parse_type(registry, parser, DEFAULT.rbp)?;
 
             fields.push(Parameter{name: param_name, param_type});
 
