@@ -3,6 +3,7 @@ use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, VertBarAssign, BitXor, BoolAnd, BoolOr, Dash, DashAssign, Equals, Greater, GreaterEquals, LeftLeft, LeftLeftAssign, Less, LessEquals, NotEquals, Percent, PercentAssign, Plus, PlusAssign, RightRight, RightRightAssign, Slash, SlashAssign, Star, StarAssign, VerticalBar, AmpersandAssign, BitXorAssign, Assign};
 use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::ast::ast_type::AstType::NullableType;
 use crate::error::analysis_error::AnalysisError;
 
 type SimpleType = usize;
@@ -33,6 +34,15 @@ impl OperatorTable {
             }
             if let NotEquals = op {
                 return Ok(AstType::Bool);
+            }
+        }
+        if matches!(op, SimpleToken::TwoQuestion) && let NullableType{underlying} = left_type.get(registry) {
+            if matches!(underlying.get(registry), NullableType {..}) {
+                return Err(AnalysisError::illegal_binary_expression(left_type, op, right_type, registry));
+            }
+
+            if underlying.get(registry).loose_equals(&right_type.get(registry), registry) {
+                return Ok(underlying.get(registry));
             }
         }
         println!("Evaluating {op:?}\n{right_type:?}\n{left_type:?}");

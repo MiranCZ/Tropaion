@@ -3,7 +3,7 @@ use crate::lexer::token::SimpleToken::*;
 use crate::parser::binding_power::{Bp, UNARY};
 use crate::parser::handlers::*;
 use std::collections::HashMap;
-use crate::parser::type_parser::{parse_array_type, parse_nullable_type, parse_reference_type, parse_tuple_type};
+use crate::parser::type_parser::{parse_array_type, parse_double_nullable_type, parse_nullable_type, parse_reference_type, parse_tuple_type};
 
 type TypeNudLookup = HashMap<SimpleToken, TypeNudHandler>;
 type TypeLedLookup = HashMap<SimpleToken, TypeLedInfo>;
@@ -35,7 +35,7 @@ impl TypeLookup {
         };
 
         let mut led = |token: SimpleToken, bp: Bp, type_handler: TypeLedHandler| {
-            led_lookup.insert(token, TypeLedInfo{type_handler, rbp: bp, lfb: bp-1});
+            led_lookup.insert(token, TypeLedInfo{type_handler, rbp: bp, lbp: bp-1});
         };
 
         nud(Ampersand, parse_reference_type);
@@ -44,6 +44,7 @@ impl TypeLookup {
         nud(OpenBracket, parse_tuple_type);
 
         led(Question, UNARY, parse_nullable_type);
+        led(TwoQuestion, UNARY, parse_double_nullable_type);
         
         (nud_lookup, led_lookup)
     }

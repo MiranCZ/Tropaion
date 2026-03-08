@@ -24,12 +24,12 @@ pub type TypeLedHandler = fn(&mut TypeRegistry,&mut Parser, TypeEntry, u32) -> R
 pub struct LedInfo {
     pub handler: LedHandler,
     pub rbp: Bp,
-    pub lfb: Bp
+    pub lbp: Bp
 }
 
 #[derive(Clone, Copy)]
 pub struct TypeLedInfo {
     pub type_handler: TypeLedHandler,
     pub rbp: Bp,
-    pub lfb: Bp
+    pub lbp: Bp
 }

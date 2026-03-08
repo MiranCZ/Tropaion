@@ -12,6 +12,7 @@ use crate::error::runtime_error::ValueTypeVariant;
 use crate::error::runtime_error::ValueTypeVariant::Nullable;
 use crate::lexer::token::SimpleToken;
 use std::collections::HashMap;
+use crate::lexer::token::SimpleToken::TwoQuestion;
 
 #[derive(Clone)]
 pub enum Operation {
@@ -187,6 +188,37 @@ impl TypedExpr {
                         right.generate_bytecode(registry, generator, LoadDeref)?;
 
                         generator.and();
+                        generator.end_scope()?;
+
+                        return ok();
+                    }
+
+                    SimpleToken::TwoQuestion => {
+                        left.generate_bytecode(registry, generator, Load)?;
+
+                        generator.dup();
+                        generator.null_ptr();
+                        generator.cmp_eq();
+                        generator.new_skippable_scope_eq();
+
+                        generator.pop(); // pop the second duplicated null
+
+                        right.generate_bytecode(registry, generator, Load)?;
+
+                        generator.nop();
+                        generator.end_scope()?;
+                        generator.pop_insn();
+
+                        generator.new_scope();
+                        generator.push_scope_exit_insn();
+
+
+                        if let NullableType {underlying} = left.get_type().get(registry) {
+                            generator.load_offset_value(registry, 0, underlying)?;
+                        } else {
+                            // FIXME wrong error
+                            return Err(IllegalBinOperator(TwoQuestion));
+                        }
                         generator.end_scope()?;
 
                         return ok();

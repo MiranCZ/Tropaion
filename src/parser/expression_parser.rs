@@ -38,7 +38,7 @@ pub fn parse_expression(registry: &mut TypeRegistry, parser: &mut Parser, bindin
         let led_info = led_info.unwrap();
 
         let rbp = led_info.rbp;
-        let lbp = led_info.lfb;
+        let lbp = led_info.lbp;
         let led_fn = led_info.handler;
 
         if lbp < binding_power {

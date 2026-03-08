@@ -3,7 +3,7 @@ use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::{SimpleToken, Token};
-use crate::lexer::token::SimpleToken::{CloseBracket, Question};
+use crate::lexer::token::SimpleToken::{CloseBracket, Question, TwoQuestion};
 use crate::parser::binding_power::{Bp, DEFAULT};
 use crate::parser::handlers::ReturnedType;
 use crate::parser::Parser;
@@ -33,7 +33,7 @@ pub fn parse_type(registry: &mut TypeRegistry,parser: &mut Parser, binding_power
         let led_info = led_info.unwrap();
 
         let rbp = led_info.rbp;
-        let lbp = led_info.lfb;
+        let lbp = led_info.lbp;
         let led_fn = led_info.type_handler;
 
         if lbp < binding_power {
@@ -89,5 +89,19 @@ pub fn parse_nullable_type(registry: &mut TypeRegistry,parser: &mut Parser, left
 
     Ok(registry.register(NullableType {
         underlying: left
+    }))
+}
+
+
+// throwing an error is the analyzers job
+pub fn parse_double_nullable_type(registry: &mut TypeRegistry,parser: &mut Parser, left: TypeEntry, bp: u32) -> ReturnedType {
+    parser.expect_next(TwoQuestion)?;
+
+    let nullable = registry.register(NullableType {
+        underlying: left
+    });
+
+    Ok(registry.register(NullableType {
+        underlying: nullable
     }))
 }

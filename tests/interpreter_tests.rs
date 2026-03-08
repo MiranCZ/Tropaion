@@ -56,6 +56,9 @@ pub fn test_math() {
     test_math_expr("6 % 2", 0);
     test_math_expr("7 % 2", 1);
     test_math_expr("20 % 36", 20);
+
+
+    test_math_expr("10 - 3 - 2", 5);
 }
 
 #[test]

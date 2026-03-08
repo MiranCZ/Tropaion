@@ -41,7 +41,7 @@ impl Lookup {
         };
 
         let mut led = |token: SimpleToken, bp: Bp, handler: LedHandler| {
-            led_lookup.insert(token, LedInfo{handler, rbp: bp, lfb: bp-1});
+            led_lookup.insert(token, LedInfo{handler, rbp: bp, lbp: bp-1});
         };
 
         let mut statement = |token: SimpleToken, handler: StatementHandler| {
@@ -109,6 +109,7 @@ impl Lookup {
         led(OpenSquare, UNARY, parse_array_access_expr);
 
         led(TwoExcl, MEMBER, parse_null_deref);
+        // led(TwoQuestion, NULL_DECONSTRUCT, parse_binary_expr);
 
         statement(Let, parse_var_declaration_stmnt);
         statement(Const, parse_var_declaration_stmnt);

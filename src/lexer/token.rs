@@ -64,6 +64,7 @@ pub enum SimpleToken {
 
     Question,
     TwoExcl,
+    TwoQuestion,
     QuestionDot,
 
     PlusPlus,
@@ -146,6 +147,7 @@ impl SimpleToken {
             BitXor => "^",
             Question => "?",
             TwoExcl => "!!",
+            TwoQuestion => "??",
             QuestionDot => "?.",
             Assign => "=",
             PlusAssign => "+=",
