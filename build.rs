@@ -93,7 +93,7 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_expr(value);
 
         if let Some(t) = explicit_type {{
-            t.walk_{suffix}(self);
+            self.{suffix}_type(t);
         }}
     }}
 
@@ -114,10 +114,10 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_block(body);
 
         for p in params {{
-            p.param_type.walk_{suffix}(self);
+            self.{suffix}_type({borrow} p.param_type);
         }}
 
-        return_type.walk_{suffix}(self);
+        self.{suffix}_type(return_type);
     }}
 
     fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
@@ -140,93 +140,101 @@ pub trait {trait_name}<'a> where Self: Sized {{
     }}
 
     fn {suffix}_null_literal(&mut self, t: {borrow} TypeEntry, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_bool_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} bool, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_int_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} i64, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_float_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} f32, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_string_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow}String, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_identifier(&mut self, t: {borrow} TypeEntry, _name: {borrow}String, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
     }}
 
     fn {suffix}_array_literal(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr], span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         for v in values {{ self.{suffix}_expr(v); }}
     }}
 
     fn {suffix}_nullable_expr(&mut self, t: {borrow} TypeEntry, inner: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(inner);
     }}
 
     fn {suffix}_increment(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(expr);
     }}
 
     fn {suffix}_decrement(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(expr);
     }}
 
     fn {suffix}_null_deref(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(expr);
     }}
 
     fn {suffix}_prefix(&mut self, t: {borrow} TypeEntry, operator: {borrow} SimpleToken, expr: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(expr);
     }}
 
     fn {suffix}_binary(&mut self, t: {borrow} TypeEntry, left: {borrow}TypedExpr, operator: {borrow} SimpleToken, right: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(left);
         self.{suffix}_expr(right);
     }}
 
     fn {suffix}_assign(&mut self, t: {borrow} TypeEntry, assignee: {borrow}TypedExpr, value: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(assignee);
         self.{suffix}_expr(value);
     }}
 
     fn {suffix}_tuple(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr], span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         for v in values {{ self.{suffix}_expr(v); }}
     }}
 
     fn {suffix}_array_access(&mut self, t: {borrow} TypeEntry, property: {borrow}TypedExpr, index: {borrow}TypedExpr, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(property);
         self.{suffix}_expr(index);
     }}
 
     fn {suffix}_member(&mut self, t: {borrow} TypeEntry, member: {borrow}TypedExpr, property: {borrow}TypedExpr, null_safe: {borrow} bool, span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(member);
         self.{suffix}_expr(property);
     }}
 
     fn {suffix}_call(&mut self, t: {borrow} TypeEntry, func: {borrow}TypedExpr, args: {borrow}[TypedExpr], span: Span) {{
-        t.walk_{suffix}(self); 
+        self.{suffix}_type(t); 
         self.{suffix}_expr(func);
         for a in args {{ self.{suffix}_expr(a); }}
     }}
+
+    // types
+    
+    fn {suffix}_type(&mut self, typ: {borrow}TypeEntry) {{
+        typ.walk_{suffix}(self);
+    }}
+
+
 
     fn {suffix}_unknown_type(&mut self) {{
     }}
@@ -250,37 +258,37 @@ pub trait {trait_name}<'a> where Self: Sized {{
     }}
 
     fn {suffix}_reference_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.walk_{suffix}(self)
+        self.{suffix}_type(underlying);
     }}
 
     fn {suffix}_nullable_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.walk_{suffix}(self)
+        self.{suffix}_type(underlying);
     }}
 
     fn {suffix}_array_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.walk_{suffix}(self)
+        self.{suffix}_type(underlying);
     }}
 
     fn {suffix}_tuple_type(&mut self, types: {borrow} Vec<TypeEntry>) {{
-        for t in types {{ t.walk_{suffix}(self) }}
+        for t in types {{ self.{suffix}_type(t) }}
     }}
 
     fn {suffix}_functions_type(&mut self, name: {borrow} String, overloads: {borrow} Vec<TypeEntry>) {{
-        for t in overloads {{ t.walk_{suffix}(self) }}
+        for t in overloads {{ self.{suffix}_type(t) }}
     }}
 
     fn {suffix}_function_type(&mut self, name: {borrow} String, params: {borrow} Vec<TypeEntry>, return_type: {borrow} TypeEntry) {{
-        for t in params {{ t.walk_{suffix}(self) }}
+        for t in params {{ self.{suffix}_type(t) }}
 
-        return_type.walk_{suffix}(self);
+        self.{suffix}_type(return_type);
     }}
 
     fn {suffix}_struct_type(&mut self, name: {borrow} String, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
         for f in fields {{
-            f.0.walk_{suffix}(self);
+            self.{suffix}_type({borrow} f.0);
         }}
         for c in children.values{mut_suffix}() {{
-            c.0.walk_{suffix}(self);
+            self.{suffix}_type({borrow} c.0);
         }}
     }}
 

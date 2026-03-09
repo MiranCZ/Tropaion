@@ -11,6 +11,7 @@ use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
 use crate::analysis::mangling::ManglingVisitor;
+use crate::analysis::method_transforms::TransformVisitor;
 use crate::error::context::{ErrorContext, Span};
 
 pub struct Analyzer {
@@ -44,7 +45,7 @@ impl Analyzer {
             return Err(mangler.errors[0].clone());
         }
 
-        let resolved_root = resolved_root.transform_methods(registry, &self.symbol_table);
+        TransformVisitor::transform(registry, &self.symbol_table, &mut resolved_root);
 
         Ok(resolved_root)
     }

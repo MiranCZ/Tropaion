@@ -2,5 +2,5 @@ pub mod analyzer;
 pub mod symbol_table;
 mod operator_table;
 mod mangling;
-mod method_transform;
 pub mod type_registry;
+mod method_transforms;
