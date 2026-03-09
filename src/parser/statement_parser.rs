@@ -157,13 +157,7 @@ pub fn parse_if_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> Re
     spanned!(parser, {
         parser.expect_next(If)?;
 
-        let parentheses = parser.consume_if_next(OpenBracket)?;
-
         let condition = parse_expression(registry, parser, DEFAULT.rbp)?;
-
-        if parentheses {
-            parser.expect_next(CloseBracket)?;
-        }
 
         let body = _parse_block_stmt(registry, parser)?;
 
@@ -190,13 +184,7 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
     spanned!(parser, {
         parser.expect_next(While)?;
     
-        let parentheses = parser.consume_if_next(OpenBracket)?;
-    
         let condition = parse_expression(registry, parser, DEFAULT.rbp)?;
-    
-        if parentheses {
-            parser.expect_next(CloseBracket)?;
-        }
     
         let body = _parse_block_stmt(registry, parser)?;
     
