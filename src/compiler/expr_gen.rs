@@ -78,7 +78,13 @@ impl TypedExpr {
                     generator.i_const(0);
                 }
             }
-            Expression::IntLiteralExpr(_, i) => generator.i_const(*i),
+            Expression::IntLiteralExpr(_, i) => {
+                if *i < (i32::MIN as i64) || *i > (i32::MAX as i64) {
+                    return Err(CompilationError::IntOutOfBounds(*i));
+                }
+
+                generator.i_const(*i as i32);
+            },
             Expression::FloatLiteralExpr(_, f) => generator.f_const(*f),
             Expression::StringLiteralExpr(..) => {
                 todo!()

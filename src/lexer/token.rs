@@ -6,7 +6,7 @@ pub enum Token {
     SimpleTokenType(SimpleToken),
 
     Identifier(String),
-    NumberIntLiteral(i32),
+    NumberIntLiteral(i64),
     NumberFloatLiteral(f32),
     StringLiteral(String),
 

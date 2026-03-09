@@ -208,7 +208,7 @@ impl Lexer {
             };
         }
 
-        let parse_result = res.parse::<i32>();
+        let parse_result = res.parse::<i64>();
         match parse_result {
             Err(e) => Err(LexerError::IntParseFail(res, e)),
             Ok(v) => Ok(NumberIntLiteral(v))

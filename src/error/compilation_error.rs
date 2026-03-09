@@ -46,6 +46,9 @@ pub enum CompilationError {
    
     #[error("Tried indexing type {0} which is not allowed")]
     IllegalIndexing(String),
+
+    #[error("Int constant of '{0}' does not fit integer bounds ({min} < n < {max})", min=i32::MIN, max=i32::MAX)]
+    IntOutOfBounds(i64)
 }
 
 impl CompilationError {

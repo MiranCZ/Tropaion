@@ -21,7 +21,7 @@ type SpannedExpr<T> = Spanned<Expression<T>>;
 pub enum Expression<T> {
     NullLiteralExpr(T),
     BoolLiteralExpr(T, bool),
-    IntLiteralExpr(T, i32),
+    IntLiteralExpr(T, i64),
     FloatLiteralExpr(T, f32),
     StringLiteralExpr(T, String),
     ArrayLiteralExpr(T, Vec<SpannedExpr<T>>),
@@ -576,7 +576,7 @@ pub fn bool(b: bool) -> Expr {
     BoolLiteralExpr((), b)
 }
 
-pub fn int(i: i32) -> Expr {
+pub fn int(i: i64) -> Expr {
     IntLiteralExpr((), i)
 }
 

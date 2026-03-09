@@ -144,7 +144,7 @@ impl Parser {
         Err(ErrorContext::of(ParserError::MismatchedTokenType{expected: "Identifier".to_string(), actual: next.token}, next.span))
     }
 
-    pub fn expect_next_int(&mut self) -> Result<i32, ErrorContext<ParserError>> {
+    pub fn expect_next_int(&mut self) -> Result<i64, ErrorContext<ParserError>> {
         let next = self.next_spanned()?;
         if let NumberIntLiteral(v) = next.token {
             return Ok(v);
