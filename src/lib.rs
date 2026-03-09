@@ -21,13 +21,10 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() -> int {
-        let x: int? = null;
-        x = 5;
+    struct Box(i: int, j: int?);
 
-        let y = x!! + 3;
-
-        return y;
+    fn main() -> Box {
+        return Box(10, 20);
     }
     "#;
 

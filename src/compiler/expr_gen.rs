@@ -126,10 +126,7 @@ impl TypedExpr {
                     return Err(CompilationError::type_mismatch(Nullable, t.get(registry), registry));
                 }
 
-                generator.store_internal_value(registry, typ)?;
-
-                // FIXME should here be 1 or size of `t`?
-                generator.create_stack_ptr(1);
+                generator.store_boxed_value(registry, typ)?;
             }
             Expression::IncrementExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
@@ -295,10 +292,7 @@ impl TypedExpr {
                     })?;
 
                     if *null_safe {
-                        generator.store_internal_value(registry, property.get_type())?;
-
-                        // FIXME should here be 1 or size of `t`?
-                        generator.create_stack_ptr(1);
+                        generator.store_boxed_value(registry, property.get_type())?;
 
                         generator.comment("Ended member expr generation".to_string());
 

@@ -55,6 +55,7 @@ pub struct BytecodeGen {
     line_stack: Vec<usize>,
     local_count: u16,
     scope_local_count: u16,
+    to_box: Vec<(usize, TypeEntry)>,
     symbol_table: SymbolTable<u16, ()>,
     pub functions: HashMap<String, FunctionInfo>,
     func_count: u16,
@@ -68,6 +69,7 @@ impl BytecodeGen {
             instructions: vec![],
             lines: vec![],
             scopes: vec![],
+            to_box: vec![],
             line_stack: vec![],
             local_count: 0,
             scope_local_count: 0,
@@ -162,6 +164,8 @@ impl BytecodeGen {
     }
 
     pub fn fn_start(&mut self, name: String) {
+        assert!(self.to_box.is_empty());
+
         let fun = self.functions.get(&name).unwrap();
         self.functions.insert(name, FunctionInfo{
             index: fun.index,
@@ -174,7 +178,7 @@ impl BytecodeGen {
         self.push_insn(StackFrame(0));
     }
 
-    pub fn fn_end(&mut self, name: String) -> EmptyRes {
+    pub fn fn_end(&mut self, name: String, registry: &TypeRegistry) -> EmptyRes {
         let fun = self.functions.get(&name).unwrap();
         self.functions.insert(name, FunctionInfo{
             index: fun.index,
@@ -189,7 +193,31 @@ impl BytecodeGen {
 
         let local_count = self.local_count - scope.local_count;
 
-        self.instructions[frame_ind as usize] = StackFrame(local_count);
+        let to_box = std::mem::take(&mut self.to_box);
+
+        let tmp_count = to_box.len();
+
+        let mut i = 0;
+        let instructions = &mut self.instructions;
+
+        for (pos, value) in to_box {
+            Self::typed_expr(value, registry, |t| {
+                let addr = local_count + i;
+                i += 1;
+
+                instructions[pos + 1] = CreateStackPtr {offset: addr, consume_words: 1};
+
+                return match t {
+                    ValueType::Null => Err(UnsupportedType("Null".to_string())),
+                    ValueType::Int => Ok(instructions[pos] = IStore(addr)),
+                    ValueType::Float => Ok(instructions[pos] = FStore(addr)),
+                    ValueType::Address => Ok(instructions[pos] = AStore(addr))
+                };
+            }
+            )?;
+        }
+
+        self.instructions[frame_ind as usize] = StackFrame(local_count+(tmp_count as u16));
 
         self.end_scope()?;
 
@@ -277,6 +305,14 @@ impl BytecodeGen {
             ValueType::Float => Ok(self.store_internal(|i| FStore(i))),
             ValueType::Address => Ok(self.store_internal(|i| AStore(i))),
         })
+    }
+
+    pub fn store_boxed_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        self.to_box.push((self.instructions.len(),value));
+        self.nop(); // store
+        self.nop(); // stack ptr
+
+        ok()
     }
 
     pub fn store_var_offset(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {

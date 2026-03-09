@@ -92,7 +92,7 @@ impl TypedStmt {
                 // (this is here if no explicit return statement was inserted)
                 generator.ret(0);
 
-                generator.fn_end(name.clone())?;
+                generator.fn_end(name.clone(), registry)?;
 
 
                 generator.comment(format!("return of {name} -- END"));
