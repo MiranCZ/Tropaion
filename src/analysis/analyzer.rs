@@ -139,13 +139,12 @@ impl Analyzer {
 
                         let inferred_type = value.resolve_type(registry, &mut self.symbol_table)?;
 
-                        // FIXME want to have `loose_equals` here probs?
                         if let Some(explicit) = explicit_type.clone() {
-                            if explicit != inferred_type.get_type() {
+                            if !explicit.get(registry).equals(&inferred_type.get_type().get(registry), registry) {
                                 return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(explicit, inferred_type.get_type(), registry), x.span));
                             }
-
-                            // TODO assignable from
+                        } else {
+                            return Err(ErrorContext::of(AnalysisError::TypelessConst, x.span))
                         }
 
                         self.symbol_table.record(name, inferred_type.get_type());

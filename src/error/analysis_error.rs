@@ -76,7 +76,10 @@ pub enum AnalysisError {
     ResolutionFailed(String),
 
     #[error("Nullable values cannot be directly accessed with `.`")]
-    NullableAccess
+    NullableAccess,
+
+    #[error("Constants must have an explicit type")]
+    TypelessConst
 }
 
 impl AnalysisError {
