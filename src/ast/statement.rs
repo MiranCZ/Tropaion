@@ -1,7 +1,7 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{Bool, StructType};
-use crate::ast::expression::Expression;
+use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, IfStmt, MultilineCommentStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::runtime_error::ValueTypeVariant;
@@ -195,11 +195,7 @@ impl UntypedStmt {
                     return Err(ctx(AnalysisError::DanglingReturn));
                 };
 
-                if let Some(r) = return_type.get(registry).get_assign_result(typed_expr.get_type().get(registry), registry) {
-                    typed_expr.set_type(registry, r);
-                } else {
-                    return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(typed_expr.get_type(), return_type, registry), typed_expr.span));
-                }
+                UntypedExpr::box_arg(registry, &mut typed_expr, return_type);
 
                 ReturnStmt(typed_expr)
             }

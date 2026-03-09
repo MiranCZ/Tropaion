@@ -410,7 +410,7 @@ impl UntypedExpr {
         Err(ErrorContext::of(AnalysisError::illegal_call(resolved_func.get_type(), registry), span))
     }
 
-    fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
+    pub fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
         // arg does not know its type
         if matches!(arg.get_type().get(registry), UnknownType) {
             arg.set_type(registry, desired.get(registry));
