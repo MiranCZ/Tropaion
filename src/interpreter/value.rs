@@ -1,16 +1,17 @@
 use std::cmp::Ordering;
+use std::num::Wrapping;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::interpreter::value::Value::*;
 use crate::interpreter::value::ValueType::*;
 
 macro_rules! impl_math_op {
-    ($trait:ident, $method:ident) => {
+    ($trait:ident, $method:ident, $wrapping:ident) => {
         impl $trait for Value {
             type Output = Self;
 
             fn $method(self, rhs: Self) -> Self::Output {
                 match self {
-                    Value::IntValue(v) => Value::IntValue(v.$method(rhs.try_as_int())),
+                    Value::IntValue(v) => Value::IntValue(v.$wrapping(rhs.try_as_int())),
                     Value::FloatValue(v) => Value::FloatValue(v.$method(rhs.try_as_float())),
                     Value::RefValue{..} => panic!("Cannot apply {} to references", stringify!($method)),
                     Value::Null => panic!("Cannot write operations with null!")
@@ -76,11 +77,13 @@ impl Value {
 
 }
 
-impl_math_op!(Add, add);
-impl_math_op!(Sub, sub);
-impl_math_op!(Mul, mul);
-impl_math_op!(Div, div);
-impl_math_op!(Rem, rem);
+impl_math_op!(Add, add, wrapping_add);
+impl_math_op!(Sub, sub, wrapping_sub);
+impl_math_op!(Mul, mul, wrapping_mul);
+
+// FIXME error for zero division
+impl_math_op!(Div, div, wrapping_div);
+impl_math_op!(Rem, rem, wrapping_rem);
 
 impl BitOr for Value {
     type Output = Self;
