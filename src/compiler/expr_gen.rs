@@ -4,7 +4,7 @@ use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::NullableExpr;
 use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, Store, StoreField};
+use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, Store, StoreField, StoreRefOffset};
 use crate::error::compilation_error::CompilationError::{IllegalBinOperator, InvalidOperator, MemberNotFound, StructTooLarge};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::ok;
@@ -453,20 +453,40 @@ impl TypedExpr {
 
 
     pub fn load_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
+
+        fn load_from_ref(registry: &TypeRegistry, generator: &mut BytecodeGen, index: &TypedExpr, t: &TypeEntry) -> EmptyRes {
+            index.generate_bytecode(registry, generator, Load)?;
+
+            let typ;
+
+            if let AstType::ArrayType { underlying, .. } = t.get(registry) {
+                typ = underlying;
+            } else {
+                return Err(CompilationError::illegal_indexing(t.get(registry), registry));
+            }
+
+            generator.load_var_offset(registry, typ)?;
+
+            ok()
+        }
+
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
                 generator.a_load(name.clone());
-                index.generate_bytecode(registry, generator, Load)?;
 
-                let typ;
+                load_from_ref(registry, generator, &index, t)?;
+            }
+            Expression::MemberExpr {member, property, ..} => {
+                if let AstType::StructType {fields, children, ..} = member.get_type().get(registry) {
+                    member.generate_bytecode(registry, generator, Load)?; // load struct ref
 
-                if let AstType::ArrayType {underlying, ..} = t.get(registry) {
-                    typ = underlying;
+                    property.generate_bytecode(registry, generator, LoadField {fields, children})?; // load arr ref
+
+                    load_from_ref(registry, generator, &index, &property.get_type())?;
                 } else {
-                    return Err(CompilationError::illegal_indexing(t.get(registry), registry));
+                    return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }
 
-                generator.load_var_offset(registry, typ)?;
             }
 
             _ => panic!("Cannot call LOAD_REF on {self:?}")
@@ -476,27 +496,48 @@ impl TypedExpr {
     }
 
 
-    pub fn store_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
+
+    pub fn store_ref_offset(&self, registry: &TypeRegistry, index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
+
+        fn store_from_ref(registry: &TypeRegistry, generator: &mut BytecodeGen, index: TypedExpr, t: &TypeEntry) -> EmptyRes {
+            index.generate_bytecode(registry, generator, Load)?;
+
+            let typ;
+
+            if let AstType::ArrayType { underlying, .. } = t.get(registry) {
+                typ = underlying;
+            } else {
+                return Err(CompilationError::illegal_indexing(t.get(registry), registry));
+            }
+
+            generator.store_var_offset(registry, typ)?;
+
+            ok()
+        }
+
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
                 generator.a_load(name.clone());
-                index.generate_bytecode(registry, generator, Load)?;
 
-                let typ;
+                store_from_ref(registry, generator,index, t)?;
+            }
+            Expression::MemberExpr {member, property, ..} => {
+                if let AstType::StructType {fields, children, ..} = member.get_type().get(registry) {
+                    member.generate_bytecode(registry, generator, Load)?; // load struct ref
 
-                if let AstType::ArrayType {underlying, ..} = t.get(registry) {
-                    typ = underlying;
+                    property.generate_bytecode(registry, generator, LoadField {fields, children})?; // load arr ref
+
+                    store_from_ref(registry, generator,index, &property.get_type())?;
                 } else {
-                    return Err(CompilationError::illegal_indexing(t.get(registry), registry));
+                    return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }
-
-                generator.store_var_offset(registry, typ)?;
             }
 
-            _ => panic!("Cannot call LOAD_REF on {self:?}")
+            _ => panic!("Cannot call LOAD_REF on {self:?} {}", self.get_type().get(registry).format(registry))
         }
 
         ok()
     }
+
 
 }

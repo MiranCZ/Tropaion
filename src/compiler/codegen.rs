@@ -271,6 +271,7 @@ impl BytecodeGen {
             AstType::Bool | AstType::Int => generator(ValueType::Int)?,
             AstType::Float => generator(ValueType::Float)?,
             AstType::NullableType { .. } |
+            AstType::ArrayType {..} |
             AstType::StructType { .. } => generator(ValueType::Address)?,
 
             _ => return Err(CompilationError::unsupported_type(t, registry))
