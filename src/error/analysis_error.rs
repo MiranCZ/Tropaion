@@ -9,12 +9,12 @@ use crate::lexer::token::SimpleToken;
 pub type EmptyRes = Result<(), AnalysisError>;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum StatementType {
     Block, Function,
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Clone)]
 pub enum AnalysisError {
     #[error("Unresolved symbol '{0}'")]
     UnknownType(String),

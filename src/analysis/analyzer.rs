@@ -10,6 +10,7 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
+use crate::analysis::mangling::ManglingVisitor;
 use crate::error::context::{ErrorContext, Span};
 
 pub struct Analyzer {
@@ -32,11 +33,18 @@ impl Analyzer {
         self.record_consts(registry)?;
 
 
-        let resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
+        let mut resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
 
         // TODO semantic analysis would probs be nice xd
+        
+        let mut mangler = ManglingVisitor::new(registry);
+        resolved_root.walk_visit_mut(&mut mangler);
 
-        let resolved_root = resolved_root.mangle_functions(registry)?.transform_methods(registry, &self.symbol_table);
+        if !mangler.errors.is_empty() {
+            return Err(mangler.errors[0].clone());
+        }
+
+        let resolved_root = resolved_root.transform_methods(registry, &self.symbol_table);
 
         Ok(resolved_root)
     }

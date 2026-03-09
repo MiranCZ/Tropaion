@@ -3,6 +3,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::SymbolType;
+use crate::ast::walking::visitor::Visitor;
 use crate::compiler::compiler::Compiler;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::interpreter::Interpreter;
@@ -27,7 +28,23 @@ pub fn main() {
         return Box(10, 20);
     }
     "#;
+   let code = r#"
+    struct A(i: int);
 
+    fn do_stuff(inp: bool) -> int {
+        let a: A? = A(5);
+
+        if inp {
+            a = null;
+        }
+
+        return a.i;
+    }
+
+    fn main() {
+        do_stuff(false);
+    }
+    "#;
     interpret(text);
 
 }
@@ -40,7 +57,7 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     if let Err(e) = tokens {
         panic!("{}", e.format(text.chars().collect()));
     }
-    
+
     let tokens = tokens.unwrap();
 
     let mut registry = TypeRegistry::new();

@@ -1,13 +1,13 @@
 use std::env;
 use std::fs;
 use std::path::Path;
-use crate::BorrowType::BorrowMut;
+use crate::BorrowType::{Borrow, BorrowMut};
 
 fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
 
     let dest_path = Path::new(&out_dir).join("visitor.rs");
-    fs::write(&dest_path, generate_ast_walk("Visitor", "visit", BorrowMut)).unwrap();
+    fs::write(&dest_path, generate_ast_walk("Visitor", "visit", Borrow)).unwrap();
 
     let dest_path = Path::new(&out_dir).join("visitor_mut.rs");
     fs::write(&dest_path, generate_ast_walk("VisitorMut", "visit_mut", BorrowMut)).unwrap();
@@ -18,22 +18,45 @@ fn main() {
 
 enum BorrowType {
     Borrow,
-    BorrowMut,
-    Own
+    BorrowMut
 }
 
 fn generate_ast_walk(trait_name: &str, suffix: &str, borrow_type: BorrowType) -> String {
     let borrow = match borrow_type {
         BorrowType::Borrow => "&",
         BorrowType::BorrowMut => "&mut ",
-        BorrowType::Own => ""
     };
 
-    let deref = match borrow_type {
-        BorrowType::Borrow => ".as_deref()",
-        BorrowMut => ".as_deref_mut()",
-        BorrowType::Own => ""
+    let mut_suffix = match borrow_type {
+        Borrow => "",
+        BorrowMut => "_mut",
     };
+
+    let type_entry_part =
+        match borrow_type {
+            BorrowType::Borrow => {r#"
+impl TypeEntry {
+
+    pub fn walk_visit<'a>(&self, visitor: &mut impl Visitor<'a>) {
+        let typ = self.get(visitor.get_registry());
+
+        typ.walk_visit(visitor);
+    }
+}
+    "#},
+            BorrowMut => {r#"
+impl TypeEntry {
+
+    pub fn walk_visit_mut<'a>(&mut self, visitor: &mut impl VisitorMut<'a>) {
+        let mut typ = self.get(visitor.get_registry());
+
+        typ.walk_visit_mut(visitor);
+
+        self.mutate(visitor.get_registry_mut(), typ);
+    }
+}
+    "#}
+        };
 
     return format!(r#"
 
@@ -50,6 +73,7 @@ use crate::ast::ast_type::MemberInfo;
 use crate::analysis::type_registry::TypeEntry;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::util::spanned::Spanned;
+use crate::error::context::Span;
 use std::collections::HashMap;
 
 pub trait {trait_name}<'a> where Self: Sized {{
@@ -65,15 +89,15 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_var_declaration(&mut self, name: {borrow}String, is_const: {borrow} bool, value: {borrow}TypedExpr, explicit_type: {borrow}Option<TypeEntry>) {{
+    fn {suffix}_var_declaration(&mut self, name: {borrow}String, is_const: {borrow} bool, value: {borrow}TypedExpr, explicit_type: {borrow}Option<TypeEntry>, span: Span) {{
         self.{suffix}_expr(value);
 
         if let Some(t) = explicit_type {{
-            t.get(self.get_registry()).walk_{suffix}(self);
+            t.walk_{suffix}(self);
         }}
     }}
 
-    fn {suffix}_if(&mut self, condition: {borrow}TypedExpr, body: {borrow}StatementBlock<TypeEntry>, else_branch: {borrow} Option<Box<Spanned<Statement<TypeEntry>>>>) {{
+    fn {suffix}_if(&mut self, condition: {borrow}TypedExpr, body: {borrow}StatementBlock<TypeEntry>, else_branch: {borrow} Option<Box<Spanned<Statement<TypeEntry>>>>, span: Span) {{
         self.{suffix}_expr(condition);
         self.{suffix}_block(body);
         if let Some(branch) = else_branch {{
@@ -81,32 +105,32 @@ pub trait {trait_name}<'a> where Self: Sized {{
         }}
     }}
 
-    fn {suffix}_while(&mut self, condition: {borrow}TypedExpr, body: {borrow}StatementBlock<TypeEntry>) {{
+    fn {suffix}_while(&mut self, condition: {borrow}TypedExpr, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
         self.{suffix}_expr(condition);
         self.{suffix}_block(body);
     }}
 
-    fn {suffix}_function(&mut self, name: {borrow}String, params: {borrow}[Parameter], return_type: {borrow} TypeEntry, body: {borrow}StatementBlock<TypeEntry>) {{
+    fn {suffix}_function(&mut self, name: {borrow}String, params: {borrow}Vec<Parameter>, return_type: {borrow} TypeEntry, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
         self.{suffix}_block(body);
 
         for p in params {{
-            p.param_type.get(self.get_registry()).walk_{suffix}(self);
+            p.param_type.walk_{suffix}(self);
         }}
 
-        return_type.get(self.get_registry()).walk_{suffix}(self);
+        return_type.walk_{suffix}(self);
     }}
 
-    fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}[Parameter], body: {borrow}StatementBlock<TypeEntry>) {{
+    fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
         self.{suffix}_block(body);
     }}
 
-    fn {suffix}_return(&mut self, expr: {borrow}TypedExpr) {{
+    fn {suffix}_return(&mut self, expr: {borrow}TypedExpr, span: Span) {{
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_comment(&mut self, _comment: {borrow}str) {{}}
+    fn {suffix}_comment(&mut self, _comment: {borrow}String, span: Span) {{}}
 
-    fn {suffix}_multiline_comment(&mut self, _comment: {borrow}str) {{}}
+    fn {suffix}_multiline_comment(&mut self, _comment: {borrow}String, span: Span) {{}}
 
 
     // Expressions
@@ -115,67 +139,91 @@ pub trait {trait_name}<'a> where Self: Sized {{
         expr.walk_{suffix}(self);
     }}
 
-    fn {suffix}_null_literal(&mut self, _t: {borrow} TypeEntry) {{}}
+    fn {suffix}_null_literal(&mut self, t: {borrow} TypeEntry, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_bool_literal(&mut self, _t: {borrow} TypeEntry, _value: {borrow} bool) {{}}
+    fn {suffix}_bool_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} bool, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_int_literal(&mut self, _t: {borrow} TypeEntry, _value: {borrow} i64) {{}}
+    fn {suffix}_int_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} i64, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_float_literal(&mut self, _t: {borrow} TypeEntry, _value: {borrow} f32) {{}}
+    fn {suffix}_float_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow} f32, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_string_literal(&mut self, _t: {borrow} TypeEntry, _value: {borrow}str) {{}}
+    fn {suffix}_string_literal(&mut self, t: {borrow} TypeEntry, _value: {borrow}String, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_identifier(&mut self, _t: {borrow} TypeEntry, _name: {borrow}str) {{}}
+    fn {suffix}_identifier(&mut self, t: {borrow} TypeEntry, _name: {borrow}String, span: Span) {{
+        t.walk_{suffix}(self); 
+    }}
 
-    fn {suffix}_array_literal(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr]) {{
+    fn {suffix}_array_literal(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr], span: Span) {{
+        t.walk_{suffix}(self); 
         for v in values {{ self.{suffix}_expr(v); }}
     }}
 
-    fn {suffix}_nullable_expr(&mut self, t: {borrow} TypeEntry, inner: {borrow}TypedExpr) {{
+    fn {suffix}_nullable_expr(&mut self, t: {borrow} TypeEntry, inner: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(inner);
     }}
 
-    fn {suffix}_increment(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr) {{
+    fn {suffix}_increment(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_decrement(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr) {{
+    fn {suffix}_decrement(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_null_deref(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr) {{
+    fn {suffix}_null_deref(&mut self, t: {borrow} TypeEntry, expr: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_prefix(&mut self, t: {borrow} TypeEntry, operator: {borrow} SimpleToken, expr: {borrow}TypedExpr) {{
+    fn {suffix}_prefix(&mut self, t: {borrow} TypeEntry, operator: {borrow} SimpleToken, expr: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(expr);
     }}
 
-    fn {suffix}_binary(&mut self, t: {borrow} TypeEntry, left: {borrow}TypedExpr, operator: {borrow} SimpleToken, right: {borrow}TypedExpr) {{
+    fn {suffix}_binary(&mut self, t: {borrow} TypeEntry, left: {borrow}TypedExpr, operator: {borrow} SimpleToken, right: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(left);
         self.{suffix}_expr(right);
     }}
 
-    fn {suffix}_assign(&mut self, t: {borrow} TypeEntry, assignee: {borrow}TypedExpr, value: {borrow}TypedExpr) {{
+    fn {suffix}_assign(&mut self, t: {borrow} TypeEntry, assignee: {borrow}TypedExpr, value: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(assignee);
         self.{suffix}_expr(value);
     }}
 
-    fn {suffix}_tuple(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr]) {{
+    fn {suffix}_tuple(&mut self, t: {borrow} TypeEntry, values: {borrow}[TypedExpr], span: Span) {{
+        t.walk_{suffix}(self); 
         for v in values {{ self.{suffix}_expr(v); }}
     }}
 
-    fn {suffix}_array_access(&mut self, t: {borrow} TypeEntry, property: {borrow}TypedExpr, index: {borrow}TypedExpr) {{
+    fn {suffix}_array_access(&mut self, t: {borrow} TypeEntry, property: {borrow}TypedExpr, index: {borrow}TypedExpr, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(property);
         self.{suffix}_expr(index);
     }}
 
-    fn {suffix}_member(&mut self, t: {borrow} TypeEntry, member: {borrow}TypedExpr, property: {borrow}TypedExpr, null_safe: {borrow} bool) {{
+    fn {suffix}_member(&mut self, t: {borrow} TypeEntry, member: {borrow}TypedExpr, property: {borrow}TypedExpr, null_safe: {borrow} bool, span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(member);
         self.{suffix}_expr(property);
     }}
 
-    fn {suffix}_call(&mut self, t: {borrow} TypeEntry, func: {borrow}TypedExpr, args: {borrow}[TypedExpr]) {{
+    fn {suffix}_call(&mut self, t: {borrow} TypeEntry, func: {borrow}TypedExpr, args: {borrow}[TypedExpr], span: Span) {{
+        t.walk_{suffix}(self); 
         self.{suffix}_expr(func);
         for a in args {{ self.{suffix}_expr(a); }}
     }}
@@ -202,37 +250,37 @@ pub trait {trait_name}<'a> where Self: Sized {{
     }}
 
     fn {suffix}_reference_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.get(self.get_registry()).walk_{suffix}(self)
+        underlying.walk_{suffix}(self)
     }}
 
     fn {suffix}_nullable_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.get(self.get_registry()).walk_{suffix}(self)
+        underlying.walk_{suffix}(self)
     }}
 
     fn {suffix}_array_type(&mut self, underlying: {borrow} TypeEntry) {{
-        underlying.get(self.get_registry()).walk_{suffix}(self)
+        underlying.walk_{suffix}(self)
     }}
 
     fn {suffix}_tuple_type(&mut self, types: {borrow} Vec<TypeEntry>) {{
-        for t in types {{ t.get(self.get_registry()).walk_{suffix}(self) }}
+        for t in types {{ t.walk_{suffix}(self) }}
     }}
 
     fn {suffix}_functions_type(&mut self, name: {borrow} String, overloads: {borrow} Vec<TypeEntry>) {{
-        for t in overloads {{ t.get(self.get_registry()).walk_{suffix}(self) }}
+        for t in overloads {{ t.walk_{suffix}(self) }}
     }}
 
     fn {suffix}_function_type(&mut self, name: {borrow} String, params: {borrow} Vec<TypeEntry>, return_type: {borrow} TypeEntry) {{
-        for t in params {{ t.get(self.get_registry()).walk_{suffix}(self) }}
+        for t in params {{ t.walk_{suffix}(self) }}
 
-        return_type.get(self.get_registry()).walk_{suffix}(self);
+        return_type.walk_{suffix}(self);
     }}
 
     fn {suffix}_struct_type(&mut self, name: {borrow} String, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
         for f in fields {{
-            f.0.get(self.get_registry()).walk_{suffix}(self);
+            f.0.walk_{suffix}(self);
         }}
-        for c in children.values() {{
-            c.0.get(self.get_registry()).walk_{suffix}(self);
+        for c in children.values{mut_suffix}() {{
+            c.0.walk_{suffix}(self);
         }}
     }}
 
@@ -250,28 +298,28 @@ impl TypedStmt {{
                 visitor.{suffix}_expression_stmt(expr);
             }}
             Statement::VarDeclarationStmt {{ name, is_const, value, explicit_type }} => {{
-                visitor.{suffix}_var_declaration(name, is_const, value, explicit_type);
+                visitor.{suffix}_var_declaration(name, is_const, value, explicit_type, self.span);
             }}
             Statement::IfStmt {{ condition, body, else_branch }} => {{
-                visitor.{suffix}_if(condition, body, else_branch);
+                visitor.{suffix}_if(condition, body, else_branch, self.span);
             }}
             Statement::WhileStmt {{ condition, body }} => {{
-                visitor.{suffix}_while(condition, body);
+                visitor.{suffix}_while(condition, body, self.span);
             }}
             Statement::FunctionStmt {{ name, params, return_type, body }} => {{
-                visitor.{suffix}_function(name, params, return_type, body);
+                visitor.{suffix}_function(name, params, return_type, body, self.span);
             }}
             Statement::StructStmt {{ name, fields, body }} => {{
-                visitor.{suffix}_struct(name, fields, body);
+                visitor.{suffix}_struct(name, fields, body, self.span);
             }}
             Statement::ReturnStmt(expr) => {{
-                visitor.{suffix}_return(expr);
+                visitor.{suffix}_return(expr, self.span);
             }}
             Statement::CommentStmt(s) => {{
-                visitor.{suffix}_comment(s);
+                visitor.{suffix}_comment(s, self.span);
             }}
             Statement::MultilineCommentStmt(s) => {{
-                visitor.{suffix}_multiline_comment(s);
+                visitor.{suffix}_multiline_comment(s, self.span);
             }}
         }}
     }}
@@ -283,58 +331,58 @@ impl TypedExpr {{
     pub fn walk_{suffix}<'a>({borrow}self, visitor: &mut impl {trait_name}<'a>) {{
         match {borrow}self.node {{
             Expression::NullLiteralExpr(t) => {{
-                visitor.{suffix}_null_literal(t);
+                visitor.{suffix}_null_literal(t, self.span);
             }}
             Expression::BoolLiteralExpr(t, v) => {{
-                visitor.{suffix}_bool_literal(t, v);
+                visitor.{suffix}_bool_literal(t, v, self.span);
             }}
             Expression::IntLiteralExpr(t, v) => {{
-                visitor.{suffix}_int_literal(t, v);
+                visitor.{suffix}_int_literal(t, v, self.span);
             }}
             Expression::FloatLiteralExpr(t, v) => {{
-                visitor.{suffix}_float_literal(t, v);
+                visitor.{suffix}_float_literal(t, v, self.span);
             }}
             Expression::StringLiteralExpr(t, v) => {{
-                visitor.{suffix}_string_literal(t, v);
+                visitor.{suffix}_string_literal(t, v, self.span);
             }}
             Expression::IdentifierExpr(t, name) => {{
-                visitor.{suffix}_identifier(t, name);
+                visitor.{suffix}_identifier(t, name, self.span);
             }}
             Expression::ArrayLiteralExpr(t, values) => {{
-                visitor.{suffix}_array_literal(t, values);
+                visitor.{suffix}_array_literal(t, values, self.span);
             }}
             Expression::NullableExpr(t, inner) => {{
-                visitor.{suffix}_nullable_expr(t, inner);
+                visitor.{suffix}_nullable_expr(t, inner, self.span);
             }}
             Expression::IncrementExpr(t, expr) => {{
-                visitor.{suffix}_increment(t, expr);
+                visitor.{suffix}_increment(t, expr, self.span);
             }}
             Expression::DecrementExpr(t, expr) => {{
-                visitor.{suffix}_decrement(t, expr);
+                visitor.{suffix}_decrement(t, expr, self.span);
             }}
             Expression::NullDerefExpr(t, expr) => {{
-                visitor.{suffix}_null_deref(t, expr);
+                visitor.{suffix}_null_deref(t, expr, self.span);
             }}
             Expression::PrefixExpr {{ t, operator, expr }} => {{
-                visitor.{suffix}_prefix(t, operator, expr);
+                visitor.{suffix}_prefix(t, operator, expr, self.span);
             }}
             Expression::BinaryExpr {{ t, left, operator, right }} => {{
-                visitor.{suffix}_binary(t, left, operator, right);
+                visitor.{suffix}_binary(t, left, operator, right, self.span);
             }}
             Expression::AssignExpr {{ t, assignee, value }} => {{
-                visitor.{suffix}_assign(t, assignee, value);
+                visitor.{suffix}_assign(t, assignee, value, self.span);
             }}
             Expression::TupleExpr {{ t, values }} => {{
-                visitor.{suffix}_tuple(t, values);
+                visitor.{suffix}_tuple(t, values, self.span);
             }}
             Expression::ArrayAccessExpr {{ t, property, index }} => {{
-                visitor.{suffix}_array_access(t, property, index);
+                visitor.{suffix}_array_access(t, property, index, self.span);
             }}
             Expression::MemberExpr {{ t, member, property, null_safe }} => {{
-                visitor.{suffix}_member(t, member, property, null_safe);
+                visitor.{suffix}_member(t, member, property, null_safe, self.span);
             }}
             Expression::CallExpr {{ t, func, args }} => {{
-                visitor.{suffix}_call(t, func, args);
+                visitor.{suffix}_call(t, func, args, self.span);
             }}
         }}
     }}
@@ -363,5 +411,6 @@ impl AstType {{
     }}
 }}
 
-"#);
+
+{type_entry_part}"#);
 }

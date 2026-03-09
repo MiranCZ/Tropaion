@@ -21,12 +21,6 @@ impl TypeEntry {
         parent.register(t)
     }
     
-    pub fn mangle_function(&self,parent: &mut TypeRegistry ,owner: String) {
-        let new_t = self.get(parent).mangle_function(parent, owner);
-        
-        self.mutate(parent, new_t);
-    }
-    
     pub fn resolve_type(&self, parent: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<(), ErrorContext<AnalysisError>> {
         let typ = self.get(parent);
         

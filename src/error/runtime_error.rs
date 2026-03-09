@@ -4,7 +4,7 @@ use crate::interpreter::value::{Value, ValueType};
 
 
 // FIXME this is not runtime error related but overall helper
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueTypeVariant {
     Null, Int, Float, Address,
     

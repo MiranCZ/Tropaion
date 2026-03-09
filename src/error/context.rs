@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter, LowerExp};
 use crate::error::ok;
 use crate::util::either::Either;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ErrorContext<T> {
     pub error: T,
     pub span: Either<Span, usize>,
