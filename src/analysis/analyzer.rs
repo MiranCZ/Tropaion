@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::type_resolution::TypeResolver;
+use crate::ast::walking::folder::Folder;
 use crate::error::context::{ErrorContext, Span};
 
 pub struct Analyzer {
@@ -32,16 +33,15 @@ impl Analyzer {
 
     pub fn analyze(&mut self, registry: &mut TypeRegistry) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
         self.record_top_level(registry)?;
-        self.record_consts(registry)?;
 
+        let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table);
 
-        // let mut resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
+        Self::record_consts(self.root.clone(), &mut type_resolver)?;
 
-        let mut x = TypeResolver::new(registry, &mut self.symbol_table);
-        let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut x);
+        let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut type_resolver);
 
-        if !x.errors.is_empty() {
-            return Err(x.errors[0].clone());
+        if !type_resolver.errors.is_empty() {
+            return Err(type_resolver.errors[0].clone());
         }
 
         // TODO semantic analysis would probs be nice xd
@@ -145,26 +145,19 @@ impl Analyzer {
         Err(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()}, self.root.span))
     }
 
-    fn record_consts(&mut self, registry: &mut TypeRegistry) -> Result<(), ErrorContext<AnalysisError>> {
-        if let BlockStmt{ body } = self.root.node.clone() {
+    fn record_consts(root: UntypedStmt, type_resolver: &mut TypeResolver) -> Result<(), ErrorContext<AnalysisError>> {
+        if let BlockStmt{ body } = root.node {
             for x in body {
                 match x.node {
                     Statement::VarDeclarationStmt {name, is_const, value, explicit_type} => {
                         if !is_const {
                             return Err(ErrorContext::of(ExpectedConst(name), x.span));
                         }
-
-                        let inferred_type = value.resolve_type(registry, &mut self.symbol_table)?;
-
-                        if let Some(explicit) = explicit_type.clone() {
-                            if !explicit.get(registry).equals(&inferred_type.get_type().get(registry), registry) {
-                                return Err(ErrorContext::of(AnalysisError::illegal_type_assignment(explicit, inferred_type.get_type(), registry), x.span));
-                            }
-                        } else {
+                        if explicit_type.is_none() {
                             return Err(ErrorContext::of(AnalysisError::TypelessConst, x.span))
                         }
 
-                        self.symbol_table.record(name, inferred_type.get_type());
+                        type_resolver.fold_var_declaration(name, is_const, value, explicit_type, x.span);
                     },
 
                     _ => {}
@@ -174,7 +167,8 @@ impl Analyzer {
             return ok();
         }
 
-        Err(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()},self.root.span))
+        let span = root.span;
+        Err(ErrorContext::of(StatementMismatch {expected: Block, got: root}, span))
     }
 
 
