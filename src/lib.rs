@@ -26,7 +26,28 @@ pub fn main() {
     fn main() {
     }
     "#;
-    interpret(text);
+
+    let loop_stmt = r#"
+    fn main() -> int {
+        let x = 17;
+
+        let i = 0;
+
+        while i  10{
+            x += 1 fda; ++
+
+            lol++;
+
+            if foo bar {
+                break;
+            }
+        }
+
+        return x;
+    }
+    "#;
+
+    interpret(loop_stmt);
 
 }
 
@@ -50,11 +71,14 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let parsed = parser.parse(&mut registry);
 
-    if let Err(e) = parsed {
-        panic!("{}", e.format(text.chars().collect()));
+    if !parser.errors.is_empty() {
+        for e in parser.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+
+        panic!("Exited with {} errors", parser.errors.len());
     }
 
-    let parsed = parsed.unwrap();
 
     let mut analyzer = analysis::analyzer::Analyzer::new(parsed);
 
@@ -107,10 +131,16 @@ fn interpret(text: &str) {
 
     let mut registry = TypeRegistry::new();
 
-    let res = parser.parse(&mut registry);
+    let v = parser.parse(&mut registry);
 
-    match res {
-        Ok(v) => {
+    if !parser.errors.is_empty() {
+        for e in parser.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+
+        panic!("Exited with {} errors", parser.errors.len());
+    }
+
             println!("{v:#?}");
 
             let mut analyzer = analysis::analyzer::Analyzer::new(v);
@@ -167,9 +197,6 @@ fn interpret(text: &str) {
 
             println!("Took {:?}", now.elapsed());
             println!("RESULT: {result:?}")
-        }
-        Err(e) => panic!("{}", e.format(text.chars().collect()))
-    }
 }
 
 

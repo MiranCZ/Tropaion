@@ -7,10 +7,9 @@ mod expression_parser;
 mod type_parser;
 
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::expression::UntypedExpr;
-use crate::ast::statement::{Statement, UntypedStmt};
 use crate::ast::statement::Statement::BlockStmt;
-use crate::error::context::{ErrorContext, Span};
+use crate::ast::statement::UntypedStmt;
+use crate::error::context::{ErrorContext, Errors, Span};
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberIntLiteral, SimpleTokenType, EOF};
 use crate::lexer::token::{SimpleToken, Token};
@@ -24,7 +23,8 @@ pub struct Parser {
     lookup: Lookup,
     type_lookup: TypeLookup,
     tokens: Vec<TokenInfo>,
-    pos: usize
+    pos: usize,
+    pub errors: Errors<ParserError>
 }
 
 impl Parser {
@@ -34,7 +34,8 @@ impl Parser {
             lookup: Lookup::new(),
             type_lookup: TypeLookup::new(),
             tokens,
-            pos: 0
+            pos: 0,
+            errors: vec![]
         }
     }
 
@@ -42,7 +43,7 @@ impl Parser {
         &self.lookup
     }
 
-    pub fn parse(&mut self, registry: &mut TypeRegistry) -> Result<UntypedStmt, ErrorContext<ParserError>> {
+    pub fn parse(&mut self, registry: &mut TypeRegistry) -> UntypedStmt {
         let mut body = Vec::new();
 
         loop {
@@ -53,25 +54,76 @@ impl Parser {
             } else {
                 let err = token.err().unwrap();
 
-                return Err(err);
+                self.errors.push(err);
+                return UntypedStmt::err(self.current_span());
             };
 
             if token == EOF {
                 break;
             }
 
-            let stmt = parse_statement(registry, self);
-            let stmt = if let Ok(s) = stmt {
-                s
-            } else {
-                let err = stmt.err().unwrap();
+            match parse_statement(registry, self) {
+                Ok(stmt) => body.push(stmt),
+                Err(err) => {
+                    self.errors.push(err);
+                    self.synchronize_error(&[]);
 
-                return Err(err);
-            };
-            body.push(stmt);
+                    // FIXME wrong span
+                    body.push(UntypedStmt::err(self.current_span()));
+                }
+            }
+
         }
 
-        Ok(Spanned::new(BlockStmt{ body }, 0, self.current_span().to))
+        Spanned::new(BlockStmt{ body }, 0, self.current_span().to)
+    }
+    fn synchronize_error(&mut self, sync_tokens: &[SimpleToken]) -> bool {
+        fn is_synchronize_token(token: &Token) -> bool {
+            if let SimpleTokenType(t) = token {
+                return matches!(t,
+                    SimpleToken::Semicolon
+                );
+            }
+
+            false
+        }
+
+        loop {
+            let next = self.peek();
+
+            match next {
+                Ok(v) => {
+                    if matches!(v, EOF) {
+                        return true;
+                    }
+
+                    // keywords always escape out of bad expressions
+                    if let SimpleTokenType(t) = &v && self.lookup.statement_lookup.contains_key(t) {
+                        return true;
+                    }
+                    if let SimpleTokenType(t) = &v && sync_tokens.contains(t) {
+                        return true;
+                    }
+
+                    if is_synchronize_token(&v) {
+                        // consume the synchronization token
+                        if let Err(_) = self.next() {
+                            return false;
+                        }
+
+                        return true;
+                    }
+                }
+
+                Err(_) => {
+                    return false;
+                }
+            }
+
+            if let Err(_) = self.next() {
+                return false;
+            }
+        }
     }
 
     pub fn next(&mut self) -> Result<Token, ErrorContext<ParserError>> {

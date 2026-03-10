@@ -28,11 +28,8 @@ fn test_analysis_error(code: &str, expected: AnalysisError) {
 
     let parsed = parser.parse(&mut registry);
 
-    if let Err(e) = parsed {
-        panic!("{}", e.format(code.chars().collect()));
-    }
+    assert!(parser.errors.is_empty());
 
-    let parsed = parsed.unwrap();
 
     let mut analyzer = analysis::analyzer::Analyzer::new(parsed);
 

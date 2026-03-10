@@ -1,14 +1,9 @@
-use crate::analysis::symbol_table::TypeSymTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{Bool, StructType};
-use crate::ast::expression::{Expression, UntypedExpr};
-use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, FunctionStmt, IfStmt, MultilineCommentStmt, ReturnStmt, StructStmt, VarDeclarationStmt, WhileStmt};
-use crate::error::analysis_error::AnalysisError;
-use crate::error::runtime_error::ValueTypeVariant;
-use std::fmt::Debug;
-use crate::ast::expression;
-use crate::error::context::ErrorContext;
+use crate::ast::expression::{Expression, TypedExpr, UntypedExpr};
+use crate::ast::statement::Statement::ExpressionStmt;
+use crate::error::context::Span;
 use crate::util::spanned::Spanned;
+use std::fmt::Debug;
 
 pub type UntypedStmt = Spanned<Statement<()>>;
 pub type TypedStmt = Spanned<Statement<TypeEntry>>;
@@ -65,4 +60,28 @@ impl <T> Statement<T> {
 pub struct Parameter {
     pub name: String,
     pub param_type: TypeEntry
+}
+
+impl TypedStmt {
+
+    pub fn err(registry: &mut TypeRegistry, span: Span) -> Statement<TypeEntry> {
+        ExpressionStmt(Spanned::of(TypedExpr::err(registry), span))
+    }
+
+    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
+        if let ExpressionStmt(expr) = &self.node {
+            return expr.is_err(registry);
+        }
+
+        false
+    }
+
+}
+
+impl UntypedStmt {
+
+    pub fn err(span: Span) -> Spanned<Statement<()>> {
+        Spanned::of(ExpressionStmt(UntypedExpr::err(span)), span)
+    }
+
 }

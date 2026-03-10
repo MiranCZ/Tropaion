@@ -78,17 +78,6 @@ impl <T> Expression<T> {
     }
 }
 
-impl TypeEntry {
-
-    pub fn err(registry: &mut TypeRegistry) -> TypeEntry {
-        registry.register(ErroredType)
-    }
-
-    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
-        matches!(self.get(registry), ErroredType)
-    }
-
-}
 
 impl TypedExpr {
 
@@ -106,18 +95,14 @@ impl TypedExpr {
 
 }
 
-impl TypedStmt {
+impl UntypedExpr {
 
-    pub fn err(registry: &mut TypeRegistry, span: Span) -> Statement<TypeEntry> {
-        ExpressionStmt(Spanned::of(TypedExpr::err(registry), span))
+    pub fn err(span: Span) -> Spanned<Expression<()>> {
+        Spanned::of(ErroredExpr(()), span)
     }
 
-    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
-        if let Statement::ExpressionStmt(expr) = &self.node {
-            return expr.is_err(registry);
-        }
-
-        false
+    pub fn is_err(&self) -> bool {
+        matches!(self.node, ErroredExpr(..))
     }
 
 }

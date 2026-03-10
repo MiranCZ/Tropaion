@@ -1,20 +1,18 @@
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType::Void;
-use crate::ast::statement::{Parameter, StatementBlock};
-use crate::ast::statement::Statement::*;
+use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::Statement::ExpressionStmt;
+use crate::ast::statement::Statement::*;
+use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::Token;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenBracket, OpenCurly, Return, Semicolon, Struct, While};
-use crate::lexer::token::Token::{MultilineComment, SimpleTokenType};
-use crate::parser::binding_power::{Bp, ASSIGNMENT, DEFAULT};
+use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenCurly, Return, Semicolon, Struct, While};
+use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
-use crate::parser::{binding_power, Parser};
 use crate::parser::handlers::ReturnedStatement;
 use crate::parser::type_parser::parse_type;
-use crate::util::spanned::Spanned;
+use crate::parser::Parser;
 use crate::spanned;
 
 pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
@@ -27,9 +25,23 @@ pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> Retu
             return Ok(f(registry, parser)?);
         }
 
-        let expression = parse_expression(registry, parser, DEFAULT.rbp)?;
+        let expression = match parse_expression(registry, parser, DEFAULT.rbp) {
+            Ok(v) => v,
+            Err(e) => {
+                parser.errors.push(e);
+                parser.synchronize_error(&[]);
 
-        parser.expect_next(SimpleToken::Semicolon)?;
+                return Ok(UntypedStmt::err(parser.current_span()));
+            }
+        };
+
+        if let Err(e) = parser.expect_next(Semicolon) {
+            parser.errors.push(e);
+            parser.synchronize_error(&[]);
+
+            return Ok(UntypedStmt::err(parser.current_span()));
+        }
+
 
         ExpressionStmt(expression)
     })
@@ -87,7 +99,14 @@ pub fn parse_block_stmt(registry: &mut TypeRegistry, parser: &mut Parser) -> Ret
 }
 
 fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<StatementBlock<()>, ErrorContext<ParserError>> {
-    parser.expect_next(SimpleToken::OpenCurly)?;
+    if let Err(e) = parser.expect_next(OpenCurly) {
+        parser.errors.push(e);
+        parser.synchronize_error(&[OpenCurly]);
+
+        if !parser.consume_if_next(OpenCurly)? {
+            return Ok(vec![]);
+        }
+    }
 
     let mut statements = vec![];
 
@@ -184,8 +203,17 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
     spanned!(parser, {
         parser.expect_next(While)?;
     
-        let condition = parse_expression(registry, parser, DEFAULT.rbp)?;
-    
+        let condition = match parse_expression(registry, parser, DEFAULT.rbp) {
+            Ok(v) => v,
+            Err(e) => {
+                parser.errors.push(e);
+                parser.synchronize_error(&[OpenCurly]);
+
+                UntypedExpr::err(parser.current_span())
+            }
+        };
+
+
         let body = _parse_block_stmt(registry, parser)?;
     
         WhileStmt {

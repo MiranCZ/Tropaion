@@ -1,13 +1,7 @@
-use std::collections::HashMap;
-use std::fmt::{format, Debug};
-use std::mem::swap;
-use crate::analysis::symbol_table::TypeSymTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ArrayType, FunctionType, FunctionsType, NullableType, ReferenceType, StructType, TupleType};
-use crate::ast::statement::TypedStmt;
-use crate::error::analysis_error::AnalysisError;
-use crate::error::analysis_error::AnalysisError::{RedundantNullable, ResolutionFailed};
-use crate::error::context::ErrorContext;
+use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, ReferenceType, StructType, TupleType};
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -56,6 +50,19 @@ impl AstType {
         Box::new(self)
     }
 }
+
+impl TypeEntry {
+
+    pub fn err(registry: &mut TypeRegistry) -> TypeEntry {
+        registry.register(ErroredType)
+    }
+
+    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
+        matches!(self.get(registry), ErroredType)
+    }
+
+}
+
 
 impl AstType {
 
