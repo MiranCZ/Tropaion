@@ -455,7 +455,7 @@ impl BytecodeGen {
 
     fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) -> EmptyRes {
         if self.symbol_table.contains(&name) {
-            let ind = self.symbol_table.get(name).unwrap();
+            let ind = self.symbol_table.get(&name).unwrap();
 
             self.push_insn(create_store(ind));
         } else {
@@ -494,7 +494,7 @@ impl BytecodeGen {
     
     fn store_new(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
         if self.symbol_table.contains_in_current(&name) {
-            let ind = self.symbol_table.get(name).unwrap();
+            let ind = self.symbol_table.get(&name).unwrap();
 
             self.push_insn(create_store(ind));
             return;
@@ -524,19 +524,19 @@ impl BytecodeGen {
     }
 
     pub fn i_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(name).unwrap();
+        let ind = self.symbol_table.get(&name).unwrap();
 
         self.push_insn(ILoad(ind));
     }
 
     pub fn f_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(name).unwrap();
+        let ind = self.symbol_table.get(&name).unwrap();
 
         self.push_insn(FLoad(ind));
     }
 
     pub fn a_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(name).unwrap();
+        let ind = self.symbol_table.get(&name).unwrap();
 
         self.push_insn(ALoad(ind));
     }

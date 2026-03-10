@@ -49,11 +49,11 @@ impl <T: Clone, E: Clone> SymbolTable<T, E> {
         panic!("Symbol table is empty!")
     }
 
-    pub fn get_with_info(&self, symbol: String) -> Option<(T, Option<E>)> {
+    pub fn get_with_info(&self, symbol: &String) -> Option<(T, Option<E>)> {
         let mut t = None;
 
         for map in self.symbols.iter() {
-            if let Some(result) = map.get(&symbol) {
+            if let Some(result) = map.get(symbol) {
                 // IMPORTANT: do not break here, we should also check lower symbols
                 // TODO: A future optimization is searching in a reverse order so we can break early
                 t = Some(result.clone());
@@ -63,7 +63,7 @@ impl <T: Clone, E: Clone> SymbolTable<T, E> {
         t
     }
     
-    pub fn get(&self, symbol: String) -> Option<T> {
+    pub fn get(&self, symbol: &String) -> Option<T> {
         let t = self.get_with_info(symbol);
         
         if let Some(value) = t {
@@ -94,7 +94,7 @@ impl TypeSymTable {
     }
 
     pub fn get_return_type(&self) -> Option<TypeEntry> {
-        self.get("::return".to_string())
+        self.get(&"::return".to_string())
     }
 
 }

@@ -6,6 +6,7 @@ use crate::ast::statement::Statement::{BlockStmt, CommentStmt, ExpressionStmt, F
 use crate::error::analysis_error::AnalysisError;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::fmt::Debug;
+use crate::ast::expression;
 use crate::error::context::ErrorContext;
 use crate::util::spanned::Spanned;
 
@@ -167,7 +168,7 @@ impl UntypedStmt {
                 }
 
                 symbol_table.push();
-                let struct_type = symbol_table.get(name.clone()).unwrap();
+                let struct_type = symbol_table.get(&name).unwrap();
                 symbol_table.record(String::from("this"), struct_type.clone());
 
                 if let StructType {children,..} = struct_type.get(registry) {
@@ -195,7 +196,7 @@ impl UntypedStmt {
                     return Err(ctx(AnalysisError::DanglingReturn));
                 };
 
-                UntypedExpr::box_arg(registry, &mut typed_expr, return_type);
+                expression::box_arg(registry, &mut typed_expr, return_type);
 
                 ReturnStmt(typed_expr)
             }

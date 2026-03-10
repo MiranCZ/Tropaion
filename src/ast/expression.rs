@@ -1,7 +1,7 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{ArrayType, Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
-use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
@@ -19,6 +19,8 @@ type SpannedExpr<T> = Spanned<Expression<T>>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<T> {
+    ErroredExpr(T),
+    
     NullLiteralExpr(T),
     BoolLiteralExpr(T, bool),
     IntLiteralExpr(T, i64),
@@ -82,6 +84,7 @@ impl UntypedExpr {
         };
 
         let expr = match self.node {
+            ErroredExpr(..) => panic!(),
             NullableExpr(..) => panic!("internal API"),
 
             NullLiteralExpr(_) => {
@@ -149,7 +152,7 @@ impl UntypedExpr {
                 }
             }
             IdentifierExpr(_, identifier) => {
-                let v = symbol_table.get_with_info(identifier.clone());
+                let v = symbol_table.get_with_info(&identifier);
 
                 if let Some(tuple) = v{
                     let t = tuple.0;
@@ -343,7 +346,7 @@ impl UntypedExpr {
                     let p = params[i];
 
                     // auto null-boxing
-                    Self::box_arg(registry, arg, p);
+                    box_arg(registry, arg, p);
                 }
 
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
@@ -397,7 +400,7 @@ impl UntypedExpr {
                 let field = &fields[i].0;
                 let arg = &mut resolved_args[i];
 
-                Self::box_arg(registry, arg, *field);
+                box_arg(registry, arg, *field);
             }
 
             return Ok(CallExpr {
@@ -410,26 +413,28 @@ impl UntypedExpr {
         Err(ErrorContext::of(AnalysisError::illegal_call(resolved_func.get_type(), registry), span))
     }
 
-    pub fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
-        // arg does not know its type
-        if matches!(arg.get_type().get(registry), UnknownType) {
-            arg.set_type(registry, desired.get(registry));
-            return;
+    
+}
+
+pub fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
+    // arg does not know its type
+    if matches!(arg.get_type().get(registry), UnknownType) {
+        arg.set_type(registry, desired.get(registry));
+        return;
+    }
+
+    // arg is '(<unknown>)?'
+    if let NullableType {underlying} = arg.get_type().get(registry) && matches!(underlying.get(registry), UnknownType) {
+        if !matches!(desired.get(registry), NullableType {..}) {
+            panic!("AAAA WTF");
         }
 
-        // arg is '(<unknown>)?'
-        if let NullableType {underlying} = arg.get_type().get(registry) && matches!(underlying.get(registry), UnknownType) {
-            if !matches!(desired.get(registry), NullableType {..}) {
-                panic!("AAAA WTF");
-            }
+        arg.set_type(registry, desired.get(registry));
+        return;
+    }
 
-            arg.set_type(registry, desired.get(registry));
-            return;
-        }
-
-        if matches!(desired.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
-            *arg = Spanned::of(NullableExpr(registry.register(NullableType { underlying: arg.get_type() }), arg.clone().boxed()), arg.span);
-        }
+    if matches!(desired.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
+        *arg = Spanned::of(NullableExpr(registry.register(NullableType { underlying: arg.get_type() }), arg.clone().boxed()), arg.span);
     }
 }
 
@@ -446,6 +451,8 @@ pub fn deref(t: TypeEntry, registry: &TypeRegistry) -> AstType {
 impl TypedExpr {
     pub fn get_type(&self) -> TypeEntry {
         match &self.node {
+            ErroredExpr(t) => *t,
+            
             NullLiteralExpr(t) => *t,
             BoolLiteralExpr(t, ..) => *t,
             IntLiteralExpr(t, ..) => *t,
@@ -498,6 +505,8 @@ impl TypedExpr {
 
 
         match &mut self.node {
+            ErroredExpr(..) => panic!(),
+            
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!("{typ:?}"),
             StringLiteralExpr(..) => panic!(),
@@ -537,6 +546,8 @@ impl TypedExpr {
         let new_type = registry.register(typ.clone());
 
         match &mut self.node {
+            ErroredExpr(..) => panic!(),
+            
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!(),
             StringLiteralExpr(..) => panic!(),

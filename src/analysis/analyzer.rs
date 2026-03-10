@@ -12,6 +12,7 @@ use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
+use crate::analysis::type_resolution::TypeResolver;
 use crate::error::context::{ErrorContext, Span};
 
 pub struct Analyzer {
@@ -34,7 +35,14 @@ impl Analyzer {
         self.record_consts(registry)?;
 
 
-        let mut resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
+        // let mut resolved_root: TypedStmt = self.root.clone().resolve_type(registry, &mut self.symbol_table)?;
+
+        let mut x = TypeResolver::new(registry, &mut self.symbol_table);
+        let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut x);
+
+        if !x.errors.is_empty() {
+            return Err(x.errors[0].clone());
+        }
 
         // TODO semantic analysis would probs be nice xd
         
@@ -176,7 +184,7 @@ impl Analyzer {
 
     fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
         if let FunctionType {name, ..} = func.get(registry) {
-            let t = symbol_table.get(name.clone());
+            let t = symbol_table.get(&name);
 
             if t.is_none() {
                 let mut overloads = vec![];

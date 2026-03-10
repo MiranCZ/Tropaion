@@ -206,7 +206,7 @@ impl AstType {
     pub fn resolve_type(self,registry: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<AstType, ErrorContext<AnalysisError>> {
         Ok(match self {
             AstType::SymbolType(name) => {
-                let opt = symbol_table.get(name.clone());
+                let opt = symbol_table.get(&name);
 
                 if let Some(t) = opt {
                     return Ok(t.get(registry));

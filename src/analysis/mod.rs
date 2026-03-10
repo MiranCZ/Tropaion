@@ -4,3 +4,4 @@ mod operator_table;
 mod mangling;
 pub mod type_registry;
 mod method_transforms;
+mod type_resolution;

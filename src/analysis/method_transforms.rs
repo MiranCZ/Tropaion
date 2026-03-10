@@ -51,7 +51,7 @@ impl <'a> VisitorMut<'a> for TransformVisitor<'a> {
     }
 
     fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, span: Span) {
-        self.with_inside(Some(self.symbol_table.get(name.clone()).unwrap()), |visitor| {
+        self.with_inside(Some(self.symbol_table.get(&name).unwrap()), |visitor| {
             for s in body {
                 s.walk_visit_mut(visitor);
             }

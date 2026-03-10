@@ -139,6 +139,10 @@ pub trait {trait_name}<'a> where Self: Sized {{
         expr.walk_{suffix}(self);
     }}
 
+    fn {suffix}_errored(&mut self, t: {borrow} TypeEntry, span: Span) {{
+        self.{suffix}_type(t);
+    }}
+
     fn {suffix}_null_literal(&mut self, t: {borrow} TypeEntry, span: Span) {{
         self.{suffix}_type(t); 
     }}
@@ -338,6 +342,9 @@ impl TypedExpr {{
 
     pub fn walk_{suffix}<'a>({borrow}self, visitor: &mut impl {trait_name}<'a>) {{
         match {borrow}self.node {{
+            Expression::ErroredExpr(t) => {{
+                visitor.{suffix}_errored(t, self.span);
+            }}
             Expression::NullLiteralExpr(t) => {{
                 visitor.{suffix}_null_literal(t, self.span);
             }}
