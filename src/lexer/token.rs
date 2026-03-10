@@ -3,6 +3,8 @@ use strum_macros::EnumIter;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
+    Unknown,
+    
     SimpleTokenType(SimpleToken),
 
     Identifier(String),

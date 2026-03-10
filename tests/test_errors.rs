@@ -10,11 +10,9 @@ fn test_lexer_error(code: &str, expected: LexerError) {
     let mut lexer = lexer::Lexer::new(code.to_string());
     let res = lexer.parse();
 
-    if let Err(e) = res {
-        assert_eq!(e.error, expected);
-    } else {
-        panic!("Error expected")
-    }
+    assert_eq!(lexer.errors.len(), 1);
+
+    assert_eq!(lexer.errors[0].error, expected);
 }
 
 fn test_analysis_error(code: &str, expected: AnalysisError) {
@@ -22,11 +20,7 @@ fn test_analysis_error(code: &str, expected: AnalysisError) {
 
     let tokens = lexer.parse();
 
-    if let Err(e) = tokens {
-        panic!("{}", e.format(code.chars().collect()));
-    }
-
-    let tokens = tokens.unwrap();
+    assert!(lexer.errors.is_empty());
 
     let mut registry = TypeRegistry::new();
 

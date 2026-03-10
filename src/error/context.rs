@@ -3,6 +3,8 @@ use std::fmt::{Debug, Display, Formatter, LowerExp};
 use crate::error::ok;
 use crate::util::either::Either;
 
+pub type Errors<T> = Vec<ErrorContext<T>>;
+
 #[derive(Debug, Clone)]
 pub struct ErrorContext<T> {
     pub error: T,

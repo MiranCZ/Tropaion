@@ -1,3 +1,4 @@
+use std::io::stderr;
 use std::time::Instant;
 use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::TypeRegistry;
@@ -22,27 +23,7 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Box(i: int, j: int?);
-
-    fn main() -> Box {
-        return Box(10, 20);
-    }
-    "#;
-   let code = r#"
-    struct A(i: int);
-
-    fn do_stuff(inp: bool) -> int {
-        let a: A? = A(5);
-
-        if inp {
-            a = null;
-        }
-
-        return a.i;
-    }
-
     fn main() {
-        do_stuff(false);
     }
     "#;
     interpret(text);
@@ -54,11 +35,14 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let tokens = lexer.parse();
 
-    if let Err(e) = tokens {
-        panic!("{}", e.format(text.chars().collect()));
+    if !lexer.errors.is_empty() {
+        for e in lexer.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+
+        panic!("Exited with {} errors", lexer.errors.len());
     }
 
-    let tokens = tokens.unwrap();
 
     let mut registry = TypeRegistry::new();
 
@@ -104,13 +88,17 @@ fn interpret(text: &str) {
 
     let tokens = lexer.parse();
 
+    if !lexer.errors.is_empty() {
+        for e in lexer.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+
+        panic!("Exited with {} errors", lexer.errors.len());
+    }
+
     println!("-------");
     println!();
 
-    if let Err(e) = tokens {
-        panic!("{}", e.format(text.chars().collect()));
-    }
-    let tokens = tokens.unwrap();
 
     let mut parser = Parser::new(tokens);
 
