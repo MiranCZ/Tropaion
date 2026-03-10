@@ -9,6 +9,7 @@ use crate::ast::statement::{Parameter, Statement, StatementBlock};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
+use crate::error::analysis_error::AnalysisError::{RedundantNullable, ResolutionFailed};
 use crate::error::context::{ErrorContext, Span};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
@@ -30,6 +31,13 @@ impl <'a> TypeResolver<'a> {
         }
     }
 
+    fn error_type(&mut self, err: AnalysisError) -> AstType {
+        // FIXME bad span
+        self.errors.push(ErrorContext::of(err, Span::new(0, 0)));
+        
+        UnknownType
+    }
+    
     fn error(&mut self, err: AnalysisError, span: Span) -> FoldedExpr<TypeEntry> {
         self.errors.push(ErrorContext::of(err, span));
 
@@ -71,12 +79,12 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     }
 
     fn fold_type_entry(&mut self, t: TypeEntry) -> TypeEntry {
-        let res = t.resolve_type(self.registry, self.symbol_table);
-
-        if let Err(e) = res {
-            self.errors.push(e);
-        }
-
+        let ast_type = t.get(self.registry);
+         
+        let result = ast_type.walk_fold(self);
+         
+        t.mutate(self.registry, result);
+         
         t
     }
 
@@ -504,6 +512,26 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.error(AnalysisError::illegal_call(resolved_func.get_type(), self.registry), span)
     }
 
+    fn fold_symbol_type(&mut self, name: String) -> AstType {
+        let opt = self.symbol_table.get(&name);
 
+        if let Some(t) = opt {
+            return t.get(self.registry);
+        }
+
+        self.error_type(ResolutionFailed(name))   
+    }
+
+    fn fold_nullable_type(&mut self, underlying: TypeEntry) -> AstType {
+        self.fold_type_entry(underlying);
+
+        if matches!(underlying.get(self.registry), NullableType {..}) {
+            return self.error_type(RedundantNullable);
+        }
+
+        NullableType {underlying}
+    }
+    
+    
 
 }

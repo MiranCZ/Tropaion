@@ -21,16 +21,6 @@ impl TypeEntry {
         parent.register(t)
     }
     
-    pub fn resolve_type(&self, parent: &mut TypeRegistry, symbol_table: &mut TypeSymTable) -> Result<(), ErrorContext<AnalysisError>> {
-        let typ = self.get(parent);
-        
-        let resolved = typ.resolve_type(parent, symbol_table)?;
-        
-        self.mutate(parent, resolved);
-        
-        ok()
-    }
-    
     pub fn get(&self, parent: &TypeRegistry) -> AstType {
         parent.get(self.key)
     }
