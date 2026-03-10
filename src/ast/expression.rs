@@ -1,11 +1,13 @@
 use crate::analysis::symbol_table::TypeSymTable;
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{ArrayType, Bool, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
 use std::string::String;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::ast::statement::{Statement, TypedStmt};
+use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::IllegalNullDeref;
 use crate::error::context::{ErrorContext, Span};
@@ -20,7 +22,7 @@ type SpannedExpr<T> = Spanned<Expression<T>>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<T> {
     ErroredExpr(T),
-    
+
     NullLiteralExpr(T),
     BoolLiteralExpr(T, bool),
     IntLiteralExpr(T, i64),
@@ -76,6 +78,50 @@ impl <T> Expression<T> {
     }
 }
 
+impl TypeEntry {
+
+    pub fn err(registry: &mut TypeRegistry) -> TypeEntry {
+        registry.register(ErroredType)
+    }
+
+    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
+        matches!(self.get(registry), ErroredType)
+    }
+
+}
+
+impl TypedExpr {
+
+    pub fn err(registry: &mut TypeRegistry) -> Expression<TypeEntry> {
+        ErroredExpr(TypeEntry::err(registry))
+    }
+
+    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
+        if matches!(self.node, ErroredExpr(..)) {
+            return true;
+        }
+
+        self.get_type().is_err(registry)
+    }
+
+}
+
+impl TypedStmt {
+
+    pub fn err(registry: &mut TypeRegistry, span: Span) -> Statement<TypeEntry> {
+        ExpressionStmt(Spanned::of(TypedExpr::err(registry), span))
+    }
+
+    pub fn is_err(&self, registry: &TypeRegistry) -> bool {
+        if let Statement::ExpressionStmt(expr) = &self.node {
+            return expr.is_err(registry);
+        }
+
+        false
+    }
+
+}
+
 
 pub fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
     // arg does not know its type
@@ -113,7 +159,7 @@ impl TypedExpr {
     pub fn get_type(&self) -> TypeEntry {
         match &self.node {
             ErroredExpr(t) => *t,
-            
+
             NullLiteralExpr(t) => *t,
             BoolLiteralExpr(t, ..) => *t,
             IntLiteralExpr(t, ..) => *t,
@@ -167,7 +213,7 @@ impl TypedExpr {
 
         match &mut self.node {
             ErroredExpr(..) => panic!(),
-            
+
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!("{typ:?}"),
             StringLiteralExpr(..) => panic!(),
@@ -208,7 +254,7 @@ impl TypedExpr {
 
         match &mut self.node {
             ErroredExpr(..) => panic!(),
-            
+
             BoolLiteralExpr(..) => panic!(),
             FloatLiteralExpr(..) => panic!(),
             StringLiteralExpr(..) => panic!(),

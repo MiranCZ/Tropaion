@@ -238,7 +238,8 @@ pub trait {trait_name}<'a> where Self: Sized {{
         typ.walk_{suffix}(self);
     }}
 
-
+    fn {suffix}_errored_type(&mut self) {{
+    }}
 
     fn {suffix}_unknown_type(&mut self) {{
     }}
@@ -408,6 +409,8 @@ impl TypedExpr {{
 impl AstType {{
     pub fn walk_{suffix}<'a>({borrow}self, visitor: &mut impl {trait_name}<'a>) {{
         match self {{
+            AstType::ErroredType => visitor.{suffix}_errored_type(),
+            
             AstType::UnknownType => visitor.{suffix}_unknown_type(),
             AstType::Void => visitor.{suffix}_void_type(),
             AstType::Bool => visitor.{suffix}_bool_type(),

@@ -14,11 +14,12 @@ use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::type_resolution::TypeResolver;
 use crate::ast::walking::folder::Folder;
-use crate::error::context::{ErrorContext, Span};
+use crate::error::context::{ErrorContext, Errors, Span};
 
 pub struct Analyzer {
     root: UntypedStmt,
-    symbol_table: TypeSymTable
+    symbol_table: TypeSymTable,
+    pub errors: Errors<AnalysisError>
 }
 
 
@@ -27,21 +28,23 @@ impl Analyzer {
     pub fn new(root: UntypedStmt) -> Self {
         Self {
             root,
-            symbol_table: SymbolTable::new()
+            symbol_table: SymbolTable::new(),
+            errors: vec![]
         }
     }
 
-    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> Result<TypedStmt, ErrorContext<AnalysisError>> {
-        self.record_top_level(registry)?;
+    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
+        self.record_top_level(registry);
 
         let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table);
 
-        Self::record_consts(self.root.clone(), &mut type_resolver)?;
+        Self::record_consts(self.root.clone(), &mut type_resolver, &mut self.errors);
 
         let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut type_resolver);
 
         if !type_resolver.errors.is_empty() {
-            return Err(type_resolver.errors[0].clone());
+            self.errors.append(&mut type_resolver.errors);
+            // return Err(type_resolver.errors);
         }
 
         // TODO semantic analysis would probs be nice xd
@@ -50,17 +53,18 @@ impl Analyzer {
         resolved_root.walk_visit_mut(&mut mangler);
 
         if !mangler.errors.is_empty() {
-            return Err(mangler.errors[0].clone());
+            self.errors.append(&mut mangler.errors);
+            // return Err(mangler.errors);
         }
 
         TransformVisitor::transform(registry, &self.symbol_table, &mut resolved_root);
 
-        Ok(resolved_root)
+        resolved_root
     }
 
 
     /// record all top-level structs and functions which can be used everywhere
-    fn record_top_level(&mut self, registry: &mut TypeRegistry) -> Result<(), ErrorContext<AnalysisError>> {
+    fn record_top_level(&mut self, registry: &mut TypeRegistry) {
         if let BlockStmt{ body } = &self.root.node.clone() {
             for x in body {
                 match &x.node {
@@ -78,7 +82,7 @@ impl Analyzer {
 
                         let func_type = registry.register(t);
 
-                        self.record_function(registry, func_type)?;
+                        self.record_function(registry, func_type);
                     },
 
                     StructStmt {name, fields, body } => {
@@ -107,12 +111,19 @@ impl Analyzer {
                                     };
                                     let func_type = registry.register(t);
 
-                                    Self::_record_function(&mut table,registry ,func_type)?;
+                                    let res = Self::_record_function(&mut table,registry ,func_type);
+
+                                    match res {
+                                        Ok(_) => {}
+                                        Err(e) => self.errors.push(e)
+                                    }
                                 },
 
                                 Statement::CommentStmt(..) | Statement::MultilineCommentStmt(..) => {}
 
-                                _ => return Err(ErrorContext::of(IllegalStatementInStruct(x.clone()), x.span))
+                                _ => {
+                                    self.errors.push(ErrorContext::of(IllegalStatementInStruct(x.clone()), x.span))
+                                }
                             }
                         }
 
@@ -135,26 +146,28 @@ impl Analyzer {
                         self.symbol_table.record(name.clone(), struct_type);
                     },
                     
-                    _ => return Err(ErrorContext::of(IllegalScopelessStatement(x.clone()), x.span))
+                    _ => {
+                        self.errors.push(ErrorContext::of(IllegalScopelessStatement(x.clone()), x.span))
+                    }
                 }
             }
 
-            return ok();
+            return;
         }
 
-        Err(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()}, self.root.span))
+        self.errors.push(ErrorContext::of(StatementMismatch {expected: Block, got: self.root.clone()}, self.root.span))
     }
 
-    fn record_consts(root: UntypedStmt, type_resolver: &mut TypeResolver) -> Result<(), ErrorContext<AnalysisError>> {
+    fn record_consts(root: UntypedStmt, type_resolver: &mut TypeResolver, errors: &mut Errors<AnalysisError>) {
         if let BlockStmt{ body } = root.node {
             for x in body {
                 match x.node {
                     Statement::VarDeclarationStmt {name, is_const, value, explicit_type} => {
                         if !is_const {
-                            return Err(ErrorContext::of(ExpectedConst(name), x.span));
+                            errors.push(ErrorContext::of(ExpectedConst(name.clone()), x.span));
                         }
                         if explicit_type.is_none() {
-                            return Err(ErrorContext::of(AnalysisError::TypelessConst, x.span))
+                            errors.push(ErrorContext::of(AnalysisError::TypelessConst, x.span));
                         }
 
                         type_resolver.fold_var_declaration(name, is_const, value, explicit_type, x.span);
@@ -164,16 +177,22 @@ impl Analyzer {
                 }
             }
 
-            return ok();
+            return;
         }
 
         let span = root.span;
-        Err(ErrorContext::of(StatementMismatch {expected: Block, got: root}, span))
+
+        errors.push(ErrorContext::of(StatementMismatch {expected: Block, got: root}, span))
     }
 
 
-    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
-        Self::_record_function(&mut self.symbol_table,registry ,func)
+    fn record_function(&mut self,registry: &mut TypeRegistry, func: TypeEntry) {
+        let res = Self::_record_function(&mut self.symbol_table,registry ,func);
+
+        match res {
+            Ok(_) => {}
+            Err(e) => self.errors.push(e)
+        }
     }
 
     fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {

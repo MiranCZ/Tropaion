@@ -11,6 +11,8 @@ use crate::error::context::ErrorContext;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
+    ErroredType,
+    
     UnknownType,
     Void,
     Bool,
@@ -59,6 +61,7 @@ impl AstType {
 
     pub fn format(&self, registry: &TypeRegistry) -> String {
         match self {
+            AstType::ErroredType => "<err>".to_string(),
             AstType::UnknownType => "<unknown>".to_string(),
             AstType::Void => "void".to_string(),
             AstType::Bool => "bool".to_string(),

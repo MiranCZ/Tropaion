@@ -60,11 +60,13 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
 
     let resolved_root = analyzer.analyze(&mut registry);
 
-    let resolved_root = if let Ok(v) = resolved_root {
-        v
-    } else {
-        panic!("{}", resolved_root.err().unwrap().format(text.chars().collect()));
-    };
+    if !analyzer.errors.is_empty() {
+        for e in analyzer.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+
+        panic!("Exited with {} errors", analyzer.errors.len());
+    }
 
     let mut comp = Compiler::new(resolved_root, text.chars().collect());
 
@@ -116,11 +118,13 @@ fn interpret(text: &str) {
 
             let resolved_root = analyzer.analyze(&mut registry);
 
-            let resolved_root = if let Ok(v) = resolved_root {
-                v
-            } else {
-                panic!("{}", resolved_root.err().unwrap().format(text.chars().collect()));
-            };
+            if !analyzer.errors.is_empty() {
+                for e in analyzer.errors.iter() {
+                    eprintln!("{}\n", e.format(text.chars().collect()))
+                }
+
+                panic!("Exited with {} errors", analyzer.errors.len());
+            }
 
             println!("{:#?}", resolved_root);
 

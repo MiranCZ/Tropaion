@@ -174,7 +174,7 @@ where
     fn fold_errored(&mut self, t: I, span: Span) -> FoldedExpr<O> {
         Expression::ErroredExpr(self.fold_annotation(t))
     }
-    
+
     fn fold_null_literal(&mut self, t: I, span: Span) -> FoldedExpr<O> {
         Expression::NullLiteralExpr(self.fold_annotation(t))
     }
@@ -558,6 +558,9 @@ impl AstType {
         F: Folder<I, O>,
     {
         match self {
+            // should not be able to fold errors
+            AstType::ErroredType => self,
+
             AstType::UnknownType => folder.fold_unknown_type(),
             AstType::Void => folder.fold_void_type(),
             AstType::Bool => folder.fold_bool_type(),

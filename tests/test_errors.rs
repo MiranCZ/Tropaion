@@ -38,11 +38,9 @@ fn test_analysis_error(code: &str, expected: AnalysisError) {
 
     let resolved_root = analyzer.analyze(&mut registry);
 
-    if let Err(e) = resolved_root {
-        assert_eq!(e.error, expected);
-    } else {
-        panic!("Error expected")
-    }
+    assert_eq!(analyzer.errors.len(), 1);
+
+    assert_eq!(analyzer.errors[0].error, expected);
 }
 
 

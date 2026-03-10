@@ -1,11 +1,11 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{ArrayType, Bool, Float, FunctionsType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
 use crate::ast::expression;
-use crate::ast::expression::{box_arg, deref, member, Expression};
+use crate::ast::expression::{box_arg, deref, member, Expression, TypedExpr};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
-use crate::ast::statement::{Parameter, Statement, StatementBlock};
+use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
@@ -34,18 +34,20 @@ impl <'a> TypeResolver<'a> {
     fn error_type(&mut self, err: AnalysisError) -> AstType {
         // FIXME bad span
         self.errors.push(ErrorContext::of(err, Span::new(0, 0)));
-        
-        UnknownType
+
+        ErroredType
     }
-    
+
     fn error(&mut self, err: AnalysisError, span: Span) -> FoldedExpr<TypeEntry> {
         self.errors.push(ErrorContext::of(err, span));
 
-        Expression::ErroredExpr(self.registry.register(UnknownType))
+        TypedExpr::err(self.registry)
     }
 
     fn error_stmt(&mut self, err: AnalysisError, span: Span) -> FoldedStmt<TypeEntry> {
-        Statement::ExpressionStmt(Spanned::of(self.error(err, span), span))
+        self.errors.push(ErrorContext::of(err, span));
+
+        TypedStmt::err(self.registry, span)
     }
 
     fn get_assign_result(&mut self, left: TypeEntry, right: TypeEntry) -> Option<AstType> {
@@ -80,23 +82,32 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
     fn fold_type_entry(&mut self, t: TypeEntry) -> TypeEntry {
         let ast_type = t.get(self.registry);
-         
+
         let result = ast_type.walk_fold(self);
-         
+
         t.mutate(self.registry, result);
-         
+
         t
     }
 
     fn fold_var_declaration(&mut self, name: String, is_const: bool, value: Spanned<Expression<()>>, explicit_type: Option<TypeEntry>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut value = self.fold_expr(value);
 
+        // still record that *some* variable exists even if it's an error
         self.symbol_table.record(name.clone(), value.get_type());
+
+        if value.is_err(self.registry) {
+            return TypedStmt::err(self.registry, span);
+        }
 
         let mut resolved_expl_type = None;
 
         if let Some(t) = explicit_type {
             let t = self.fold_type_entry(t);
+
+            if t.is_err(self.registry) {
+                return TypedStmt::err(self.registry, span);
+            }
 
             match self.get_assign_result(t, value.get_type()) {
                 Some(new_t) => value.set_type(self.registry, new_t),
@@ -298,6 +309,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         let left = self.fold_expr(*left);
         let right = self.fold_expr(*right);
 
+        if left.is_err(self.registry) || right.is_err(self.registry) {
+            return TypedExpr::err(self.registry);
+        }
+
         let result_type = self.symbol_table.op_table.get_op_result(self.registry, left.get_type(), operator, right.get_type());
 
         let result_type = match result_type {
@@ -313,6 +328,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     fn fold_assign(&mut self, t: (), assignee: Box<Spanned<Expression<()>>>, value: Box<Spanned<Expression<()>>>, span: Span) -> FoldedExpr<TypeEntry> {
         let mut assignee = self.fold_expr(*assignee);
         let mut value = self.fold_expr(*value);
+
+        if assignee.is_err(self.registry) || value.is_err(self.registry) {
+            return TypedExpr::err(self.registry);
+        }
 
         let assign_result = self.get_assign_result(assignee.get_type(), value.get_type());
 
@@ -338,6 +357,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         let property = self.fold_expr(*property);
         let index = self.fold_expr(*index);
 
+        if property.is_err(self.registry) || index.is_err(self.registry) {
+            return TypedExpr::err(self.registry);
+        }
 
         let underlying;
         if let ArrayType {underlying: u} = property.get_type().get(self.registry) {
@@ -407,11 +429,22 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     fn fold_call(&mut self, t: (), func: Box<Spanned<Expression<()>>>, args: Vec<Spanned<Expression<()>>>, span: Span) -> FoldedExpr<TypeEntry> {
         let mut resolved_func = self.fold_expr(*func);
 
+
         if let FunctionsType { overloads, name, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
 
+            let mut err = false;
             for arg in args.clone() {
-                resolved_args.push(self.fold_expr(arg));
+                let arg = self.fold_expr(arg);
+
+                if arg.is_err(self.registry) {
+                    err = true;
+                }
+                resolved_args.push(arg);
+            }
+
+            if err {
+                return TypedExpr::err(self.registry);
             }
 
             // FIXME leaking the void here a bit
@@ -475,6 +508,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     return res;
                 }
 
+                if resolved_func.is_err(self.registry) {
+                    return TypedExpr::err(self.registry);
+                }
+
                 return CallExpr {
                     t: return_type.duplicate(self.registry),
                     func: resolved_func.boxed(),
@@ -487,8 +524,18 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         if let AstType::StructType { fields, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
 
-            for arg in args {
-                resolved_args.push(self.fold_expr(arg));
+            let mut err = false;
+            for arg in args.clone() {
+                let arg = self.fold_expr(arg);
+
+                if arg.is_err(self.registry) {
+                    err = true;
+                }
+                resolved_args.push(arg);
+            }
+
+            if err {
+                return TypedExpr::err(self.registry);
             }
 
             if fields.len() != resolved_args.len() {
@@ -502,11 +549,19 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 box_arg(self.registry, arg, *field);
             }
 
+            if resolved_func.is_err(self.registry) {
+                return TypedExpr::err(self.registry);
+            }
+
             return CallExpr {
                 t: resolved_func.get_type().duplicate(self.registry),
                 func: resolved_func.boxed(),
                 args: resolved_args
             };
+        }
+
+        if resolved_func.is_err(self.registry) {
+            return TypedExpr::err(self.registry);
         }
 
         self.error(AnalysisError::illegal_call(resolved_func.get_type(), self.registry), span)
@@ -519,7 +574,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             return t.get(self.registry);
         }
 
-        self.error_type(ResolutionFailed(name))   
+        self.error_type(ResolutionFailed(name))
     }
 
     fn fold_nullable_type(&mut self, underlying: TypeEntry) -> AstType {
@@ -531,7 +586,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         NullableType {underlying}
     }
-    
-    
+
+
 
 }
