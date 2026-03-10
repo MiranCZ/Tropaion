@@ -4,7 +4,7 @@ use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
 use crate::ast::expression;
 use crate::ast::expression::{box_arg, deref, member, Expression, TypedExpr};
-use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
@@ -193,7 +193,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         ReturnStmt(expr)
     }
 
-    // TODO return stmt
+
+    fn fold_errored(&mut self, t: (), span: Span) -> FoldedExpr<TypeEntry> {
+        ErroredExpr(self.registry.register(ErroredType))
+    }
 
     fn fold_null_literal(&mut self, t: (), span: Span) -> FoldedExpr<TypeEntry> {
         let unknown = self.registry.register(UnknownType);

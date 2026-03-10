@@ -115,15 +115,15 @@ fn interpret(text: &str) {
     let tokens = lexer.parse();
 
     if !lexer.errors.is_empty() {
+        eprintln!("--------- Lexer has {} errors ---------- \n", lexer.errors.len());
+
         for e in lexer.errors.iter() {
             eprintln!("{}\n", e.format(text.chars().collect()))
         }
-
-        panic!("Exited with {} errors", lexer.errors.len());
     }
 
-    println!("-------");
-    println!();
+    // println!("-------");
+    // println!();
 
 
     let mut parser = Parser::new(tokens);
@@ -134,69 +134,67 @@ fn interpret(text: &str) {
     let v = parser.parse(&mut registry);
 
     if !parser.errors.is_empty() {
+        eprintln!("--------- Parser has {} errors ---------- \n", parser.errors.len());
+
         for e in parser.errors.iter() {
             eprintln!("{}\n", e.format(text.chars().collect()))
         }
-
-        panic!("Exited with {} errors", parser.errors.len());
     }
 
-            println!("{v:#?}");
+    // println!("{v:#?}");
 
-            let mut analyzer = analysis::analyzer::Analyzer::new(v);
+    let mut analyzer = analysis::analyzer::Analyzer::new(v);
 
+    let resolved_root = analyzer.analyze(&mut registry);
 
-            let resolved_root = analyzer.analyze(&mut registry);
+    if !analyzer.errors.is_empty() {
+        eprintln!("--------- Analyzer has {} errors ---------- \n", analyzer.errors.len());
 
-            if !analyzer.errors.is_empty() {
-                for e in analyzer.errors.iter() {
-                    eprintln!("{}\n", e.format(text.chars().collect()))
-                }
+        for e in analyzer.errors.iter() {
+            eprintln!("{}\n", e.format(text.chars().collect()))
+        }
+    }
 
-                panic!("Exited with {} errors", analyzer.errors.len());
-            }
+    // println!("{:#?}", resolved_root);
 
-            println!("{:#?}", resolved_root);
+    let mut comp = Compiler::new(resolved_root, text.chars().collect());
 
-            let mut comp = Compiler::new(resolved_root, text.chars().collect());
+    // println!();
+    // println!();
+    // println!("{:#?}", registry);
+    // println!("-------------------");
+    // println!();
 
+    let res = comp.compile(&mut registry);
 
-            println!();
-            println!();
-            println!("{:#?}", registry);
-            println!("-------------------");
-            println!();
+    let (instructions, lines, functions) = if let Ok((i, l, f)) = res {
+        (i, l, f)
+    } else {
+        panic!("Error {:?}", res.err().unwrap());
+    };
 
-            let res = comp.compile(&mut registry);
+    // println!("{:?}", functions);
+    // println!();
 
-            let (instructions, lines, functions) = if let Ok((i, l, f)) = res {
-                (i,l, f)
-            } else {
-                panic!("Error {:?}", res.err().unwrap());
-            };
+    for i in instructions.iter() {
+        println!("{i:?}");
+    }
 
-            println!("{:?}", functions);
-            println!();
+    println!();
 
-            for i in instructions.iter() {
-                println!("{i:?}");
-            }
+    let mut interpret = Interpreter::new(instructions, lines, functions);
 
-            println!();
+    let now = Instant::now();
+    let result = interpret.run_function("main_".to_string());
 
-            let mut interpret = Interpreter::new(instructions, lines, functions);
+    let result = if let Ok(r) = result {
+        r
+    } else {
+        panic!("{}", result.err().unwrap().format(text.chars().collect()));
+    };
 
-            let now = Instant::now();
-            let result = interpret.run_function("main_".to_string());
-
-            let result = if let Ok(r) = result {
-                r
-            } else {
-                panic!("{}", result.err().unwrap().format(text.chars().collect()));
-            };
-
-            println!("Took {:?}", now.elapsed());
-            println!("RESULT: {result:?}")
+    println!("Took {:?}", now.elapsed());
+    println!("RESULT: {result:?}")
 }
 
 
