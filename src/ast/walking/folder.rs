@@ -48,6 +48,7 @@ where
     /// Defaults to the identity – override when you also want to rewrite
     /// structural types.
     fn fold_type_entry(&mut self, t: TypeEntry) -> TypeEntry {
+        // FIXME this could use the registry to walk
         t
     }
 

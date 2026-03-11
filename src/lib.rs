@@ -24,6 +24,7 @@ mod util;
 pub fn main() {
     let text = r#"
     fn main() {
+        let x = -2147483648;
     }
     "#;
 
@@ -47,7 +48,7 @@ pub fn main() {
     }
     "#;
 
-    interpret(loop_stmt);
+    interpret(text);
 
 }
 

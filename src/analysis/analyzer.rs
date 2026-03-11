@@ -10,6 +10,7 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
+use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::type_resolution::TypeResolver;
@@ -58,6 +59,7 @@ impl Analyzer {
         }
 
         TransformVisitor::transform(registry, &self.symbol_table, &mut resolved_root);
+        let resolved_root = ConstExprFolder::fold(resolved_root, registry);
 
         resolved_root
     }
