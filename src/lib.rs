@@ -23,25 +23,11 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() {
-        let x = -2147483648;
-    }
-    "#;
-
-    let loop_stmt = r#"
     fn main() -> int {
-        let x = 17;
+        let x = 1000;
 
-        let i = 0;
-
-        while i  10{
-            x += 1 fda; ++
-
-            lol++;
-
-            if foo bar {
-                break;
-            }
+        {
+            let x = 1;
         }
 
         return x;
