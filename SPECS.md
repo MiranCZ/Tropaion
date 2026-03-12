@@ -311,6 +311,35 @@ let a = Rect(5, 10);
 let area = a.area();
 ```
 
+# Comparing values
+
+- the `==` operator compares the rhs and lhs **by value**
+- it keeps a track of already visited types, so even circular structs can be compared
+
+```
+struct A(b: B?, i: int);
+struct B(a: A);
+
+fn create_a() -> A {
+    let a = A(null, 5);
+    let b = B(a);
+
+    a.b = b;
+
+    return a;
+}
+
+
+fn main() -> bool {
+    let a1 = create_a();
+    let a2 = create_a();
+
+    return a1 == a2; // true
+}
+```
+
+- =TODO= the `===` operator might be introduced to compare by reference in the future
+
 # Generics
 
 - multiple structs/functions with the specified used types are generated
