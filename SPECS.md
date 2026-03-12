@@ -311,3 +311,10 @@ let a = Rect(5, 10);
 let area = a.area();
 ```
 
+# Generics
+
+- multiple structs/functions with the specified used types are generated
+
+```
+struct Box<T>(value: T);
+```
