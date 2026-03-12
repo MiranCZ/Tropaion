@@ -120,7 +120,7 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_type(return_type);
     }}
 
-    fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
+    fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, generics: {borrow} Vec<String>, span: Span) {{
         self.{suffix}_block(body);
     }}
 
@@ -288,7 +288,10 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_type(return_type);
     }}
 
-    fn {suffix}_struct_type(&mut self, name: {borrow} String, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
+    fn {suffix}_struct_type(&mut self, name: {borrow} String, generics: {borrow} HashMap<String, TypeEntry>, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
+        for g in generics.values{mut_suffix}() {{
+            self.{suffix}_type(g);
+        }}
         for f in fields {{
             self.{suffix}_type({borrow} f.0);
         }}
@@ -297,6 +300,8 @@ pub trait {trait_name}<'a> where Self: Sized {{
         }}
     }}
 
+    fn {suffix}_generic_type(&mut self, name: {borrow} String) {{
+    }}
 
 }}
 
@@ -322,8 +327,8 @@ impl TypedStmt {{
             Statement::FunctionStmt {{ name, params, return_type, body }} => {{
                 visitor.{suffix}_function(name, params, return_type, body, self.span);
             }}
-            Statement::StructStmt {{ name, fields, body }} => {{
-                visitor.{suffix}_struct(name, fields, body, self.span);
+            Statement::StructStmt {{ name, fields, body, generics }} => {{
+                visitor.{suffix}_struct(name, fields, body, generics, self.span);
             }}
             Statement::ReturnStmt(expr) => {{
                 visitor.{suffix}_return(expr, self.span);
@@ -424,7 +429,8 @@ impl AstType {{
             AstType::TupleType(types) => visitor.{suffix}_tuple_type(types),
             AstType::FunctionsType {{ name, overloads }} => visitor.{suffix}_functions_type(name, overloads),
             AstType::FunctionType {{ name, params, return_type }} => visitor.{suffix}_function_type(name, params, return_type),
-            AstType::StructType {{ name, fields, children }} => visitor.{suffix}_struct_type(name, fields, children),
+            AstType::StructType {{ name, generics, fields, children }} => visitor.{suffix}_struct_type(name, generics, fields, children),
+            AstType::GenericType {{ name }} => visitor.{suffix}_generic_type(name),
         }}
     }}
 }}

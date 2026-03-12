@@ -1,15 +1,17 @@
+use std::collections::HashMap;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
+use crate::analysis::type_duplicator::TypeDuplicator;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
 use crate::ast::expression;
-use crate::ast::expression::{box_arg, deref, member, Expression, TypedExpr};
+use crate::ast::expression::{deref, member, Expression, TypedExpr};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
-use crate::error::analysis_error::AnalysisError::{RedundantNullable, ResolutionFailed};
+use crate::error::analysis_error::AnalysisError::{RedundantNullable, TypeResolutionFailed};
 use crate::error::context::{ErrorContext, Span};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
@@ -18,15 +20,16 @@ use crate::util::spanned::Spanned;
 pub struct TypeResolver<'a> {
     registry: &'a mut TypeRegistry,
     symbol_table: &'a mut TypeSymTable,
+    type_table: &'a mut TypeSymTable,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
 
 
 impl <'a> TypeResolver<'a> {
 
-    pub fn new(registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable) -> Self {
+    pub fn new(registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable, type_table: &'a mut TypeSymTable) -> Self {
         Self {
-            registry, symbol_table,
+            registry, symbol_table, type_table,
             errors: vec![]
         }
     }
@@ -61,6 +64,54 @@ impl <'a> TypeResolver<'a> {
             }
 
             _ => t.get(self.registry)
+        }
+    }
+
+    fn box_arg(&mut self, arg: &mut TypedExpr, desired: TypeEntry) {
+        if let AstType::GenericType {name} = desired.get(self.registry) {
+            let prev = self.type_table.get(&name);
+
+            let prev = match prev {
+                Some(v) => v,
+                None => {
+                    let error_type = self.error_type(AnalysisError::UnknownType(name));
+                    self.registry.register(error_type)
+                }
+            };
+
+            if matches!(prev.get(self.registry), UnknownType) {
+                prev.mutate(self.registry, arg.get_type().get(self.registry));
+            } else {
+                if let Some(r) = self.get_assign_result(prev, arg.get_type()) {
+                    prev.mutate(self.registry, r);
+                } else {
+                    self.error_type(AnalysisError::illegal_type_assignment(prev, arg.get_type(), self.registry));
+                }
+            }
+
+
+            // type_table.record(name, arg.get_type());
+            desired.mutate(self.registry, arg.get_type().get(self.registry));
+        }
+
+        // arg does not know its type
+        if matches!(arg.get_type().get(self.registry), UnknownType) {
+            arg.set_type(self.registry, desired.get(self.registry));
+            return;
+        }
+
+        // arg is '(<unknown>)?'
+        if let NullableType {underlying} = arg.get_type().get(self.registry) && matches!(underlying.get(self.registry), UnknownType) {
+            if !matches!(desired.get(self.registry), NullableType {..}) {
+                panic!("AAAA WTF");
+            }
+
+            arg.set_type(self.registry, desired.get(self.registry));
+            return;
+        }
+
+        if matches!(desired.get(self.registry), NullableType {..}) && !matches!(arg.get_type().get(self.registry), NullableType {..}) {
+            *arg = Spanned::of(NullableExpr(self.registry.register(NullableType { underlying: arg.get_type() }), arg.clone().boxed()), arg.span);
         }
     }
 
@@ -147,8 +198,19 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         FunctionStmt {name, params: typed_params, return_type, body}
     }
 
-    fn fold_struct(&mut self, name: String, fields: Vec<Parameter>, body: StatementBlock<()>, span: Span) -> FoldedStmt<TypeEntry> {
+    fn fold_struct(&mut self, name: String, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut typed_fields = vec![];
+
+        let struct_type = self.symbol_table.get(&name).unwrap();
+
+        self.type_table.push();
+        if let StructType {generics,..} = struct_type.get(self.registry) {
+            for e in generics {
+                self.type_table.record(e.0.clone(), self.registry.register(GenericType {name: e.0}));
+            }
+        } else {
+            return self.error_stmt(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, self.registry), span);
+        }
 
         for p in fields {
             typed_fields.push(Parameter{
@@ -158,7 +220,6 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         }
 
         self.symbol_table.push();
-        let struct_type = self.symbol_table.get(&name).unwrap();
 
         self.symbol_table.record(String::from("this"), struct_type.clone());
 
@@ -174,8 +235,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         let body = self.fold_block(body);
 
         self.symbol_table.pop();
+        self.type_table.pop();
 
-        StructStmt {name, fields: typed_fields, body}
+        let s = StructStmt {name, fields: typed_fields, body, generics};
+
+        s
     }
 
     fn fold_return(&mut self, expr: Spanned<Expression<()>>, span: Span) -> FoldedStmt<TypeEntry> {
@@ -188,7 +252,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             None => return self.error_stmt(AnalysisError::DanglingReturn, span)
         };
 
-        expression::box_arg(self.registry, &mut expr, return_type);
+        self.box_arg(&mut expr, return_type);
 
         ReturnStmt(expr)
     }
@@ -430,8 +494,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
     // FIXME refactor this monster
     fn fold_call(&mut self, t: (), func: Box<Spanned<Expression<()>>>, args: Vec<Spanned<Expression<()>>>, span: Span) -> FoldedExpr<TypeEntry> {
-        let mut resolved_func = self.fold_expr(*func);
-
+        let resolved_func = self.fold_expr(*func);
+        let mut resolved_func = TypeDuplicator::duplicate(self.registry, resolved_func);
 
         if let FunctionsType { overloads, name, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
@@ -481,7 +545,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     let p = params[i];
 
                     // auto null-boxing
-                    box_arg(self.registry, arg, p);
+                    self.box_arg(arg, p);
                 }
 
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
@@ -524,8 +588,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         }
 
         // calling constructor of a struct
-        if let AstType::StructType { fields, .. } = resolved_func.get_type().get(self.registry) {
+        if let AstType::StructType { fields,generics, mut children, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
+
+
 
             let mut err = false;
             for arg in args.clone() {
@@ -545,11 +611,17 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 panic!("Invalid constructor call");
             }
 
+            self.type_table.push();
+
+            for e in generics.clone() {
+                self.type_table.record(e.0.clone(), e.1);
+            }
+
             for i in 0..fields.len() {
                 let field = &fields[i].0;
                 let arg = &mut resolved_args[i];
 
-                box_arg(self.registry, arg, *field);
+                self.box_arg(arg, *field);
             }
 
             if resolved_func.is_err(self.registry) {
@@ -557,7 +629,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             }
 
             return CallExpr {
-                t: resolved_func.get_type().duplicate(self.registry),
+                t: resolved_func.get_type(),
                 func: resolved_func.boxed(),
                 args: resolved_args
             };
@@ -571,13 +643,13 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     }
 
     fn fold_symbol_type(&mut self, name: String) -> AstType {
-        let opt = self.symbol_table.get(&name);
+        let opt = self.type_table.get(&name);
 
         if let Some(t) = opt {
             return t.get(self.registry);
         }
 
-        self.error_type(ResolutionFailed(name))
+        self.error_type(TypeResolutionFailed(name))
     }
 
     fn fold_nullable_type(&mut self, underlying: TypeEntry) -> AstType {
@@ -590,6 +662,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         NullableType {underlying}
     }
 
+    fn fold_generic_type(&mut self, name: String) -> AstType {
+        todo!()
+    }
 
 
 }

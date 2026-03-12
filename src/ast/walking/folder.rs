@@ -10,7 +10,8 @@ use crate::error::context::Span;
 use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
 use std::collections::HashMap;
-
+use std::ops::Index;
+use crate::ast::ast_type::AstType::GenericType;
 // ── Type aliases ─────────────────────────────────────────────────────────────
 
 pub type FoldedStmt<O> = Statement<O>;
@@ -137,6 +138,7 @@ where
         name: String,
         fields: Vec<Parameter>,
         body: StatementBlock<I>,
+        generics: Vec<String>,
         span: Span,
     ) -> FoldedStmt<O> {
         let folded_fields = fields
@@ -151,6 +153,7 @@ where
             name,
             fields: folded_fields,
             body: self.fold_block(body),
+            generics
         }
     }
 
@@ -431,25 +434,43 @@ where
     fn fold_struct_type(
         &mut self,
         name: String,
+        generics: HashMap<String, TypeEntry>,
         fields: Vec<MemberInfo>,
         children: HashMap<String, MemberInfo>,
     ) -> AstType {
-        let folded_fields = fields
-            .into_iter()
-            .map(|MemberInfo(t, n, idx)| MemberInfo(self.fold_type_entry(t), n, idx))
-            .collect();
-
-        let folded_children = children
+        let folded_children: HashMap<String, MemberInfo> = children
             .into_iter()
             .map(|(k, MemberInfo(t, n, idx))| (k, MemberInfo(self.fold_type_entry(t), n, idx)))
             .collect();
+
+
+        let folded_fields = fields
+            .into_iter()
+            .map(|MemberInfo(t, n, idx)| (folded_children.get(&n).unwrap().clone()))
+            .collect();
+
+
+        let folded_generics = generics
+            .into_iter()
+            .map(|(k, typ)| (k, self.fold_type_entry(typ)))
+            .collect();
+
 
         AstType::StructType {
             name,
             fields: folded_fields,
             children: folded_children,
+            generics: folded_generics
         }
     }
+
+    fn fold_generic_type(&mut self, name: String) -> AstType {
+
+        GenericType {
+            name
+        }
+    }
+
 }
 
 // ── walk_fold implementations ─────────────────────────────────────────────────
@@ -487,8 +508,8 @@ impl<I: Clone> Spanned<Statement<I>> {
                     return_type,
                     body,
                 } => folder.fold_function(name, params, return_type, body, span),
-                Statement::StructStmt { name, fields, body } => {
-                    folder.fold_struct(name, fields, body, span)
+                Statement::StructStmt { name, fields, body, generics } => {
+                    folder.fold_struct(name, fields, body, generics, span)
                 }
                 Statement::ReturnStmt(expr) => folder.fold_return(expr, span),
                 Statement::CommentStmt(s) => folder.fold_comment(s, span),
@@ -583,9 +604,11 @@ impl AstType {
             } => folder.fold_function_type(name, params, return_type),
             AstType::StructType {
                 name,
+                generics,
                 fields,
                 children,
-            } => folder.fold_struct_type(name, fields, children),
+            } => folder.fold_struct_type(name, generics, fields, children),
+            AstType::GenericType {name} => folder.fold_generic_type(name)
         }
     }
 }

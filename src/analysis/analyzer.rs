@@ -1,6 +1,6 @@
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, GenericType, StructType, UnknownType};
 use crate::ast::ast_type::MemberInfo;
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
@@ -20,6 +20,7 @@ use crate::error::context::{ErrorContext, Errors, Span};
 pub struct Analyzer {
     root: UntypedStmt,
     symbol_table: TypeSymTable,
+    type_table: TypeSymTable,
     pub errors: Errors<AnalysisError>
 }
 
@@ -30,6 +31,7 @@ impl Analyzer {
         Self {
             root,
             symbol_table: SymbolTable::new(),
+            type_table: SymbolTable::new(),
             errors: vec![]
         }
     }
@@ -37,7 +39,7 @@ impl Analyzer {
     pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
         self.record_top_level(registry);
 
-        let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table);
+        let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table, &mut self.type_table);
 
         Self::record_consts(self.root.clone(), &mut type_resolver, &mut self.errors);
 
@@ -87,7 +89,7 @@ impl Analyzer {
                         self.record_function(registry, func_type);
                     },
 
-                    StructStmt {name, fields, body } => {
+                    StructStmt {name, fields, body, generics } => {
                         let mut children = HashMap::new();
 
                         let mut field_infos = vec![];
@@ -139,13 +141,21 @@ impl Analyzer {
                             children.insert(name.clone(), info);
                         }
 
+                        let mut resolved_generics = HashMap::new();
+
+                        for g in generics {
+                            resolved_generics.insert(g.clone(), registry.register(UnknownType));
+                        }
+
                         let struct_type = registry.register(StructType {
                             name: name.clone(),
                             fields: field_infos,
-                            children
+                            children,
+                            generics: resolved_generics
                         });
 
                         self.symbol_table.record(name.clone(), struct_type);
+                        self.type_table.record(name.clone(), struct_type);
                     },
                     
                     _ => {

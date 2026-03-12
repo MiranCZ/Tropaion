@@ -6,3 +6,4 @@ pub mod type_registry;
 mod method_transforms;
 mod type_resolution;
 mod constant_folding;
+mod type_duplicator;

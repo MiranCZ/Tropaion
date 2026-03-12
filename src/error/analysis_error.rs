@@ -72,8 +72,8 @@ pub enum AnalysisError {
     #[error("Cannot make a single type nullable multiple times")]
     RedundantNullable,
 
-    #[error("Failed to resolve symbol {0}")]
-    ResolutionFailed(String),
+    #[error("Failed to resolve type {0}")]
+    TypeResolutionFailed(String),
 
     #[error("Nullable values cannot be directly accessed with `.`")]
     NullableAccess,

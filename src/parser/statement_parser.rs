@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType::Void;
+use crate::ast::ast_type::AstType::{UnknownType, Void};
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::Statement::ExpressionStmt;
 use crate::ast::statement::Statement::*;
@@ -7,7 +8,7 @@ use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, If, OpenCurly, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, Greater, If, Less, OpenCurly, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
@@ -229,6 +230,23 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
 
         let struct_name = parser.expect_next_identifier()?;
 
+        let mut generics = vec![];
+        if parser.consume_if_next(Less)? {
+
+            loop {
+                let name = parser.expect_next_identifier()?;
+
+                generics.push(name);
+
+                if !parser.consume_if_next(Comma)? {
+                    parser.expect_next(Greater)?;
+
+                    break;
+                }
+            }
+
+        }
+
         parser.expect_next(SimpleToken::OpenBracket)?;
 
         let mut fields = vec![];
@@ -264,7 +282,8 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
         StructStmt {
             name: struct_name,
             fields,
-            body
+            body,
+            generics
         }
     })
 }

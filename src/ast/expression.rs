@@ -108,28 +108,6 @@ impl UntypedExpr {
 }
 
 
-pub fn box_arg(registry: &mut TypeRegistry, arg: &mut TypedExpr, desired: TypeEntry) {
-    // arg does not know its type
-    if matches!(arg.get_type().get(registry), UnknownType) {
-        arg.set_type(registry, desired.get(registry));
-        return;
-    }
-
-    // arg is '(<unknown>)?'
-    if let NullableType {underlying} = arg.get_type().get(registry) && matches!(underlying.get(registry), UnknownType) {
-        if !matches!(desired.get(registry), NullableType {..}) {
-            panic!("AAAA WTF");
-        }
-
-        arg.set_type(registry, desired.get(registry));
-        return;
-    }
-
-    if matches!(desired.get(registry), NullableType {..}) && !matches!(arg.get_type().get(registry), NullableType {..}) {
-        *arg = Spanned::of(NullableExpr(registry.register(NullableType { underlying: arg.get_type() }), arg.clone().boxed()), arg.span);
-    }
-}
-
 pub fn deref(t: TypeEntry, registry: &TypeRegistry) -> AstType {
     match t.get(registry) {
         NullableType { underlying } => {

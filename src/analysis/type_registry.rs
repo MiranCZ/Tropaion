@@ -8,7 +8,7 @@ use crate::error::ok;
 
 type TypeEntryKey = u64;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub struct TypeEntry {
     key: TypeEntryKey
 }

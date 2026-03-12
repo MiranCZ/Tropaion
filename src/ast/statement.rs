@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::expression::{Expression, TypedExpr, UntypedExpr};
 use crate::ast::statement::Statement::ExpressionStmt;
@@ -41,7 +42,8 @@ pub enum Statement<T> {
     StructStmt {
         name: String,
         fields: Vec<Parameter>,
-        body: StatementBlock<T>
+        body: StatementBlock<T>,
+        generics: Vec<String>
     },
     ReturnStmt(Spanned<Expression<T>>),
     CommentStmt(String),

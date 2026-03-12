@@ -2,6 +2,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, ReferenceType, StructType, TupleType};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -35,9 +36,14 @@ pub enum AstType {
     },
     StructType {
         name: String,
+        generics: HashMap<String, TypeEntry>,
         fields: Vec<MemberInfo>, 
         // fields and methods
         children: HashMap<String, MemberInfo>,
+    },
+    
+    GenericType {
+        name: String
     }
 }
 
@@ -98,7 +104,8 @@ impl AstType {
             },
             AstType::FunctionsType { name, .. } => format!("{name}(..)"),
             AstType::FunctionType { name, .. } => format!("{name}()"),
-            AstType::StructType {name, .. } => name.clone()
+            AstType::StructType {name, .. } => name.clone(),
+            AstType::GenericType {name, ..} => format!("{name}")
         }
     }
 

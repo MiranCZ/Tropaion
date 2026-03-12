@@ -59,7 +59,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         return_type.walk_visit_mut(self);
     }
 
-    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, span: Span) {
+    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
         let struct_owner = if self.owner.is_empty() {
             name.clone()
         } else {
@@ -123,7 +123,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         return_type.walk_visit_mut(self);
     }
 
-    fn visit_mut_struct_type(&mut self, name: &mut String, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
+    fn visit_mut_struct_type(&mut self, name: &mut String, generics: &mut HashMap<String, TypeEntry>, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
         let owner = if self.owner.is_empty() {
             name.clone()
         } else {
@@ -131,6 +131,10 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
             // FIXME nested owners shouldn't be possible?
             self.owner.clone()
         };
+
+        for g in generics.values_mut() {
+            self.visit_mut_type(g);
+        }
 
         self.with_owner(owner, |visitor| {
             for i in children.values_mut() {

@@ -344,7 +344,10 @@ fn test_cyclic_equals() {
 
 
     test_simple_code("main", code, 1);
+}
 
+#[test]
+fn test_cyclic_equals2() {
     let code = r#"
     struct A(b: B?, i: int);
     struct B(a: A);
@@ -832,4 +835,42 @@ fn test_null_deconstruct() {
     "#;
 
     test_simple_code("main", code, 20);
+}
+
+
+#[test]
+fn test_generics() {
+    let code = r#"
+    struct Vec2<T>(a: T, b: T);
+
+    fn main() -> int {
+        let point = Vec2(5, 10);
+
+        return point.a + point.b;
+    }
+    "#;
+
+    test_simple_code("main", code, 15);
+}
+
+#[ignore]
+#[test]
+fn test_generics2() {
+    let code = r#"
+    struct Vec2<T>(a: T, b: T) {
+
+        fn get_a() -> T{
+            return a;
+        }
+
+    }
+
+    fn main() -> int {
+        let point = Vec2(5, 10);
+
+        return point.get_a() + point.b;
+    }
+    "#;
+
+    test_simple_code("main", code, 15);
 }

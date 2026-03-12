@@ -23,19 +23,17 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
+    struct Box<T>(a: T, b: T);
+
     fn main() -> int {
-        let x = 1000;
+        let b = Box(1, 2);
 
-        {
-            let x = 1;
-        }
-
-        return x;
+        return b.a + b.b;
     }
     "#;
 
-    interpret(text);
 
+    interpret(text);
 }
 
 pub fn get_interpreter_for(text: String) -> Interpreter {
@@ -162,6 +160,12 @@ fn interpret(text: &str) {
 
     // println!("{:?}", functions);
     // println!();
+
+    let total_errors = lexer.errors.len() + parser.errors.len() + analyzer.errors.len();
+
+    if total_errors != 0 {
+        panic!("Exited with {total_errors} errors");
+    }
 
     for i in instructions.iter() {
         println!("{i:?}");
