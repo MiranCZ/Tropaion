@@ -853,9 +853,27 @@ fn test_generics() {
     test_simple_code("main", code, 15);
 }
 
-#[ignore]
 #[test]
 fn test_generics2() {
+    let code = r#"
+    fn box<T>(value: T) -> T {
+        return value;
+    }
+
+    fn main() -> int {
+        let a = box(10.27);
+        let a = box(5);
+
+        return a;
+    }
+    "#;
+
+    test_simple_code("main", code, 5);
+}
+
+#[ignore]
+#[test]
+fn test_generics3() {
     let code = r#"
     struct Vec2<T>(a: T, b: T) {
 

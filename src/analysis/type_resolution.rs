@@ -1,13 +1,14 @@
 use std::collections::HashMap;
+use crate::analysis::generic_helper::GenericHelper;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::type_duplicator::TypeDuplicator;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionType, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
 use crate::ast::expression;
 use crate::ast::expression::{deref, member, Expression, TypedExpr};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
-use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
+use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
@@ -21,6 +22,7 @@ pub struct TypeResolver<'a> {
     registry: &'a mut TypeRegistry,
     symbol_table: &'a mut TypeSymTable,
     type_table: &'a mut TypeSymTable,
+    pub generic_helper: GenericHelper,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
 
@@ -30,6 +32,7 @@ impl <'a> TypeResolver<'a> {
     pub fn new(registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable, type_table: &'a mut TypeSymTable) -> Self {
         Self {
             registry, symbol_table, type_table,
+            generic_helper: GenericHelper::new(),
             errors: vec![]
         }
     }
@@ -171,14 +174,19 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         VarDeclarationStmt {name, is_const, value, explicit_type: resolved_expl_type}
     }
 
-    fn fold_function(&mut self, name: String, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) -> FoldedStmt<TypeEntry> {
+    fn fold_function(&mut self, name: String, generics: Vec<String>, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) -> FoldedStmt<TypeEntry> {
+        self.type_table.push();
+        for g in generics.iter() {
+            self.type_table.record(g.clone(), self.registry.register(GenericType {name: g.clone()}));
+        }
+
         let return_type = self.fold_type_entry(return_type);
 
         let mut typed_params = vec![];
 
-        for p in params {
+        for p in params.iter() {
             typed_params.push(Parameter{
-                name: p.name,
+                name: p.name.clone(),
                 param_type: self.fold_type_entry(p.param_type)
             });
         }
@@ -191,11 +199,21 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             self.symbol_table.record(p.name.clone(), p.param_type);
         }
 
-        let body = self.fold_block(body);
+        let typed_body = self.fold_block(body.clone());
 
         self.symbol_table.pop();
+        self.type_table.pop();
 
-        FunctionStmt {name, params: typed_params, return_type, body}
+        if !generics.is_empty() {
+            let mut key = name.clone() + "_";
+            for p in typed_params.iter() {
+                key.push_str(p.param_type.get(self.registry).get_type_name(self.registry).as_ref());
+            }
+
+            self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
+        }
+
+        FunctionStmt {name, generics, params: typed_params, return_type, body: typed_body}
     }
 
     fn fold_struct(&mut self, name: String, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
@@ -237,9 +255,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.symbol_table.pop();
         self.type_table.pop();
 
-        let s = StructStmt {name, fields: typed_fields, body, generics};
-
-        s
+        StructStmt {name, fields: typed_fields, body, generics}
     }
 
     fn fold_return(&mut self, expr: Spanned<Expression<()>>, span: Span) -> FoldedStmt<TypeEntry> {
@@ -519,7 +535,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             'overloadLoop:
             for overload in overloads.iter() {
-                if let AstType::FunctionType { name, params, .. } = overload.get(self.registry) {
+                if let AstType::FunctionType { name, generics, params, .. } = overload.get(self.registry) {
                     if params.len() != resolved_args.len() {
                         continue;
                     }
@@ -538,7 +554,19 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             }
 
 
-            if let AstType::FunctionType { return_type, params, .. } = func.get(self.registry) {
+            if let AstType::FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
+                let mut key = name.clone() + "_";
+
+                for p in params.iter() {
+                    key.push_str(p.get(self.registry).get_type_name(self.registry).as_ref());
+                }
+
+                self.type_table.push();
+
+                for e in generics.clone() {
+                    self.type_table.record(e.0.clone(), e.1);
+                }
+
                 // resolve argument types
                 for i in 0..params.len() {
                     let arg = &mut resolved_args[i];
@@ -551,6 +579,28 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
                 resolved_func.change_type(self.registry, func.get(self.registry));
 
+                self.type_table.pop();
+
+
+                self.type_table.push();
+                if let FunctionType {params,generics,..} = resolved_func.get_type().get(self.registry) {
+                    for g in generics {
+                        self.type_table.record(g.0, g.1);
+                    }
+                }
+
+                if !generics.is_empty() {
+                    let original = self.generic_helper.get_generic(self.registry, &key);
+
+                    let resolved = self.fold_stmt(original);
+                    self.type_table.pop();
+
+                    if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
+                        return_type = *resolved_return;
+                    }
+                    self.generic_helper.record_implementation(key, resolved);
+                }
+
                 if let MemberExpr { t, member, property, null_safe } = &resolved_func.node
                     && let IdentifierExpr(t, name) = &member.node && name == "this"
                 {
@@ -559,7 +609,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     let mut property = property.clone();
                     property.change_type(self.registry, func.get(self.registry));
 
-                    let res = MemberExpr {
+                    return MemberExpr {
                         t: return_type,
                         member: member.clone().boxed(),
                         null_safe: *null_safe,
@@ -571,8 +621,6 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                             // FIXME I think the span should be combined with args here
                         }, property.span).boxed()
                     };
-
-                    return res;
                 }
 
                 if resolved_func.is_err(self.registry) {
@@ -580,7 +628,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 }
 
                 return CallExpr {
-                    t: return_type.duplicate(self.registry),
+                    t: return_type,
                     func: resolved_func.boxed(),
                     args: resolved_args
                 };
@@ -590,8 +638,6 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         // calling constructor of a struct
         if let AstType::StructType { fields,generics, mut children, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
-
-
 
             let mut err = false;
             for arg in args.clone() {
@@ -628,6 +674,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 return TypedExpr::err(self.registry);
             }
 
+            self.type_table.pop();
+
             return CallExpr {
                 t: resolved_func.get_type(),
                 func: resolved_func.boxed(),
@@ -663,7 +711,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     }
 
     fn fold_generic_type(&mut self, name: String) -> AstType {
-        todo!()
+        self.type_table.get(&name).unwrap().get(self.registry)
     }
 
 

@@ -45,7 +45,7 @@ impl <'a> VisitorMut<'a> for TransformVisitor<'a> {
         self.registry
     }
 
-    fn visit_mut_function(&mut self, name: &mut String, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
+    fn visit_mut_function(&mut self, name: &mut String, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
         if let Some(t) = self.inside_struct {
             params.insert(0, Parameter{name: "this".to_string(), param_type: t});
         }

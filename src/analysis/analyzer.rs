@@ -11,6 +11,7 @@ use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
 use crate::analysis::constant_folding::ConstExprFolder;
+use crate::analysis::generic_fixer::GenericFixer;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::type_resolution::TypeResolver;
@@ -45,9 +46,13 @@ impl Analyzer {
 
         let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut type_resolver);
 
-        if !type_resolver.errors.is_empty() {
-            self.errors.append(&mut type_resolver.errors);
-            // return Err(type_resolver.errors);
+        let mut errors = type_resolver.errors;
+        let generic_helper = type_resolver.generic_helper;
+
+        GenericFixer::fix(&mut resolved_root, registry, generic_helper);
+
+        if !errors.is_empty() {
+            self.errors.append(&mut errors);
         }
 
         // TODO semantic analysis would probs be nice xd
@@ -77,9 +82,16 @@ impl Analyzer {
                         // will resolve after functions and structs
                     },
 
-                    FunctionStmt {name, params, return_type, .. } => {
+                    FunctionStmt {name, generics, params, return_type, .. } => {
+                        let mut resolved_generics = HashMap::new();
+
+                        for g in generics {
+                            resolved_generics.insert(g.clone(), registry.register(UnknownType));
+                        }
+
                         let t = FunctionType {
                             name: name.clone(),
+                            generics: resolved_generics,
                             params: params.iter().map(|p| p.param_type.clone()).collect(),
                             return_type: *return_type
                         };
@@ -107,9 +119,16 @@ impl Analyzer {
 
                         for x in body {
                             match &x.node {
-                                FunctionStmt {name, return_type, params, .. } => {
+                                FunctionStmt {name,generics, return_type, params, .. } => {
+                                    let mut resolved_generics = HashMap::new();
+
+                                    for g in generics {
+                                        resolved_generics.insert(g.clone(), registry.register(UnknownType));
+                                    }
+
                                     let t = FunctionType {
                                         name: name.clone(),
+                                        generics: resolved_generics,
                                         return_type: *return_type,
                                         params: params.iter().map(|p| p.clone().param_type).collect()
                                     };

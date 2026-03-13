@@ -31,6 +31,7 @@ pub enum AstType {
     },
     FunctionType {
         name: String,
+        generics: HashMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry
     },
@@ -127,6 +128,12 @@ impl AstType {
             // unknown can be derived into any type
             (AstType::UnknownType, _) if loose => true,
             (_, AstType::UnknownType) if loose => true,
+
+            (AstType::GenericType {..}, _) if loose => true,
+            (_, AstType::GenericType {..}) if loose => true,
+
+            (AstType::UnknownType, AstType::UnknownType) => true,
+            (AstType::GenericType {name: n1}, AstType::GenericType {name: n2}) => n1 == n2,
 
             (AstType::Void, AstType::Void) => true,
             (AstType::Bool, AstType::Bool) => true,
@@ -240,7 +247,7 @@ impl AstType {
             AstType::FunctionType { .. } => panic!("Functions do not have names!"),
             AstType::StructType {name, .. } => format!("L{name};"),
             AstType::NullableType {underlying} => underlying.get(registry).get_type_name(registry),
-            
+            AstType::GenericType {name} => "g".to_string(),
             _ => panic!("{self:?}")
         }
     }

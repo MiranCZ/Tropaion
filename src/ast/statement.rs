@@ -35,6 +35,7 @@ pub enum Statement<T> {
     },
     FunctionStmt {
         name: String,
+        generics: Vec<String>,
         params: Vec<Parameter>,
         return_type: TypeEntry,
         body: StatementBlock<T>

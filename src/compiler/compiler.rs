@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::analysis::type_registry::TypeRegistry;
+use crate::ast::ast_type::AstType;
 use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::bytecode::ByteCode;

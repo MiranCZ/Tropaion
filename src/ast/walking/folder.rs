@@ -112,6 +112,7 @@ where
     fn fold_function(
         &mut self,
         name: String,
+        generics: Vec<String>,
         params: Vec<Parameter>,
         return_type: TypeEntry,
         body: StatementBlock<I>,
@@ -126,7 +127,7 @@ where
             .collect();
 
         Statement::FunctionStmt {
-            name,
+            name,generics,
             params: folded_params,
             return_type: self.fold_type_entry(return_type),
             body: self.fold_block(body),
@@ -418,11 +419,19 @@ where
     fn fold_function_type(
         &mut self,
         name: String,
+        generics: HashMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry,
     ) -> AstType {
+        let folded_generics = generics
+            .into_iter()
+            .map(|(k, typ)| (k, self.fold_type_entry(typ)))
+            .collect();
+
+
         AstType::FunctionType {
             name,
+            generics: folded_generics,
             params: params
                 .into_iter()
                 .map(|t| self.fold_type_entry(t))
@@ -504,10 +513,11 @@ impl<I: Clone> Spanned<Statement<I>> {
                 }
                 Statement::FunctionStmt {
                     name,
+                    generics,
                     params,
                     return_type,
                     body,
-                } => folder.fold_function(name, params, return_type, body, span),
+                } => folder.fold_function(name, generics, params, return_type, body, span),
                 Statement::StructStmt { name, fields, body, generics } => {
                     folder.fold_struct(name, fields, body, generics, span)
                 }
@@ -599,9 +609,10 @@ impl AstType {
             }
             AstType::FunctionType {
                 name,
+                generics,
                 params,
                 return_type,
-            } => folder.fold_function_type(name, params, return_type),
+            } => folder.fold_function_type(name, generics, params, return_type),
             AstType::StructType {
                 name,
                 generics,

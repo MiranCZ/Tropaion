@@ -136,6 +136,23 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
 
         let fn_name = parser.expect_next_identifier()?;
 
+        let mut generics = vec![];
+        if parser.consume_if_next(Less)? {
+
+            loop {
+                let name = parser.expect_next_identifier()?;
+
+                generics.push(name);
+
+                if !parser.consume_if_next(Comma)? {
+                    parser.expect_next(Greater)?;
+
+                    break;
+                }
+            }
+
+        }
+        
         parser.expect_next(SimpleToken::OpenBracket)?;
 
         let mut params = vec![];
@@ -166,6 +183,7 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
 
         FunctionStmt{
             name: fn_name,
+            generics,
             params,
             return_type,
             body

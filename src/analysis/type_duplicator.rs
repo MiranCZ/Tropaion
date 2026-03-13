@@ -3,6 +3,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::UnknownType;
 use crate::ast::expression::TypedExpr;
+use crate::ast::statement::TypedStmt;
 use crate::ast::walking::folder::Folder;
 
 pub struct TypeDuplicator<'a> {

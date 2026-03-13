@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, NullableType, StructType};
-use crate::ast::ast_type::MemberInfo;
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::IdentifierExpr;
 use crate::ast::expression::TypedExpr;
 use crate::ast::statement::{Parameter, StatementBlock};
@@ -44,8 +44,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         self.registry
     }
 
-
-    fn visit_mut_function(&mut self, name: &mut String, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
+    fn visit_mut_function(&mut self, name: &mut String, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
         *name = from_owner(name.clone(), self.owner.clone());
         *name = mangle_name(self.registry, name.clone(), params);
 
@@ -116,9 +115,13 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         });
     }
 
-    fn visit_mut_function_type(&mut self, name: &mut String, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
+    fn visit_mut_function_type(&mut self, name: &mut String, generics: &mut HashMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
         *name = from_owner(name.clone(), self.owner.clone());
         *name = mangle_name_type(self.registry, name.clone(), &params);
+
+        for g in generics.values_mut() {
+            self.visit_mut_type(g);
+        }
 
         return_type.walk_visit_mut(self);
     }
@@ -161,6 +164,10 @@ fn mangle_name(registry: &TypeRegistry, name: String, params: &Vec<Parameter>) -
     let mut name = name + "_";
 
     for p in params {
+        if p.param_type.is_err(registry) {
+            return format!("{name}_<err>");
+        }
+
         name += p.param_type.get(registry).get_type_name(registry).as_str();
     }
 
