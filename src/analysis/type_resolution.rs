@@ -77,8 +77,9 @@ impl <'a> TypeResolver<'a> {
             let prev = match prev {
                 Some(v) => v,
                 None => {
-                    let error_type = self.error_type(AnalysisError::UnknownType(name));
-                    self.registry.register(error_type)
+                    panic!();
+                    // let error_type = self.error_type(AnalysisError::UnknownType(name));
+                    // self.registry.register(error_type)
                 }
             };
 
@@ -195,7 +196,12 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         self.symbol_table.record_return_type(return_type);
 
+        let mut has_generics_params = matches!(return_type.get(self.registry), GenericType {..});
         for p in typed_params.clone().iter() {
+            if matches!(p.param_type.get(self.registry), GenericType {..}) {
+                has_generics_params = true;
+            }
+
             self.symbol_table.record(p.name.clone(), p.param_type);
         }
 
@@ -204,7 +210,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.symbol_table.pop();
         self.type_table.pop();
 
-        if !generics.is_empty() {
+        if !generics.is_empty() || has_generics_params {
             let mut key = name.clone() + "_";
             for p in typed_params.iter() {
                 key.push_str(p.param_type.get(self.registry).get_type_name(self.registry).as_ref());
@@ -478,11 +484,16 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
         let mut struct_scope = false;
-        if let AstType::StructType{children, ..} = self.deref(member.get_type()) {
+        if let AstType::StructType{children, generics, ..} = self.deref(member.get_type()) {
             struct_scope = true;
             self.symbol_table.push();
             for x in children {
                 self.symbol_table.record(x.0, x.1.0);
+            }
+
+            self.type_table.push();
+            for g in generics {
+                self.type_table.record(g.0, g.1);
             }
         }
 
@@ -497,6 +508,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // drop the struct scope
         if struct_scope {
+            self.type_table.pop();
             self.symbol_table.pop();
         }
 
@@ -589,9 +601,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     }
                 }
 
-                if !generics.is_empty() {
-                    let original = self.generic_helper.get_generic(self.registry, &key);
-
+                if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
                     let resolved = self.fold_stmt(original);
                     self.type_table.pop();
 
@@ -604,10 +614,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 if let MemberExpr { t, member, property, null_safe } = &resolved_func.node
                     && let IdentifierExpr(t, name) = &member.node && name == "this"
                 {
-                    let return_type = return_type.duplicate(self.registry);
-
                     let mut property = property.clone();
                     property.change_type(self.registry, func.get(self.registry));
+
 
                     return MemberExpr {
                         t: return_type,

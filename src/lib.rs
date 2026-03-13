@@ -23,18 +23,15 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    // struct Box<T>(val: T);
-
-    fn box<T>(value: T) -> T {
-        return value;
+    struct Scope<T>() {
+        fn box(value: T) -> T {
+            return value;
+        }
     }
 
     fn main() -> int {
-        let a = box(5);
-        box(10.27);
-        // let b = box(5);
+        let a = Scope().box(5);
 
-        // return b.val;
         return a;
     }
     "#;
