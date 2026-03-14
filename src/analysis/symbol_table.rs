@@ -8,18 +8,18 @@ pub type TypeSymTable = SymbolTable<TypeEntry, TypeSymTableInfo>;
 #[derive(Clone, Debug)]
 pub struct TypeSymTableInfo {
     pub inside_struct: bool,
-    pub owner: Option<String>
+    pub owner: Option<AstType>
 }
 
 impl TypeSymTableInfo {
-    pub fn inside_struct(owner: String) -> Self {
+    pub fn inside_struct(owner: AstType) -> Self {
         Self {
             inside_struct: true,
             owner: Some(owner)
         }
     }
     
-    pub fn owner(owner: String) -> Self {
+    pub fn owner(owner: AstType) -> Self {
         Self {
             inside_struct: false,
             owner: Some(owner)

@@ -83,7 +83,9 @@ impl <'a> TypeResolver<'a> {
 
     fn get_current_owner(&self, name: &String) -> String {
         if let Some(data) = self.symbol_table.get_with_info(name) {
-            if let Some(info) = data.1 && let Some(owner) = info.owner {
+            if let Some(info) = data.1 &&
+                let Some(owner_type) = info.owner &&
+                let StructType{name: owner, ..} = owner_type {
                 owner
             } else {
                 String::new()
@@ -270,7 +272,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         if let StructType {children,..} = struct_type.get(self.registry) {
             for p in children {
-                self.symbol_table.record_with_info(p.0, p.1.0, TypeSymTableInfo::inside_struct(name.clone()));
+                self.symbol_table.record_with_info(p.0, p.1.0, TypeSymTableInfo::inside_struct(struct_type.get(self.registry)));
             }
         } else {
             return self.error_stmt(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, self.registry), span);
@@ -508,7 +510,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             struct_scope = true;
             self.symbol_table.push();
             for x in children {
-                self.symbol_table.record_with_info(x.0, x.1.0, TypeSymTableInfo::owner(name.clone()));
+                self.symbol_table.record_with_info(x.0, x.1.0, TypeSymTableInfo::owner(self.deref(member.get_type())));
             }
 
             self.type_table.push();
@@ -618,6 +620,28 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 }
 
                 if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
+                    let mut struct_scope = false;
+
+                    if let Some(record) =self.symbol_table.get_with_info(&name) &&
+                        let Some(info) = record.1 &&
+                        let Some(struct_type) = info.owner {
+                        struct_scope = true;
+
+                        let registered = self.registry.register(struct_type.clone());
+
+                        self.symbol_table.push();
+                        self.symbol_table.record(String::from("this"), registered);
+
+                        if let StructType {children,..} = &struct_type {
+                            for p in children {
+                                self.symbol_table.record_with_info(p.0.clone(), p.1.0, TypeSymTableInfo::inside_struct(struct_type.clone()));
+                            }
+                        } else {
+                            return self.error(AnalysisError::type_mismatch(ValueTypeVariant::Struct, registered, self.registry), span);
+                        }
+                    }
+
+
                     let resolved = self.fold_stmt(original);
                     self.type_table.pop();
 
@@ -625,6 +649,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         return_type = *resolved_return;
                     }
                     self.generic_helper.record_implementation(key, resolved);
+
+                    if struct_scope {
+                        self.symbol_table.pop();
+                    }
                 }
 
                 if let MemberExpr { t, member, property, null_safe } = &resolved_func.node

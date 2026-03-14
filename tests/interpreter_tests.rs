@@ -894,13 +894,12 @@ fn test_generics_shadowing() {
     test_simple_code("main", code, 5);
 }
 
-#[ignore]
 #[test]
 fn test_generics3() {
     let code = r#"
     struct Vec2<T>(a: T, b: T) {
 
-        fn get_a() -> T{
+        fn get_a() -> T {
             return a;
         }
 
