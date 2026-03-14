@@ -3,7 +3,30 @@ use crate::analysis::operator_table::OperatorTable;
 use crate::analysis::type_registry::TypeEntry;
 use crate::ast::ast_type::AstType;
 
-pub type TypeSymTable = SymbolTable<TypeEntry, bool>;
+pub type TypeSymTable = SymbolTable<TypeEntry, TypeSymTableInfo>;
+
+#[derive(Clone, Debug)]
+pub struct TypeSymTableInfo {
+    pub inside_struct: bool,
+    pub owner: Option<String>
+}
+
+impl TypeSymTableInfo {
+    pub fn inside_struct(owner: String) -> Self {
+        Self {
+            inside_struct: true,
+            owner: Some(owner)
+        }
+    }
+    
+    pub fn owner(owner: String) -> Self {
+        Self {
+            inside_struct: false,
+            owner: Some(owner)
+        }
+    }
+    
+}
 
 #[derive(Debug)]
 pub struct SymbolTable<T: Clone, E: Clone> {

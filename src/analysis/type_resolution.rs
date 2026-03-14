@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::analysis::generic_helper::GenericHelper;
-use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
+use crate::analysis::mangling;
+use crate::analysis::symbol_table::{SymbolTable, TypeSymTable, TypeSymTableInfo};
 use crate::analysis::type_duplicator::TypeDuplicator;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
@@ -67,6 +68,28 @@ impl <'a> TypeResolver<'a> {
             }
 
             _ => t.get(self.registry)
+        }
+    }
+
+    fn get_func_key(&self, name: String, params: &Vec<Parameter>) -> String {
+        let owner = self.get_current_owner(&name);
+        mangling::mangle_name(self.registry, name.clone(), owner, &params)
+    }
+
+    fn get_func_key_type(&self, name: String, params: &Vec<TypeEntry>) -> String {
+        let owner = self.get_current_owner(&name);
+        mangling::mangle_name_type(self.registry, name.clone(), owner, &params)
+    }
+
+    fn get_current_owner(&self, name: &String) -> String {
+        if let Some(data) = self.symbol_table.get_with_info(name) {
+            if let Some(info) = data.1 && let Some(owner) = info.owner {
+                owner
+            } else {
+                String::new()
+            }
+        } else {
+            panic!("Could not find {name}")
         }
     }
 
@@ -211,10 +234,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.type_table.pop();
 
         if !generics.is_empty() || has_generics_params {
-            let mut key = name.clone() + "_";
-            for p in typed_params.iter() {
-                key.push_str(p.param_type.get(self.registry).get_type_name(self.registry).as_ref());
-            }
+            let key = self.get_func_key(name.clone(), &params);
 
             self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
         }
@@ -250,7 +270,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         if let StructType {children,..} = struct_type.get(self.registry) {
             for p in children {
-                self.symbol_table.record_with_info(p.0, p.1.0, true);
+                self.symbol_table.record_with_info(p.0, p.1.0, TypeSymTableInfo::inside_struct(name.clone()));
             }
         } else {
             return self.error_stmt(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, self.registry), span);
@@ -347,7 +367,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             let t = tuple.0;
             let info = tuple.1;
 
-            if let Some(v) = info && v {
+            if let Some(v) = info && v.inside_struct {
 
                 let this = Spanned::new(IdentifierExpr((), "this".to_string()), span.from, span.from);
                 let this = self.fold_expr(this);
@@ -484,11 +504,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
         let mut struct_scope = false;
-        if let AstType::StructType{children, generics, ..} = self.deref(member.get_type()) {
+        if let AstType::StructType{name, children, generics, ..} = self.deref(member.get_type()) {
             struct_scope = true;
             self.symbol_table.push();
             for x in children {
-                self.symbol_table.record(x.0, x.1.0);
+                self.symbol_table.record_with_info(x.0, x.1.0, TypeSymTableInfo::owner(name.clone()));
             }
 
             self.type_table.push();
@@ -567,11 +587,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
 
             if let AstType::FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
-                let mut key = name.clone() + "_";
-
-                for p in params.iter() {
-                    key.push_str(p.get(self.registry).get_type_name(self.registry).as_ref());
-                }
+                let key = self.get_func_key_type(name.clone(), &params);
 
                 self.type_table.push();
 

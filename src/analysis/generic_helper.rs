@@ -24,8 +24,8 @@ impl GenericHelper {
         self.generic_functions.insert(key, (name, params, return_type, body, span));
     }
 
-    pub fn get_generic(&self, registry: &mut TypeRegistry, name: &String) -> Option<UntypedStmt> {
-        let (name, params, return_type, body, span) = self.generic_functions.get(name)?.clone();
+    pub fn get_generic(&self, registry: &mut TypeRegistry, key: &String) -> Option<UntypedStmt> {
+        let (name, params, return_type, body, span) = self.generic_functions.get(key)?.clone();
 
 
         let mut cloned_params = vec![];

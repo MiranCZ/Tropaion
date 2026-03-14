@@ -1,22 +1,35 @@
 use crate::analysis::generic_helper::GenericHelper;
+use crate::analysis::mangling;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::TypedExpr;
-use crate::ast::statement::{Statement, StatementBlock, TypedStmt};
+use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
 use crate::ast::walking::visitor_mut::VisitorMut;
+use crate::error::context::Span;
 
 pub struct GenericFixer<'a> {
     registry: &'a mut TypeRegistry,
     generic_helper: GenericHelper,
+    owner: String,
 }
 
 impl <'a> GenericFixer<'a> {
     pub fn fix(stmt: &mut TypedStmt, registry: &'a mut TypeRegistry, generic_helper: GenericHelper) {
         let mut new = Self {
-            registry, generic_helper
+            registry, generic_helper,
+            owner: String::new()
         };
 
         stmt.walk_visit_mut(&mut new);
+    }
+
+    fn with_owner<F>(&mut self, new_owner: String, f: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        let old = std::mem::replace(&mut self.owner, new_owner);
+        f(self);
+        self.owner = old;
     }
 
 }
@@ -38,13 +51,11 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
 
     fn visit_mut_block(&mut self, body: &mut StatementBlock<TypeEntry>) {
         let mut removed = vec![];
-        
+
         body.retain_mut(|b| {
             return if let Statement::FunctionStmt { name, generics, params, return_type, .. } = &mut b.node {
-                let mut key = name.clone() + "_";
-                for p in params.iter() {
-                    key.push_str(p.param_type.get(self.registry).get_type_name(self.registry).as_ref());
-                }                
+                let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
+
                 if matches!(return_type.get(self.registry), AstType::GenericType{..}) {
                     removed.push(key);
                     return false;
@@ -62,7 +73,7 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
                     removed.push(key);
                     return false;
                 }
-                
+
                 return true;
             } else {
                 true
@@ -72,14 +83,18 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
         for r in removed {
             for func in self.generic_helper.get_implementation(&r) {
                 body.push(func);
-            }    
+            }
         }
-        
 
         for b in body.iter_mut() {
             b.walk_visit_mut(self);
         }
+    }
 
+    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
+        self.with_owner(name.clone(), |ctx| {
+            ctx.visit_mut_block(body);
+        });
     }
 
 }

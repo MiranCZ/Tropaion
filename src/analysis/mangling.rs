@@ -45,8 +45,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
     }
 
     fn visit_mut_function(&mut self, name: &mut String, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
-        *name = from_owner(name.clone(), self.owner.clone());
-        *name = mangle_name(self.registry, name.clone(), params);
+        *name = mangle_name(self.registry, name.clone(), self.owner.clone(), params);
 
         for s in body {
             s.walk_visit_mut(self);
@@ -78,8 +77,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         t.walk_visit_mut(self);
 
         if let FunctionType{params, ..} = t.get(self.registry) {
-            *name = from_owner(name.clone(), self.owner.clone());
-            *name = mangle_name_type(self.registry, name.clone(), &params);
+            *name = mangle_name_type(self.registry, name.clone(), self.owner.clone(), &params);
         }
     }
 
@@ -116,8 +114,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
     }
 
     fn visit_mut_function_type(&mut self, name: &mut String, generics: &mut HashMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
-        *name = from_owner(name.clone(), self.owner.clone());
-        *name = mangle_name_type(self.registry, name.clone(), &params);
+        *name = mangle_name_type(self.registry, name.clone(), self.owner.clone(), &params);
 
         for g in generics.values_mut() {
             self.visit_mut_type(g);
@@ -152,16 +149,10 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
 
 
 
-fn from_owner(name: String, owner: String) -> String {
-    if owner.is_empty() {
-        name
-    } else {
-        owner + "$" + name.as_str()
-    }
-}
 
-fn mangle_name(registry: &TypeRegistry, name: String, params: &Vec<Parameter>) -> String {
-    let mut name = name + "_";
+
+pub fn mangle_name(registry: &TypeRegistry, name: String, owner: String, params: &Vec<Parameter>) -> String {
+    let mut name = from_owner(name, owner) + "_";
 
     for p in params {
         if p.param_type.is_err(registry) {
@@ -174,12 +165,20 @@ fn mangle_name(registry: &TypeRegistry, name: String, params: &Vec<Parameter>) -
     name
 }
 
-fn mangle_name_type(registry: &TypeRegistry, name: String, params: &Vec<TypeEntry>) -> String {
-    let mut name = name + "_";
+pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, params: &Vec<TypeEntry>) -> String {
+    let mut name = from_owner(name, owner) + "_";
 
     for p in params {
         name += p.get(registry).get_type_name(registry).as_str();
     }
 
     name
+}
+
+fn from_owner(name: String, owner: String) -> String {
+    if owner.is_empty() {
+        name
+    } else {
+        owner + "$" + name.as_str()
+    }
 }

@@ -29,6 +29,10 @@ pub fn main() {
         }
     }
 
+    fn box<T>(value: T) -> int {
+        return 1;
+    }
+
     fn main() -> int {
         let a = Scope().box(5);
 
