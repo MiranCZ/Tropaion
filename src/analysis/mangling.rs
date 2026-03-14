@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use ordermap::OrderMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, NullableType, StructType};
 use crate::ast::ast_type::{AstType, MemberInfo};
@@ -113,7 +114,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         });
     }
 
-    fn visit_mut_function_type(&mut self, name: &mut String, generics: &mut HashMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
+    fn visit_mut_function_type(&mut self, name: &mut String, generics: &mut OrderMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
         *name = mangle_name_type(self.registry, name.clone(), self.owner.clone(), &params);
 
         for g in generics.values_mut() {
@@ -123,7 +124,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         return_type.walk_visit_mut(self);
     }
 
-    fn visit_mut_struct_type(&mut self, name: &mut String, generics: &mut HashMap<String, TypeEntry>, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
+    fn visit_mut_struct_type(&mut self, name: &mut String, generics: &mut OrderMap<String, TypeEntry>, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
         let owner = if self.owner.is_empty() {
             name.clone()
         } else {

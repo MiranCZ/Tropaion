@@ -10,6 +10,7 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
+use ordermap::OrderMap;
 use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::generic_fixer::GenericFixer;
 use crate::analysis::mangling::ManglingVisitor;
@@ -83,7 +84,7 @@ impl Analyzer {
                     },
 
                     FunctionStmt {name, generics, params, return_type, .. } => {
-                        let mut resolved_generics = HashMap::new();
+                        let mut resolved_generics = OrderMap::new();
 
                         for g in generics {
                             resolved_generics.insert(g.clone(), registry.register(UnknownType));
@@ -120,7 +121,7 @@ impl Analyzer {
                         for x in body {
                             match &x.node {
                                 FunctionStmt {name,generics, return_type, params, .. } => {
-                                    let mut resolved_generics = HashMap::new();
+                                    let mut resolved_generics = OrderMap::new();
 
                                     for g in generics {
                                         resolved_generics.insert(g.clone(), registry.register(UnknownType));
@@ -160,7 +161,7 @@ impl Analyzer {
                             children.insert(name.clone(), info);
                         }
 
-                        let mut resolved_generics = HashMap::new();
+                        let mut resolved_generics = OrderMap::new();
 
                         for g in generics {
                             resolved_generics.insert(g.clone(), registry.register(UnknownType));

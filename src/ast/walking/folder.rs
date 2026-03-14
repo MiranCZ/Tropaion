@@ -11,6 +11,7 @@ use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
 use std::collections::HashMap;
 use std::ops::Index;
+use ordermap::OrderMap;
 use crate::ast::ast_type::AstType::GenericType;
 // ── Type aliases ─────────────────────────────────────────────────────────────
 
@@ -380,8 +381,11 @@ where
         AstType::StringType
     }
 
-    fn fold_symbol_type(&mut self, name: String) -> AstType {
-        AstType::SymbolType(name)
+    fn fold_symbol_type(&mut self, name: String, generics: Vec<TypeEntry>) -> AstType {
+        AstType::SymbolType {
+            name,
+            generics: generics.into_iter().map(|t| self.fold_type_entry(t)).collect()
+        }
     }
 
     fn fold_reference_type(&mut self, underlying: TypeEntry) -> AstType {
@@ -419,7 +423,7 @@ where
     fn fold_function_type(
         &mut self,
         name: String,
-        generics: HashMap<String, TypeEntry>,
+        generics: OrderMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry,
     ) -> AstType {
@@ -443,7 +447,7 @@ where
     fn fold_struct_type(
         &mut self,
         name: String,
-        generics: HashMap<String, TypeEntry>,
+        generics: OrderMap<String, TypeEntry>,
         fields: Vec<MemberInfo>,
         children: HashMap<String, MemberInfo>,
     ) -> AstType {
@@ -599,7 +603,7 @@ impl AstType {
             AstType::Int => folder.fold_int_type(),
             AstType::Float => folder.fold_float_type(),
             AstType::StringType => folder.fold_string_type(),
-            AstType::SymbolType(name) => folder.fold_symbol_type(name),
+            AstType::SymbolType{name, generics} => folder.fold_symbol_type(name, generics),
             AstType::ReferenceType { underlying } => folder.fold_reference_type(underlying),
             AstType::NullableType { underlying } => folder.fold_nullable_type(underlying),
             AstType::ArrayType { underlying } => folder.fold_array_type(underlying),

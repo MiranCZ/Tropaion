@@ -75,6 +75,7 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::util::spanned::Spanned;
 use crate::error::context::Span;
 use std::collections::HashMap;
+use ordermap::OrderMap;
 
 pub trait {trait_name}<'a> where Self: Sized {{
 
@@ -259,7 +260,7 @@ pub trait {trait_name}<'a> where Self: Sized {{
     fn {suffix}_string_type(&mut self) {{
     }}
 
-    fn {suffix}_symbol_type(&mut self, name: {borrow} String) {{
+    fn {suffix}_symbol_type(&mut self, name: {borrow} String, generics: {borrow} Vec<TypeEntry>) {{
     }}
 
     fn {suffix}_reference_type(&mut self, underlying: {borrow} TypeEntry) {{
@@ -282,7 +283,7 @@ pub trait {trait_name}<'a> where Self: Sized {{
         for t in overloads {{ self.{suffix}_type(t) }}
     }}
 
-    fn {suffix}_function_type(&mut self, name: {borrow} String, generics: {borrow} HashMap<String, TypeEntry>, params: {borrow} Vec<TypeEntry>, return_type: {borrow} TypeEntry) {{
+    fn {suffix}_function_type(&mut self, name: {borrow} String, generics: {borrow} OrderMap<String, TypeEntry>, params: {borrow} Vec<TypeEntry>, return_type: {borrow} TypeEntry) {{
         for g in generics.values{mut_suffix}() {{ self.{suffix}_type(g); }}
 
         for t in params {{ self.{suffix}_type(t) }}
@@ -290,7 +291,7 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_type(return_type);
     }}
 
-    fn {suffix}_struct_type(&mut self, name: {borrow} String, generics: {borrow} HashMap<String, TypeEntry>, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
+    fn {suffix}_struct_type(&mut self, name: {borrow} String, generics: {borrow} OrderMap<String, TypeEntry>, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
         for g in generics.values{mut_suffix}() {{
             self.{suffix}_type(g);
         }}
@@ -424,7 +425,7 @@ impl AstType {{
             AstType::Int => visitor.{suffix}_int_type(),
             AstType::Float => visitor.{suffix}_float_type(),
             AstType::StringType => visitor.{suffix}_string_type(),
-            AstType::SymbolType(name) => visitor.{suffix}_symbol_type(name),
+            AstType::SymbolType{{name, generics}} => visitor.{suffix}_symbol_type(name, generics),
             AstType::ReferenceType {{ underlying }} => visitor.{suffix}_reference_type(underlying),
             AstType::NullableType {{ underlying }} => visitor.{suffix}_nullable_type(underlying),
             AstType::ArrayType {{ underlying }} => visitor.{suffix}_array_type(underlying),

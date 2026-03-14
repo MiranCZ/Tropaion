@@ -3,6 +3,7 @@ use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, Refere
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use ordermap::OrderMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -14,7 +15,10 @@ pub enum AstType {
     Int,
     Float,
     StringType,
-    SymbolType(String),
+    SymbolType {
+        name: String,
+        generics: Vec<TypeEntry>
+    },
     ReferenceType {
         underlying: TypeEntry
     },
@@ -31,13 +35,13 @@ pub enum AstType {
     },
     FunctionType {
         name: String,
-        generics: HashMap<String, TypeEntry>,
+        generics: OrderMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry
     },
     StructType {
         name: String,
-        generics: HashMap<String, TypeEntry>,
+        generics: OrderMap<String, TypeEntry>,
         fields: Vec<MemberInfo>, 
         // fields and methods
         children: HashMap<String, MemberInfo>,
@@ -75,14 +79,14 @@ impl AstType {
 
     pub fn format(&self, registry: &TypeRegistry) -> String {
         match self {
-            AstType::ErroredType => "<err>".to_string(),
-            AstType::UnknownType => "<unknown>".to_string(),
+            AstType::ErroredType => "$err$".to_string(),
+            AstType::UnknownType => "$unknown$".to_string(),
             AstType::Void => "void".to_string(),
             AstType::Bool => "bool".to_string(),
             AstType::Int => "int".to_string(),
             AstType::Float => "float".to_string(),
             AstType::StringType => "string".to_string(),
-            AstType::SymbolType(s) => format!("<symbol({s})>"),
+            AstType::SymbolType{name, ..} => format!("$symbol-{name}$"), // TODO display generics
 
             AstType::ReferenceType { underlying } => format!("&{}", underlying.get(registry).format(registry)),
             AstType::NullableType { underlying } => format!("{}?", underlying.get(registry).format(registry)),
@@ -105,7 +109,27 @@ impl AstType {
             },
             AstType::FunctionsType { name, .. } => format!("{name}(..)"),
             AstType::FunctionType { name, .. } => format!("{name}()"),
-            AstType::StructType {name, .. } => name.clone(),
+            AstType::StructType {name,generics, .. } => {
+                let mut res = name.clone();
+
+                if !generics.is_empty() {
+                    res.push('<');
+
+                    let mut iter = generics.values();
+                    res.push_str(iter.next().unwrap().get(registry).format(registry).as_ref());
+
+                    for i in iter {
+                        res.push_str(", ");
+
+                        res.push_str(i.get(registry).format(registry).as_ref());
+                    }
+
+                    res.push('>');
+
+                }
+
+                res
+            }
             AstType::GenericType {name, ..} => format!("{name}")
         }
     }
@@ -140,7 +164,13 @@ impl AstType {
             (AstType::Int, AstType::Int) => true,
             (AstType::Float, AstType::Float) => true,
             (AstType::StringType, AstType::StringType) => true,
-            (AstType::SymbolType(s1), AstType::SymbolType(s2)) => *s1 == *s2,
+            (AstType::SymbolType{name: n1, generics: g1}, AstType::SymbolType{name: n2, generics: g2}) => {
+                if n1 != n2 {
+                    return false;
+                }
+
+                Self::type_arrays_equal(&registry, loose, g1, g2)
+            },
             (ReferenceType {underlying: u1}, ReferenceType {underlying: u2}) |
             (NullableType {underlying: u1}, NullableType {underlying: u2}) => {
                 u1.get(registry)._equals(&u2.get(registry), registry, loose)
@@ -149,13 +179,29 @@ impl AstType {
                 u1.get(registry)._equals(&u2.get(registry), registry, loose)
             }
             (TupleType(arr1), TupleType(arr2)) => {
-                if arr1.len() != arr2.len() {
+                Self::type_arrays_equal(&registry, loose, arr1, arr2)
+            }
+
+            // TODO comparing names should be fine?
+            (StructType {name: n1,generics: g1, ..}, StructType {name: n2, generics: g2, ..}) => {
+                if *n1 != *n2 {
                     return false;
                 }
 
-                for i in 0..arr1.len() {
-                    let a = arr1[i];
-                    let b = arr2[i];
+                if g1.len() != g2.len() {
+                    return false;
+                }
+
+                let mut it1 = g1.iter();
+                let mut it2 = g2.iter();
+
+                while let Some(v1) = it1.next() && let Some(v2) = it2.next() {
+                    if v1.0 != v2.0 {
+                        return false;
+                    }
+
+                    let a = v1.1;
+                    let b = v2.1;
 
                     if !a.get(registry)._equals(&b.get(registry), registry, loose) {
                         return false;
@@ -164,9 +210,6 @@ impl AstType {
 
                 true
             }
-
-            // TODO comparing names should be fine?
-            (StructType {name: n1, ..}, StructType {name: n2, ..}) => *n1 == *n2,
 
             (NullableType {underlying}, _) if loose => underlying.get(registry)._equals(other, registry, loose),
             (_, NullableType {underlying}) if loose => other._equals(&underlying.get(registry), registry, loose),
@@ -177,6 +220,22 @@ impl AstType {
 
     }
 
+    fn type_arrays_equal(registry: &&TypeRegistry, loose: bool, arr1: &Vec<TypeEntry>, arr2: &Vec<TypeEntry>) -> bool {
+        if arr1.len() != arr2.len() {
+            return false;
+        }
+
+        for i in 0..arr1.len() {
+            let a = arr1[i];
+            let b = arr2[i];
+
+            if !a.get(registry)._equals(&b.get(registry), registry, loose) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl AstType {
@@ -233,7 +292,7 @@ impl AstType {
             AstType::Int => "i".to_string(),
             AstType::Float => "f".to_string(),
             AstType::StringType => "s".to_string(),
-            AstType::SymbolType(n) => format!("L{n};"),
+            AstType::SymbolType{name: n, ..} => format!("L{n};"),
             AstType::ReferenceType { underlying } => underlying.get(registry).get_type_name(registry), // references do not affect method signature
             AstType::ArrayType {underlying, .. } => format!("A{};",underlying.get(registry).get_type_name(registry)),
             AstType::TupleType(types) => {
@@ -256,7 +315,7 @@ impl AstType {
         match self {
             AstType::Void => 0,
             AstType::Bool | AstType::Int | AstType::Float | AstType::StringType | AstType::ReferenceType {..} => 1,
-            AstType::SymbolType(_) => {
+            AstType::SymbolType{..} => {
                 panic!("Size not known for unresolved symbol {self:?}")  
             },
             AstType::ArrayType { underlying} => 1,

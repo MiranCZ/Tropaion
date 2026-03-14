@@ -914,3 +914,22 @@ fn test_generics3() {
 
     test_simple_code("main", code, 15);
 }
+
+#[test]
+fn test_generics4() {
+    let code = r#"
+    struct Box<T>(value: T);
+
+    fn box<T>(value: T) -> Box<T> {
+        return Box(value);
+    }
+
+    fn main() -> int {
+        let b: Box<int> = box(27);
+
+        return b.value;
+    }
+    "#;
+
+    test_simple_code("main", code, 27);
+}

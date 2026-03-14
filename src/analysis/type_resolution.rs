@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use ordermap::map::MutableKeys;
 use crate::analysis::generic_helper::GenericHelper;
 use crate::analysis::mangling;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable, TypeSymTableInfo};
@@ -743,10 +744,28 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.error(AnalysisError::illegal_call(resolved_func.get_type(), self.registry), span)
     }
 
-    fn fold_symbol_type(&mut self, name: String) -> AstType {
+    fn fold_symbol_type(&mut self, name: String, generics: Vec<TypeEntry>) -> AstType {
         let opt = self.type_table.get(&name);
 
         if let Some(t) = opt {
+            if !generics.is_empty() {
+                let mut res = t.get(self.registry);
+
+                if let StructType {generics: g, ..} = &mut res {
+                    if generics.len() != g.len() {
+                        panic!();
+                    }
+
+                    let mut iter = generics.iter();
+
+                    for x in g.iter_mut() {
+                        *x.1 = *iter.next().unwrap();
+                    }
+                }
+
+                return res;
+            }
+
             return t.get(self.registry);
         }
 
