@@ -25,8 +25,6 @@ impl GenericHelper {
     }
 
     pub fn get_generic(&self, registry: &mut TypeRegistry, name: &String) -> Option<UntypedStmt> {
-
-
         let (name, params, return_type, body, span) = self.generic_functions.get(name)?.clone();
 
 
@@ -58,14 +56,8 @@ impl GenericHelper {
         }
     }
 
-    pub fn collect_implemented(&mut self) -> Vec<TypedStmt> {
-        let mut result = vec![];
-
-        for arr in self.implemented_functions.values_mut() {
-            result.append(arr);
-        }
-
-        result
+    pub fn get_implementation(&mut self, key: &String) -> Vec<TypedStmt> {
+        self.implemented_functions.get(key).unwrap_or(&vec![]).to_owned()
     }
 
 

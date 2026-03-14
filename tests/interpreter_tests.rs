@@ -871,6 +871,29 @@ fn test_generics2() {
     test_simple_code("main", code, 5);
 }
 
+#[test]
+fn test_generics_shadowing() {
+    let code = r#"
+    struct Scope<T>() {
+        fn box(value: T) -> T {
+            return value;
+        }
+    }
+
+    fn box<T>(value: T) -> int {
+        return 1;
+    }
+
+    fn main() -> int {
+        let a = Scope().box(5);
+
+        return a;
+    }
+    "#;
+
+    test_simple_code("main", code, 5);
+}
+
 #[ignore]
 #[test]
 fn test_generics3() {
