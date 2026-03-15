@@ -350,7 +350,8 @@ impl TypedExpr {
                         a.generate_bytecode(registry, generator, Load)?;
 
                         generator.store_internal_value(registry, a.get_type())?;
-                        size += a.get_type().get(registry).word_size(registry);
+                        // FIXME aaaaaaaaaaaaaaaaaaaa
+                        size += 1;//a.get_type().get(registry).word_size(registry);
                     }
                     if size > (u16::MAX as u32) {
                         return Err(StructTooLarge(size));

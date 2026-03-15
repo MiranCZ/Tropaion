@@ -25,6 +25,10 @@ impl TypeEntry {
         parent.get(self.key)
     }
     
+    pub fn format(&self, parent: &TypeRegistry) -> String {
+        parent.get(self.key).format(parent)
+    }
+    
     pub fn duplicate(&self, parent: &mut TypeRegistry) -> TypeEntry {
         let resolved = self.get(parent);
         

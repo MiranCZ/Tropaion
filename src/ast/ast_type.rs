@@ -1,5 +1,5 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, ReferenceType, StructType, TupleType};
+use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, ReferenceType, StructType, SymbolType, TupleType};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -246,6 +246,14 @@ impl AstType {
         }
 
         match (self, other) {
+            (AstType::UnknownType, other) => {
+                Some(other)
+            }
+            (other, AstType::UnknownType) => {
+                Some(other.clone())
+            }
+
+
             // let x: float = 1;
             (AstType::Float, AstType::Int) => {
                 Some(AstType::Float)
@@ -275,8 +283,44 @@ impl AstType {
 
                     None
                 }
-            }
+            },
 
+            (StructType {name: n1, generics: g1, fields, children }, StructType {name: n2, generics: g2, .. }) => {
+                if *n1 != *n2 {
+                    return None;
+                }
+
+                if g1.len() != g2.len() {
+                    return None;
+                }
+
+                let mut assigned_generics = OrderMap::new();
+
+                let mut it1 = g1.iter();
+                let mut it2 = g2.iter();
+
+                while let Some(v1) = it1.next() && let Some(v2) = it2.next() {
+                    if v1.0 != v2.0 {
+                        return None;
+                    }
+
+                    let a = v1.1.get(registry);
+                    let b = v2.1.get(registry);
+
+                    if let Some(res) = a.get_assign_result(b, registry) {
+                        assigned_generics.insert(v1.0.clone(), registry.register(res));
+                    } else {
+                        return None;
+                    }
+                }
+
+                return Some(StructType {
+                    name: n1.clone(),
+                    generics: assigned_generics,
+                    fields: fields.clone(),
+                    children: children.clone()
+                })
+            }
             _ => None
         }
     }

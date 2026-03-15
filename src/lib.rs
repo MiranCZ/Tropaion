@@ -36,6 +36,19 @@ pub fn main() {
     }
     "#;
 
+    let code = r#"
+    struct Box<T>(value: T);
+
+    fn unbox<T>(b: Box<T>) -> T {
+        return b.value;
+    }
+
+    fn main() -> int {
+        let b = Box(33);
+
+        return unbox(b);
+    }
+    "#;
 
     interpret(text);
 }

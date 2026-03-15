@@ -1,9 +1,11 @@
+use std::collections::HashSet;
 use crate::analysis::generic_helper::GenericHelper;
 use crate::analysis::mangling;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::TypedExpr;
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
+use crate::ast::walking::visitor::Visitor;
 use crate::ast::walking::visitor_mut::VisitorMut;
 use crate::error::context::Span;
 
@@ -56,14 +58,13 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
             return if let Statement::FunctionStmt { name, generics, params, return_type, .. } = &mut b.node {
                 let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
 
-                if matches!(return_type.get(self.registry), AstType::GenericType{..}) {
+                if GenericChecker::is_generic(*return_type, self.registry) {
                     removed.push(key);
                     return false;
                 }
 
                 for p in params {
-                    // TODO create `is_generic` method for arg
-                    if matches!(p.param_type.get(self.registry), AstType::GenericType{..}) {
+                    if GenericChecker::is_generic(p.param_type, self.registry) {
                         removed.push(key);
                         return false;
                     }
@@ -97,4 +98,43 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
         });
     }
 
+}
+
+struct GenericChecker<'a> {
+    registry: &'a mut TypeRegistry,
+    visited: HashSet<TypeEntry>,
+    is_generic: bool
+}
+
+impl <'a> GenericChecker<'a> {
+    pub fn is_generic(entry: TypeEntry, registry: &'a mut TypeRegistry) -> bool {
+        let mut new = Self {registry, is_generic: false, visited: HashSet::new()};
+        entry.walk_visit(&mut new);
+
+        new.is_generic
+    }
+}
+
+impl <'a> Visitor<'a> for GenericChecker<'a> {
+    fn get_registry(&self) -> &TypeRegistry {
+        self.registry
+    }
+
+    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
+        self.registry
+    }
+
+    fn visit_type(&mut self, typ: &TypeEntry) {
+        if self.visited.contains(typ) {
+            return;
+        }
+        self.visited.insert(*typ);
+
+
+        typ.walk_visit(self);
+    }
+
+    fn visit_generic_type(&mut self, name: &String) {
+        self.is_generic = true;
+    }
 }
