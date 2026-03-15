@@ -65,5 +65,8 @@ pub enum RuntimeError {
     OffsetOutOfBounds{len: u32, offset: u32},
    
     #[error("Attempting to call a non-existent function '{0}'")]
-    FunctionNotFound(String)
+    FunctionNotFound(String),
+
+    #[error("Illegal allocation size of {0}")]
+    IllegalAllocSize(i32)
 }

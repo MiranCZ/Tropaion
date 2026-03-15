@@ -8,7 +8,7 @@ use crate::compiler::codegen::FunctionInfo;
 use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
-use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
@@ -231,6 +231,7 @@ impl Interpreter {
             ByteCode::RetLong(size) => self.ret(size),
 
             ByteCode::HeapAlloc(size) => self.heap_alloc(size),
+            ByteCode::DynHeapAlloc => self.dyn_heap_alloc(),
 
             ByteCode::StackFrame(_) => Err(UnexpectedStackFrame),
         }
@@ -715,6 +716,20 @@ impl Interpreter {
         RefValue { ptr: promoted_ptr, len }
     }
 
+    fn dyn_heap_alloc(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let IntValue(v) = top {
+            if v < 0 {
+                return Err(IllegalAllocSize(v));
+            }
+
+            self.heap_alloc(v as u32)
+        } else {
+            Err(TypeMismatch { expected: ValueTypeVariant::Int, got: top })
+        }
+    }
+    
     fn heap_alloc(&mut self, size: u32) -> Res {
         let ptr =self.heap.alloc(size);
 

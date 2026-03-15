@@ -3,7 +3,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Sub, Swap, Xor};
+use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Sub, Swap, Xor};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
 use crate::error::context::Span;
@@ -557,6 +557,10 @@ impl BytecodeGen {
 
     pub fn heap_alloc(&mut self, size: u32) {
         self.push_insn(HeapAlloc(size));
+    }
+    
+    pub fn dyn_heap_alloc(&mut self) {
+        self.push_insn(DynHeapAlloc);
     }
 
 }

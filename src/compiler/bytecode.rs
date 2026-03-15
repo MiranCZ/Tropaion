@@ -75,5 +75,6 @@ pub enum ByteCode {
     Ret(u16),
     RetLong(u32),
     
-    HeapAlloc(u32)
+    HeapAlloc(u32),
+    DynHeapAlloc
 }
