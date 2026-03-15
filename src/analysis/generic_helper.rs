@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use ordermap::OrderMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::statement::Statement::FunctionStmt;
@@ -7,7 +8,7 @@ use crate::util::spanned::Spanned;
 
 pub struct GenericHelper {
     generic_functions: HashMap<String, (String, Vec<Parameter>, TypeEntry, StatementBlock<()>, Span)>,
-    implemented_functions: HashMap<String, Vec<TypedStmt>>
+    implemented_functions: HashMap<String, Vec<(OrderMap<String, TypeEntry>, Option<TypedStmt>)>>
 }
 
 
@@ -48,16 +49,60 @@ impl GenericHelper {
         ))
     }
 
-    pub fn record_implementation(&mut self, key: String, func: TypedStmt) {
+    pub fn register_implementation(&mut self, key: String, generics: OrderMap<String, TypeEntry>) -> usize {
         if let Some(arr) = self.implemented_functions.get_mut(&key) {
-            arr.push(func);
+            arr.push((generics, None));
+
+            return arr.len()-1;
         } else {
-            self.implemented_functions.insert(key, vec![func]);
+            self.implemented_functions.insert(key, vec![(generics, None)]);
+            return 0;
         }
     }
 
+    pub fn record_implementation(&mut self,key: &String, pos: usize, func: TypedStmt) {
+        if let Some(arr) = self.implemented_functions.get_mut(key) {
+            arr[pos].1 = Some(func);
+        } else {
+            panic!("Not registered");
+        }
+    }
+
+    pub fn has_implementation(&self,registry: &TypeRegistry ,key: &String, generics: OrderMap<String, TypeEntry>) -> bool {
+        if let Some(vec) = self.implemented_functions.get(key) {
+            for e in vec {
+                let gens = &e.0;
+
+                if gens.len() != generics.len() {
+                    return false;
+                }
+
+                let mut i1 = generics.iter();
+                let mut i2 = gens.iter();
+
+                while let Some(g1) = i1.next() && let Some(g2) = i2.next() {
+                    if *g1.0 != *g2.0 {
+                        return false;
+                    }
+
+                    if !g1.1.get(registry).equals(&g2.1.get(registry), registry) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        false
+    }
+
     pub fn get_implementation(&mut self, key: &String) -> Vec<TypedStmt> {
-        self.implemented_functions.get(key).unwrap_or(&vec![]).to_owned()
+        if let Some(arr) = self.implemented_functions.get(key) {
+            return arr.iter().filter(|e| e.1.is_some()).map(|(_, v) | v.clone().unwrap()).collect();
+        }
+
+        vec![]
     }
 
 

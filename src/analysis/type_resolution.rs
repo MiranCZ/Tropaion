@@ -674,7 +674,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
                     let mut struct_scope = false;
 
-                    if let Some(record) =self.symbol_table.get_with_info(&name) &&
+                    if let Some(record) = self.symbol_table.get_with_info(&name) &&
                         let Some(info) = record.1 &&
                         let Some(struct_type) = info.owner {
                         struct_scope = true;
@@ -693,14 +693,23 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         }
                     }
 
-                    let resolved = self.fold_stmt(original);
-                    self.type_table.pop();
+                    if !self.generic_helper.has_implementation(self.registry, &key, generics.clone()) {
+                        // register that we are already evaluating this type of function
+                        let pos = self.generic_helper.register_implementation(key.clone(), generics.clone());
+                        let resolved = self.fold_stmt(original);
+                        self.type_table.pop();
 
-                    if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
-                        return_type = *resolved_return;
+                        if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
+                            return_type = *resolved_return;
+                        }
+
+                        // record the actual concrete function
+                        self.generic_helper.record_implementation(&key, pos, resolved);
+                    } else {
+                        let duplicate_ret_type = return_type.duplicate(self.registry);
+
+                        return_type = self.fold_type_entry(duplicate_ret_type);
                     }
-                    self.generic_helper.record_implementation(key, resolved);
-
                     if struct_scope {
                         self.symbol_table.pop();
                     }
