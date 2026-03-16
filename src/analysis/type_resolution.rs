@@ -1,18 +1,14 @@
-use std::collections::HashMap;
-use ordermap::map::MutableKeys;
-use ordermap::OrderMap;
 use crate::analysis::generic_helper::GenericHelper;
 use crate::analysis::mangling;
-use crate::analysis::symbol_table::{SymbolTable, TypeSymTable, TypeSymTableInfo};
+use crate::analysis::symbol_table::{TypeSymTable, TypeSymTableInfo};
 use crate::analysis::type_duplicator::TypeDuplicator;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionType, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
-use crate::ast::expression;
-use crate::ast::expression::{deref, member, Expression, TypedExpr};
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
-use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
+use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
+use crate::ast::statement::{Parameter, StatementBlock, TypedStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::{RedundantNullable, TypeResolutionFailed};
@@ -20,6 +16,8 @@ use crate::error::context::{ErrorContext, Span};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
+use ordermap::OrderMap;
+use std::collections::HashMap;
 
 pub struct TypeResolver<'a> {
     registry: &'a mut TypeRegistry,

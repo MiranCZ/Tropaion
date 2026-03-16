@@ -351,6 +351,7 @@ impl AstType {
             AstType::StructType {name, .. } => format!("L{name};"),
             AstType::NullableType {underlying} => underlying.get(registry).get_type_name(registry),
             AstType::GenericType {name} => "g".to_string(),
+            AstType::UnknownType => "?".to_string(),
             _ => panic!("{self:?}")
         }
     }

@@ -135,8 +135,8 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
-            // println!("\t{insn:?}\n");
+            println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
+            println!("\t{insn:?}\n");
 
             self.execute(insn)?;
             self.insn_addr += 1;
@@ -193,32 +193,23 @@ impl Interpreter {
             ByteCode::CmpLess => self.lt(),
             ByteCode::CmpEqLess => self.le(),
 
-            ByteCode::IStore(i) => self.store_local(i, Int),
-            ByteCode::FStore(i) => self.store_local(i, Float),
-            ByteCode::AStore(i) => self.store_local(i, Address),
+            ByteCode::Store(i) => self.store_local(i),
 
-            ByteCode::ILoad(i) => self.load_local(i, Int),
-            ByteCode::FLoad(i) => self.load_local(i, Float),
-            ByteCode::ALoad(i) => self.load_local(i, Address),
+            ByteCode::Load(i) => self.load_local(i),
 
             ByteCode::CreateStackPtr { offset, consume_words } => self.create_stack_ptr(offset, consume_words),
 
-            ByteCode::ILoadOffset(o) => self.load_offset_local(o, Int),
-            ByteCode::FLoadOffset(o) => self.load_offset_local(o, Float),
-            ByteCode::ALoadOffset(o) => self.load_offset_local(o, Address),
+            ByteCode::ILoadOffset(o) => self.load_offset_local(o),
+            ByteCode::FLoadOffset(o) => self.load_offset_local(o),
+            ByteCode::ALoadOffset(o) => self.load_offset_local(o),
 
-            ByteCode::IStoreOffset(o) => self.store_offset_local(o, Int),
-            ByteCode::FStoreOffset(o) => self.store_offset_local(o, Float),
-            ByteCode::AStoreOffset(o) => self.store_offset_local(o, Address),
+            ByteCode::IStoreOffset(o) => self.store_offset_local(o),
+            ByteCode::FStoreOffset(o) => self.store_offset_local(o),
+            ByteCode::AStoreOffset(o) => self.store_offset_local(o),
 
+            ByteCode::LoadVarOffset => self.load_var_offset_local(Int),
 
-            ByteCode::ILoadVarOffset => self.load_var_offset_local(Int),
-            ByteCode::FLoadVarOffset => self.load_var_offset_local(Float),
-            ByteCode::ALoadVarOffset => self.load_var_offset_local(Address),
-
-            ByteCode::IStoreVarOffset => self.store_var_offset_local(Int),
-            ByteCode::FStoreVarOffset => self.store_var_offset_local(Float),
-            ByteCode::AStoreVarOffset => self.store_var_offset_local(Address),
+            ByteCode::StoreVarOffset => self.store_var_offset_local(Int),
 
 
             ByteCode::Goto(i) => self.goto(i),
@@ -277,6 +268,7 @@ impl Interpreter {
     }
 
     fn push_stack_frame(&mut self, size: u16) {
+        println!("PUSHED STACK FRAME WITH SIZE {size}");
         self.stack_frames.push(StackFrame{start: self.pointer, len: size as usize });
 
         self.pointer += size as usize;
@@ -294,29 +286,20 @@ impl Interpreter {
         ok()
     }
 
-    fn store_local(&mut self, index: u16, typ: ValueType) -> Res {
+    fn store_local(&mut self, index: u16) -> Res {
         let top = self.pop()?;
 
         let absolute_index = self.get_stack_frame_start()? + (index as usize);
-
-        if !typ.assignable(&top) {
-            return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: top});
-        }
 
         self.stack[absolute_index] = top;
 
         ok()
     }
 
-    fn load_local(&mut self, index: u16, typ: ValueType) -> Res {
+    fn load_local(&mut self, index: u16) -> Res {
         let absolute_index = self.get_stack_frame_start()? + (index as usize);
 
         let value = self.stack[absolute_index];
-
-
-        if !typ.assignable(&value) {
-            return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: value});
-        }
 
         self.push(value)?;
 
@@ -327,7 +310,7 @@ impl Interpreter {
         let top = self.pop()?;
 
         if let IntValue(o) = top {
-            self.store_offset_local(o as u32, typ)?;
+            self.store_offset_local(o as u32)?;
         } else {
             return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
         }
@@ -335,7 +318,7 @@ impl Interpreter {
         ok()
     }
 
-    fn store_offset_local(&mut self, offset: u32, typ: ValueType) -> Res {
+    fn store_offset_local(&mut self, offset: u32) -> Res {
         let top = self.pop()?;
 
         if let RefValue{ptr, len} = top {
@@ -348,14 +331,7 @@ impl Interpreter {
 
             let absolute_index = (ptr as usize) + (offset as usize);
 
-            let prev = self.load_at_ptr(absolute_index);
-
-
             let new = self.pop()?;
-
-            if prev != Null && (!typ.assignable(&prev) || !typ.assignable(&new)) {
-                return Err(IllegalAssignment {expected: typ, got: new, previous: prev});
-            }
 
             self.store_at_ptr(absolute_index, new);
         } else {
@@ -369,7 +345,7 @@ impl Interpreter {
         let top = self.pop()?;
 
         if let IntValue(o) = top {
-            self.load_offset_local(o as u32, typ)?;
+            self.load_offset_local(o as u32)?;
         } else {
             return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
         }
@@ -377,7 +353,7 @@ impl Interpreter {
         ok()
     }
 
-    fn load_offset_local(&mut self, offset: u32, typ: ValueType) -> Res {
+    fn load_offset_local(&mut self, offset: u32) -> Res {
         let top = self.pop()?;
 
         if let RefValue{ptr, len} = top {
@@ -392,10 +368,6 @@ impl Interpreter {
             let absolute_index = (ptr as usize) + (offset as usize);
 
             let value = self.load_at_ptr(absolute_index);
-
-            if !typ.assignable(&value) {
-                return Err(TypeMismatch {expected: ValueTypeVariant::of(typ), got: value});
-            }
 
             self.push(value)?;
         } else {

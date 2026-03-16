@@ -35,13 +35,15 @@ pub enum ByteCode {
     CmpLess,
     CmpEqLess,
 
-    IStore(u16),
-    FStore(u16),
-    AStore(u16),
+    Store(u16),
+    // IStore(u16),
+    // FStore(u16),
+    // AStore(u16),
 
-    ILoad(u16),
-    FLoad(u16),
-    ALoad(u16),
+    Load(u16),
+    // ILoad(u16),
+    // FLoad(u16),
+    // ALoad(u16),
 
     CreateStackPtr{
         offset: u16,
@@ -57,13 +59,15 @@ pub enum ByteCode {
     FStoreOffset(u32),
     AStoreOffset(u32),
 
-    ILoadVarOffset,
-    FLoadVarOffset,
-    ALoadVarOffset,
+    LoadVarOffset,
+    // ILoadVarOffset,
+    // FLoadVarOffset,
+    // ALoadVarOffset,
 
-    IStoreVarOffset,
-    FStoreVarOffset,
-    AStoreVarOffset,
+    StoreVarOffset,
+    // IStoreVarOffset,
+    // FStoreVarOffset,
+    // AStoreVarOffset,
 
 
     Goto(i32),

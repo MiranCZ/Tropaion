@@ -10,6 +10,7 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
+use std::iter::chain;
 use ordermap::OrderMap;
 use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::generic_fixer::GenericFixer;
@@ -18,6 +19,7 @@ use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::type_resolution::TypeResolver;
 use crate::ast::walking::folder::Folder;
 use crate::error::context::{ErrorContext, Errors, Span};
+use crate::intrinsics::type_injector::{get_injected_functions, get_injected_structs};
 
 pub struct Analyzer {
     root: UntypedStmt,
@@ -181,6 +183,21 @@ impl Analyzer {
                     _ => {
                         self.errors.push(ErrorContext::of(IllegalScopelessStatement(x.clone()), x.span))
                     }
+                }
+            }
+            
+            for func in get_injected_functions(registry) {
+                let t = registry.register(func);
+                self.record_function(registry, t);
+            }
+            for struct_type in get_injected_structs(registry) {
+                if let StructType {name, ..} = struct_type.clone() {
+                    let struct_type = registry.register(struct_type);
+
+                    self.symbol_table.record(name.clone(), struct_type);
+                    self.type_table.record(name.clone(), struct_type);
+                } else {
+                    panic!("Invalid injected {struct_type:?}");
                 }
             }
 

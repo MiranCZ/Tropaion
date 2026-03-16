@@ -6,6 +6,8 @@ use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::{BytecodeGen, FunctionInfo};
 use crate::error::compilation_error::CompilationError;
+use crate::intrinsics::bytecode_injector;
+use crate::intrinsics::type_injector::get_injected_function_identifiers;
 
 pub struct Compiler {
     root: TypedStmt,
@@ -24,7 +26,14 @@ impl Compiler {
     pub fn compile(mut self, registry: &TypeRegistry) -> Result<(Vec<ByteCode>, Vec<usize>, HashMap<String, FunctionInfo>), CompilationError> {
         self.collect_functions(registry, &self.root.clone());
 
+        for e in get_injected_function_identifiers() {
+            self.generator.register_func(e.0.to_string(), e.1);
+        }
+
+        bytecode_injector::implement_functions(registry, &mut self.generator);
+
         self.root.gen_bytecode(registry, &mut self.generator)?;
+
 
         Ok((self.generator.instructions, self.generator.lines, self.generator.functions))
     }

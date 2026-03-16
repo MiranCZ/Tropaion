@@ -3,7 +3,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoad, ALoadOffset, ALoadVarOffset, AStore, AStoreOffset, AStoreVarOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoad, FLoadOffset, FLoadVarOffset, FStore, FStoreOffset, FStoreVarOffset, Goto, HeapAlloc, IConst, ILoad, ILoadOffset, ILoadVarOffset, IStore, IStoreOffset, IStoreVarOffset, IfEq, IfNe, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Sub, Swap, Xor};
+use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, Sub, Swap, Xor};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
 use crate::error::context::Span;
@@ -275,9 +275,9 @@ impl BytecodeGen {
 
                 return match t {
                     ValueType::Null => Err(UnsupportedType("Null".to_string())),
-                    ValueType::Int => Ok(instructions[pos] = IStore(addr)),
-                    ValueType::Float => Ok(instructions[pos] = FStore(addr)),
-                    ValueType::Address => Ok(instructions[pos] = AStore(addr))
+                    ValueType::Int => Ok(instructions[pos] = Store(addr)),
+                    ValueType::Float => Ok(instructions[pos] = Store(addr)),
+                    ValueType::Address => Ok(instructions[pos] = Store(addr))
                 };
             }
             )?;
@@ -305,6 +305,10 @@ impl BytecodeGen {
     pub fn pop_insn(&mut self) {
         self.instructions.pop();
         self.lines.pop();
+    }
+
+    pub unsafe fn push_own_insn(&mut self, insn: ByteCode) {
+        self.push_insn(insn);
     }
 
     fn push_insn(&mut self, insn: ByteCode) {
@@ -349,9 +353,9 @@ impl BytecodeGen {
     pub fn store_value(&mut self, registry: &TypeRegistry, name: &String, value: TypeEntry) -> EmptyRes {
         Self::typed_expr(value, registry, |t| match t {
             ValueType::Null => Err(UnsupportedType("Null".to_string())),
-            ValueType::Int => self.store(name.clone(), |i| IStore(i)),
-            ValueType::Float => self.store(name.clone(), |i| FStore(i)),
-            ValueType::Address => self.store(name.clone(), |i| AStore(i)),
+            ValueType::Int => self.store(name.clone(), |i| Store(i)),
+            ValueType::Float => self.store(name.clone(), |i| Store(i)),
+            ValueType::Address => self.store(name.clone(), |i| Store(i)),
         })
     }
 
@@ -368,13 +372,13 @@ impl BytecodeGen {
     pub fn store_internal_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         Self::typed_expr(value, registry, |t| match t {
             ValueType::Null => Err(UnsupportedType("Null".to_string())),
-            ValueType::Int => Ok(self.store_internal(|i| IStore(i))),
-            ValueType::Float => Ok(self.store_internal(|i| FStore(i))),
-            ValueType::Address => Ok(self.store_internal(|i| AStore(i))),
+            ValueType::Int => Ok(self.store_internal(|i| Store(i))),
+            ValueType::Float => Ok(self.store_internal(|i| Store(i))),
+            ValueType::Address => Ok(self.store_internal(|i| Store(i))),
         })
     }
 
-    pub fn store_boxed_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+    pub fn store_boxed_value(&mut self, value: TypeEntry) -> EmptyRes {
         self.to_box.push((self.instructions.len(),value));
         self.nop(); // store
         self.nop(); // stack ptr
@@ -382,13 +386,10 @@ impl BytecodeGen {
         ok()
     }
 
-    pub fn store_var_offset(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
-        Self::typed_expr(value, registry, |t| match t {
-            ValueType::Null => Err(UnsupportedType("Null".to_string())),
-            ValueType::Int => Ok(self.push_insn(IStoreVarOffset)),
-            ValueType::Float => Ok(self.push_insn(FStoreVarOffset)),
-            ValueType::Address => Ok(self.push_insn(AStoreVarOffset))
-        })
+    pub fn store_var_offset(&mut self) -> EmptyRes {
+        self.push_insn(StoreVarOffset);
+
+        ok()
     }
 
     pub fn load_offset_value(&mut self, registry: &TypeRegistry, offset: u32, value: TypeEntry) -> EmptyRes {
@@ -400,13 +401,9 @@ impl BytecodeGen {
         })
     }
 
-    pub fn load_var_offset(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
-        Self::typed_expr(value, registry, |t| match t {
-            ValueType::Null => Err(UnsupportedType("Null".to_string())),
-            ValueType::Int => Ok(self.push_insn(ILoadVarOffset)),
-            ValueType::Float => Ok(self.push_insn(FLoadVarOffset)),
-            ValueType::Address => Ok(self.push_insn(ALoadVarOffset))
-        })
+    pub fn load_var_offset(&mut self) -> EmptyRes {
+        self.push_insn(LoadVarOffset);
+        ok()
     }
 
 }
@@ -533,11 +530,11 @@ impl BytecodeGen {
     
     pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
-            AstType::Bool | AstType::Int => self.store_new(name, |i| IStore(i)),
-            AstType::Float => self.store_new(name, |i| FStore(i)),
-            AstType::NullableType { .. } => self.store_new(name, |i| AStore(i)),
-            AstType::StructType { .. } => self.store_new(name, |i| AStore(i)),
-            AstType::ArrayType { .. } => self.store_new(name, |i| AStore(i)),
+            AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i)),
+            AstType::Float => self.store_new(name, |i| Store(i)),
+            AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
             AstType::TupleType(arr) => {
                 self.scope_local_count += (arr.len() as u16) + 1;
 
@@ -549,7 +546,7 @@ impl BytecodeGen {
 
                 self.create_stack_ptr(arr.len() as u16);
 
-                self.store_new(name, |i| AStore(i))
+                self.store_new(name, |i| Store(i))
             },
 
             _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
@@ -575,7 +572,7 @@ impl BytecodeGen {
         self.symbol_table.record(name, ind);
     }
 
-    fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {
+    pub fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {
         self.push_insn(create_store(self.scope_local_count));
 
         self.local_count += 1;
@@ -592,22 +589,23 @@ impl BytecodeGen {
     pub fn i_load(&mut self, name: String) {
         let ind = self.symbol_table.get(&name).unwrap();
 
-        self.push_insn(ILoad(ind));
+        self.push_insn(Load(ind));
     }
 
     pub fn f_load(&mut self, name: String) {
         let ind = self.symbol_table.get(&name).unwrap();
 
-        self.push_insn(FLoad(ind));
+        self.push_insn(Load(ind));
     }
 
     pub fn a_load(&mut self, name: String) {
         let ind = self.symbol_table.get(&name).unwrap();
 
-        self.push_insn(ALoad(ind));
+        self.push_insn(Load(ind));
     }
 
     pub fn call(&mut self, name: &String) {
+        println!("{name}, has {:?}", self.functions);
         let info = self.functions.get(name).unwrap();
 
         self.push_insn(Call(info.index));

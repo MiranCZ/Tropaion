@@ -19,20 +19,17 @@ pub mod analysis;
 mod compiler;
 pub mod interpreter;
 mod util;
+mod intrinsics;
 
 #[test]
 pub fn main() {
     let text = r#"
     fn main() -> int {
-        let i = 0;
-        while true {
-            if i > 10 {
-                break; 
-            } 
-            i += 1;
-        }
-        
-        return i;
+        let heap = __heap_alloc(5);
+
+        heap.__store_at(1, 10);
+
+        return heap.__load_at(1);
     }
     "#;
 
@@ -160,6 +157,8 @@ fn interpret(text: &str) {
     } else {
         panic!("Error {:?}", res.err().unwrap());
     };
+
+    println!("{functions:?}");
 
     // println!("{:?}", functions);
     // println!();

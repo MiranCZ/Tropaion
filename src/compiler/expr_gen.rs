@@ -132,7 +132,7 @@ impl TypedExpr {
                     return Err(CompilationError::type_mismatch(Nullable, t.get(registry), registry));
                 }
 
-                generator.store_boxed_value(registry, typ)?;
+                generator.store_boxed_value(typ)?;
             }
             Expression::IncrementExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
@@ -298,7 +298,7 @@ impl TypedExpr {
                     })?;
 
                     if *null_safe {
-                        generator.store_boxed_value(registry, property.get_type())?;
+                        generator.store_boxed_value(property.get_type())?;
 
                         generator.comment("Ended member expr generation".to_string());
 
@@ -472,7 +472,8 @@ impl TypedExpr {
                 return Err(CompilationError::illegal_indexing(t.get(registry), registry));
             }
 
-            generator.load_var_offset(registry, typ)?;
+            generator.load_var_offset()?;
+            // generator.load_var_offset(registry, typ)?;
 
             ok()
         }
@@ -517,7 +518,8 @@ impl TypedExpr {
                 return Err(CompilationError::illegal_indexing(t.get(registry), registry));
             }
 
-            generator.store_var_offset(registry, typ)?;
+            generator.store_var_offset()?;
+            // generator.store_var_offset(registry, typ)?;
 
             ok()
         }
