@@ -107,6 +107,10 @@ impl TypedStmt {
 
                 generator.ret(e.get_type().get(registry).word_size(registry));
             }
+            
+            Statement::LoopInterrupt {break_loop} => {
+                todo!()
+            }
 
             // ignored (at least for now)
             Statement::CommentStmt(_) => {}

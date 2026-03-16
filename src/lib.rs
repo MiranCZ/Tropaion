@@ -23,30 +23,16 @@ mod util;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Box<T>(value: T);
-
-    fn box<T>(value: T) -> Box<T> {
-        return Box(value);
-    }
-
     fn main() -> int {
-        let b: Box<int> = box(5);
-
-        return b.value;
-    }
-    "#;
-
-    let code = r#"
-    struct Box<T>(value: T);
-
-    fn unbox<T>(b: Box<T>) -> T {
-        return b.value;
-    }
-
-    fn main() -> int {
-        let b = Box(33);
-
-        return unbox(b);
+        let i = 0;
+        while true {
+            if i > 10 {
+                break; 
+            } 
+            i += 1;
+        }
+        
+        return i;
     }
     "#;
 

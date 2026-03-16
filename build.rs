@@ -128,6 +128,9 @@ pub trait {trait_name}<'a> where Self: Sized {{
     fn {suffix}_return(&mut self, expr: {borrow}TypedExpr, span: Span) {{
         self.{suffix}_expr(expr);
     }}
+    
+    fn {suffix}_loop_interrupt(&mut self, break_loop: {borrow}bool, span: Span) {{
+    }}
 
     fn {suffix}_comment(&mut self, _comment: {borrow}String, span: Span) {{}}
 
@@ -335,6 +338,9 @@ impl TypedStmt {{
             }}
             Statement::ReturnStmt(expr) => {{
                 visitor.{suffix}_return(expr, self.span);
+            }}
+            Statement::LoopInterrupt {{break_loop}} => {{
+                visitor.{suffix}_loop_interrupt(break_loop, self.span); 
             }}
             Statement::CommentStmt(s) => {{
                 visitor.{suffix}_comment(s, self.span);

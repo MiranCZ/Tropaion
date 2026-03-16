@@ -162,6 +162,10 @@ where
     fn fold_return(&mut self, expr: Spanned<Expression<I>>, span: Span) -> FoldedStmt<O> {
         Statement::ReturnStmt(self.fold_expr(expr))
     }
+    
+    fn fold_loop_interrupt(&mut self, break_loop: bool, span: Span) -> FoldedStmt<O> {
+        Statement::LoopInterrupt {break_loop}
+    }
 
     fn fold_comment(&mut self, comment: String, span: Span) -> FoldedStmt<O> {
         Statement::CommentStmt(comment)
@@ -526,6 +530,7 @@ impl<I: Clone> Spanned<Statement<I>> {
                     folder.fold_struct(name, fields, body, generics, span)
                 }
                 Statement::ReturnStmt(expr) => folder.fold_return(expr, span),
+                Statement::LoopInterrupt {break_loop} => folder.fold_loop_interrupt(break_loop, span),
                 Statement::CommentStmt(s) => folder.fold_comment(s, span),
                 Statement::MultilineCommentStmt(s) => folder.fold_multiline_comment(s, span),
             },

@@ -8,7 +8,7 @@ use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, CloseBracket, Colon, Comma, Else, Greater, If, Less, OpenCurly, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Greater, If, Less, OpenCurly, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
@@ -241,6 +241,24 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
         }
     })
 }
+
+
+pub fn parse_continue_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        parser.expect_next(Continue)?;
+        
+        LoopInterrupt {break_loop: false}
+    })
+}
+
+pub fn parse_break_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        parser.expect_next(Break)?;
+        
+        LoopInterrupt {break_loop: true}
+    }) 
+}
+
 
 pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {

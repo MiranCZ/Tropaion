@@ -47,6 +47,9 @@ pub enum Statement<T> {
         generics: Vec<String>
     },
     ReturnStmt(Spanned<Expression<T>>),
+    LoopInterrupt {
+        break_loop: bool
+    },
     CommentStmt(String),
     MultilineCommentStmt(String)
 }
