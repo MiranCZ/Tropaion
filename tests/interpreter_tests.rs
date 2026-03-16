@@ -22,7 +22,7 @@ fn test_simple_code(main: &str, code: &str, expected: i32) {
     let (stack, heap) = run(&mut interpret, main.to_string());
 
 
-    assert_eq!(stack.len(), 2); // nullptr, value
+    assert_eq!(stack.len(), 2, "{:?}", &stack[0..stack.len()]); // nullptr, value
     assert_eq!(stack[1], IntValue(expected));
 }
 
@@ -932,4 +932,28 @@ fn test_generics4() {
     "#;
 
     test_simple_code("main", code, 27);
+}
+
+#[test]
+fn test_loop_interrupt() {
+    let code = r#"
+    fn main() -> int {
+        let i = 0;
+        let x = 0;
+
+        while i < 10 {
+            if i < 3 {
+                i += 2;
+                x++;
+                continue;
+            }
+
+            i++;
+        }
+
+        return (i-9)*x*x;
+    }
+    "#;
+
+    test_simple_code("main", code, 4);
 }

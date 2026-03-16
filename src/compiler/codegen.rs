@@ -13,7 +13,9 @@ use crate::interpreter::value::ValueType;
 #[derive(Debug)]
 struct ScopeInfo {
     start_index: i32,
+    first_insn_index: i32,
     skippable: bool,
+    is_loop: bool,
     exit_points: Vec<i32>,
     local_count: u16
 }
@@ -22,7 +24,9 @@ impl ScopeInfo {
     pub fn scope(bg: &BytecodeGen) -> Self {
         Self {
             start_index: bg.index(),
+            first_insn_index: bg.index(),
             skippable: false,
+            is_loop: false,
             exit_points: vec![],
             local_count: bg.local_count
         }
@@ -31,7 +35,20 @@ impl ScopeInfo {
     pub fn skippable(bg: &BytecodeGen) -> Self {
         Self {
             start_index: bg.index(),
+            first_insn_index: bg.index(),
             skippable: true,
+            is_loop: false,
+            exit_points: vec![],
+            local_count: bg.local_count
+        }
+    }
+
+    pub fn skippable_loop(start_ind: i32, bg: &BytecodeGen) -> Self {
+        Self {
+            start_index: start_ind,
+            first_insn_index: bg.index(),
+            skippable: true,
+            is_loop: true,
             exit_points: vec![],
             local_count: bg.local_count
         }
@@ -51,6 +68,7 @@ pub struct FunctionInfo {
 pub struct BytecodeGen {
     pub instructions: Vec<ByteCode>,
     pub lines: Vec<usize>,
+    loop_labels: Vec<i32>,
     scopes: Vec<ScopeInfo>,
     line_stack: Vec<usize>,
     local_count: u16,
@@ -68,6 +86,7 @@ impl BytecodeGen {
         Self {
             instructions: vec![],
             lines: vec![],
+            loop_labels: vec![],
             scopes: vec![],
             to_box: vec![],
             line_stack: vec![],
@@ -97,7 +116,20 @@ impl BytecodeGen {
     }
 
     pub fn new_skippable_scope_eq(&mut self) {
-        self.scopes.push(ScopeInfo::skippable(self));
+        self.new_scope_eq(ScopeInfo::skippable(self));
+    }
+
+    pub fn loop_label(&mut self) {
+        self.loop_labels.push(self.index());
+    }
+
+    pub fn new_skippable_loop_eq(&mut self) {
+        let ind = self.loop_labels.pop().unwrap_or(self.index());
+        self.new_scope_eq(ScopeInfo::skippable_loop(ind, self));
+    }
+
+    fn new_scope_eq(&mut self, scope_info: ScopeInfo) {
+        self.scopes.push(scope_info);
         self.symbol_table.push();
 
         // the zero is a placeholder
@@ -119,9 +151,43 @@ impl BytecodeGen {
         self.push_insn(Goto(0));
     }
 
+    pub fn push_loop_exit_insn(&mut self) {
+        let ind = self.index();
+
+        for scope in self.scopes.iter_mut().rev() {
+            if scope.is_loop {
+                scope.exit_points.push(ind);
+
+                self.push_insn(Goto(0));
+                return;
+            }
+        }
+
+        panic!();
+    }
+
     pub fn push_goto_scope_start_insn(&mut self) {
         let offset = self.scopes.last().unwrap().start_index - self.index() - 1;
         self.push_insn(Goto(offset))
+    }
+
+    pub fn push_goto_loop_start_insn(&mut self) {
+        let mut ind = None;
+        for scope in self.scopes.iter_mut().rev() {
+            if scope.is_loop {
+                ind = Some(scope.start_index);
+                break;
+
+            }
+        }
+
+        if let Some(ind) = ind {
+            let offset = ind - self.index() - 1;
+
+            self.push_insn(Goto(offset))
+        } else {
+            panic!()
+        }
     }
 
     pub fn end_scope(&mut self) -> EmptyRes {
@@ -139,9 +205,9 @@ impl BytecodeGen {
             return ok();
         }
 
-        let end_offset = self.index() - scope.start_index - 1;
+        let end_offset = self.index() - scope.first_insn_index - 1;
 
-        let ind = scope.start_index;
+        let ind = scope.first_insn_index;
 
         match self.instructions[ind as usize] {
             IfEq(_) => self.instructions[ind as usize] = IfEq(end_offset),

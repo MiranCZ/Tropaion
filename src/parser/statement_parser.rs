@@ -246,7 +246,8 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
 pub fn parse_continue_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
         parser.expect_next(Continue)?;
-        
+        parser.expect_next(Semicolon)?;
+
         LoopInterrupt {break_loop: false}
     })
 }
@@ -254,9 +255,10 @@ pub fn parse_continue_statement(registry: &mut TypeRegistry,parser: &mut Parser)
 pub fn parse_break_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
         parser.expect_next(Break)?;
-        
+        parser.expect_next(Semicolon)?;
+
         LoopInterrupt {break_loop: true}
-    }) 
+    })
 }
 
 

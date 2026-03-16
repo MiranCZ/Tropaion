@@ -60,17 +60,18 @@ impl TypedStmt {
                 }
             }
             Statement::WhileStmt { condition, body } => {
+                generator.loop_label();
                 condition.generate_bytecode(registry, generator, Load)?;
 
-                generator.new_skippable_scope_eq();
+                generator.new_skippable_loop_eq();
 
                 for b in body {
                     b.gen_bytecode(registry, generator)?;
                 }
 
                 // FIXME should not generate this twice
-                condition.generate_bytecode(registry, generator, Load)?;
-                generator.push_goto_scope_start_insn();
+                // condition.generate_bytecode(registry, generator, Load)?;
+                generator.push_goto_loop_start_insn();
 
                 generator.end_scope()?;
             }
@@ -107,9 +108,13 @@ impl TypedStmt {
 
                 generator.ret(e.get_type().get(registry).word_size(registry));
             }
-            
+
             Statement::LoopInterrupt {break_loop} => {
-                todo!()
+                if *break_loop {
+                    generator.push_loop_exit_insn();
+                } else {
+                    generator.push_goto_loop_start_insn();
+                }
             }
 
             // ignored (at least for now)
