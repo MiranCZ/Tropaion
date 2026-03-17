@@ -85,6 +85,10 @@ impl <T: Clone, E: Clone> SymbolTable<T, E> {
         
         t
     }
+   
+    pub fn get_or(&self, symbol: &String, default: T) -> T {
+        self.get(symbol).unwrap_or(default)
+    }
     
     pub fn get(&self, symbol: &String) -> Option<T> {
         let t = self.get_with_info(symbol);

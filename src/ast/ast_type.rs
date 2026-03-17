@@ -357,6 +357,13 @@ impl AstType {
     }
 
     pub fn word_size(&self, registry: &TypeRegistry) -> u32 {
+        if true {
+            if matches!(self, AstType::Void) {
+                return 0;
+            }
+            return 1;
+        }
+        
         match self {
             AstType::Void => 0,
             AstType::Bool | AstType::Int | AstType::Float | AstType::StringType | AstType::ReferenceType {..} => 1,
