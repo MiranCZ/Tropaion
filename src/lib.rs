@@ -1,15 +1,10 @@
-use std::io::stderr;
-use std::time::Instant;
-use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::SymbolType;
 use crate::ast::walking::visitor::Visitor;
 use crate::compiler::compiler::Compiler;
-use crate::interpreter::heap::Heap;
 use crate::interpreter::interpreter::Interpreter;
-use crate::interpreter::value::Value;
 use crate::parser::Parser;
+use intrinsics::builtins::builtin_injector::inject_builtins;
+use std::time::Instant;
 
 pub mod lexer;
 pub mod parser;
@@ -25,18 +20,26 @@ mod intrinsics;
 pub fn main() {
     let text = r#"
     fn main() -> int {
-        let heap = __heap_alloc(5);
+        let v = Vec(2, 0, __heap_alloc(2));
 
-        heap.__store_at(1, 10);
-
-        return heap.__load_at(1);
+        v.push(77);
+        v.push(20);
+        v.push(5);
+        v.push(6);
+        v.push(7);
+        v.push(8);
+        v.pop();
+        v.push(50);
+        return v.pop();
     }
     "#;
 
-    interpret(text);
+    interpret(text.to_string());
 }
 
-pub fn get_interpreter_for(text: String) -> Interpreter {
+pub fn get_interpreter_for(mut text: String) -> Interpreter {
+    inject_builtins(&mut text);
+
     let mut lexer = lexer::Lexer::new(text.to_string());
 
     let tokens = lexer.parse();
@@ -92,7 +95,9 @@ pub fn get_interpreter_for(text: String) -> Interpreter {
     interpret
 }
 
-fn interpret(text: &str) {
+fn interpret(mut text: String) {
+    inject_builtins(&mut text);
+
     let mut lexer = lexer::Lexer::new(text.to_string());
 
     println!("Tokenization of: \n{text}");
@@ -140,6 +145,12 @@ fn interpret(text: &str) {
         }
     }
 
+    let total_errors = lexer.errors.len() + parser.errors.len() + analyzer.errors.len();
+
+    if total_errors != 0 {
+        panic!("Exited with {total_errors} errors");
+    }
+
     // println!("{:#?}", resolved_root);
 
     let mut comp = Compiler::new(resolved_root, text.chars().collect());
@@ -163,11 +174,7 @@ fn interpret(text: &str) {
     // println!("{:?}", functions);
     // println!();
 
-    let total_errors = lexer.errors.len() + parser.errors.len() + analyzer.errors.len();
 
-    if total_errors != 0 {
-        panic!("Exited with {total_errors} errors");
-    }
 
     for i in instructions.iter() {
         println!("{i:?}");

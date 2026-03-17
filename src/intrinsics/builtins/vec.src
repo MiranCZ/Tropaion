@@ -1,0 +1,30 @@
+struct Vec<T>(capacity: int, len: int, array: address) {
+
+    fn push(element: T) {
+        ensure_size();
+
+        array.__store_at(len, element);
+        len++;
+    }
+
+    fn pop() -> T {
+        len--;
+        return array.__load_at(len);
+    }
+
+    fn ensure_size() {
+        if len >= capacity {
+            capacity *= 2;
+            let new_alloc = __heap_alloc(capacity);
+
+            let i = 0;
+            while i < len {
+                new_alloc.__store_at(i, array.__load_at(i));
+                i++;
+            }
+
+            this.array = new_alloc;
+        }
+    }
+
+}

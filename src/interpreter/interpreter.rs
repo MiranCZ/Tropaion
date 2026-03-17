@@ -135,8 +135,8 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
-            println!("\t{insn:?}\n");
+            // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
+            // println!("\t{insn:?}\n");
 
             self.execute(insn)?;
             self.insn_addr += 1;
@@ -268,7 +268,6 @@ impl Interpreter {
     }
 
     fn push_stack_frame(&mut self, size: u16) {
-        println!("PUSHED STACK FRAME WITH SIZE {size}");
         self.stack_frames.push(StackFrame{start: self.pointer, len: size as usize });
 
         self.pointer += size as usize;

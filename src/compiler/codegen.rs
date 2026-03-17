@@ -605,7 +605,6 @@ impl BytecodeGen {
     }
 
     pub fn call(&mut self, name: &String) {
-        println!("{name}, has {:?}", self.functions);
         let info = self.functions.get(name).unwrap();
 
         self.push_insn(Call(info.index));
