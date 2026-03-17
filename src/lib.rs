@@ -34,7 +34,26 @@ pub fn main() {
     }
     "#;
 
-    interpret(text.to_string());
+    let code = r#"
+    struct Fuck() {
+        fn test() -> int {
+            return Box(109).get_value();
+        }
+    }
+
+    fn main() -> int {
+        return Fuck().test();
+    }
+
+    struct Box<T>(value: T) {
+        fn get_value() -> T{
+            return value;
+        }
+    }
+    "#;
+
+
+    interpret(code.to_string());
 }
 
 pub fn get_interpreter_for(mut text: String) -> Interpreter {

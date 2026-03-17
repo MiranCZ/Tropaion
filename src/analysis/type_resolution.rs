@@ -8,8 +8,8 @@ use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
-use crate::ast::statement::{Parameter, StatementBlock, TypedStmt};
-use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
+use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
+use crate::ast::walking::folder::{FoldedBlock, FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::{RedundantNullable, TypeResolutionFailed};
 use crate::error::context::{ErrorContext, Span};
@@ -18,6 +18,7 @@ use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
 use ordermap::OrderMap;
 use std::collections::HashMap;
+use crate::analysis::generic_fixer::GenericChecker;
 
 pub struct TypeResolver<'a> {
     registry: &'a mut TypeRegistry,
@@ -272,7 +273,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         let mut has_generics_params = matches!(return_type.get(self.registry), GenericType {..});
         for p in typed_params.clone().iter() {
-            if matches!(p.param_type.get(self.registry), GenericType {..}) {
+            if GenericChecker::is_generic(p.param_type, self.registry) {
                 has_generics_params = true;
             }
 
@@ -284,7 +285,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.symbol_table.pop();
         self.type_table.pop();
 
-        if !generics.is_empty() || has_generics_params {
+        if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
             let key = self.get_func_key(name.clone(), &params);
 
             self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
@@ -669,6 +670,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
                 }
 
+                println!("checking key {key}");
                 if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
                     let mut struct_scope = false;
 

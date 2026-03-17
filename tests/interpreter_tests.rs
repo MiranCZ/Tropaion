@@ -957,3 +957,43 @@ fn test_loop_interrupt() {
 
     test_simple_code("main", code, 4);
 }
+
+#[test]
+fn test_weird_order_bug() {
+    let code = r#"
+    fn main() -> int {
+        return Box(109).get_value(); // 1-  the generic_helper is now checked for generics
+    }
+
+    struct Box<T>(value: T) {
+        fn get_value() -> T{ // 2- only now the generic gets registered
+            return value;
+        }
+    }
+    "#;
+
+    test_simple_code("main", code, 109);
+}
+
+#[test]
+fn test_vec() {
+    let code = r#"
+    fn main() -> int {
+        let v = Vec(2, 0, __heap_alloc(2));
+
+        v.push(77);
+        v.push(20);
+        v.push(5);
+        v.push(6);
+        v.push(7);
+        v.push(8);
+        v.pop();
+        v.push(50);
+        v.pop();
+        v.pop();
+        return v.pop();
+    }
+    "#;
+
+    test_simple_code("main", code, 6);
+}

@@ -100,7 +100,7 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
 
 }
 
-struct GenericChecker<'a> {
+pub struct GenericChecker<'a> {
     registry: &'a mut TypeRegistry,
     visited: HashSet<TypeEntry>,
     is_generic: bool
