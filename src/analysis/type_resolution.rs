@@ -21,9 +21,9 @@ use std::collections::HashMap;
 use crate::analysis::generic_fixer::GenericChecker;
 
 pub struct TypeResolver<'a> {
-    registry: &'a mut TypeRegistry,
-    symbol_table: &'a mut TypeSymTable,
-    type_table: &'a mut TypeSymTable,
+    pub registry: &'a mut TypeRegistry,
+    pub symbol_table: &'a mut TypeSymTable,
+    pub type_table: &'a mut TypeSymTable,
     pub generic_helper: GenericHelper,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
@@ -285,11 +285,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         self.symbol_table.pop();
         self.type_table.pop();
 
-        if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
-            let key = self.get_func_key(name.clone(), &params);
-
-            self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
-        }
+        // if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
+        //     let key = self.get_func_key(name.clone(), &params);
+        //
+        //     self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
+        // }
 
         FunctionStmt {name, generics, params: typed_params, return_type, body: typed_body}
     }
@@ -497,7 +497,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         let assign_result = self.get_assign_result(assignee.get_type(), value.get_type());
 
         if let Some(t) = assign_result {
-            assignee.set_type(self.registry, t.clone());
+            // FIXME wtf do we want to change the assigness type??
+            // assignee.set_type(self.registry, t.clone());
 
             if matches!(assignee.get_type().get(self.registry), NullableType {..}) && !matches!(value.get_type().get(self.registry), NullableType {..}) {
                 let nullable = self.registry.register(NullableType {underlying: value.get_type()});
@@ -603,7 +604,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             let mut err = false;
             for arg in args.clone() {
+                println!("Folding expr {arg:?} type");
                 let arg = self.fold_expr(arg);
+                println!("\tresult type {}", arg.get_type().format(self.registry));
 
                 if arg.is_err(self.registry) {
                     err = true;
@@ -640,6 +643,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
 
             if let AstType::FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
+                if (generics.len() > 0) {
+                    println!("at start {}", generics[0].format(self.registry));
+                }
                 let key = self.get_func_key_type(name.clone(), &params);
 
                 self.type_table.push();
@@ -653,8 +659,13 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     let arg = &mut resolved_args[i];
                     let p = params[i];
 
+                    println!("BOXING {} into {}", arg.get_type().format(self.registry), p.format(self.registry));
                     // auto null-boxing
                     self.box_arg(arg, p);
+                }
+
+                if (generics.len() > 0) {
+                    println!("at mid {}", generics[0].format(self.registry));
                 }
 
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
@@ -694,6 +705,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     }
 
                     if !self.generic_helper.has_implementation(self.registry, &key, generics.clone()) {
+                        println!("registered impl {}",generics[0].format(self.registry));
                         // register that we are already evaluating this type of function
                         let pos = self.generic_helper.register_implementation(key.clone(), generics.clone());
                         let resolved = self.fold_stmt(original);
@@ -836,7 +848,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             return t.get(self.registry);
         }
 
-        self.error_type(TypeResolutionFailed(name))
+        panic!("failed {name}");
+        // self.error_type(TypeResolutionFailed(name))
     }
 
     fn fold_struct_type(

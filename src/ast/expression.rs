@@ -153,7 +153,6 @@ impl TypedExpr {
 
         // cast type to a nullable one
         if let NullableType {underlying} = typ {
-
             // already null-like, only set underlying value
             if let NullLiteralExpr(t) = &mut self.node {
                 t.mutate(registry, NullableType {underlying});
@@ -164,10 +163,10 @@ impl TypedExpr {
             // set underlying type
             self.set_type(registry, underlying.get(registry));
 
-            // make the underlying type mutable
+            // make the underlying type nullable
             self.get_type().mutate(registry, NullableType {underlying});
 
-            // make expression mutable
+            // make expression nullable
             self.node = NullableExpr(self.get_type(),self.clone().boxed());
 
             return;

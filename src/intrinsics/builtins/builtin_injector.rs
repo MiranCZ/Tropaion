@@ -1,5 +1,5 @@
 pub fn inject_builtins(src: &mut String) {
-    inject_vec(src)
+    // inject_vec(src)
 }
 
 fn inject_vec(src: &mut String) {

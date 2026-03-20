@@ -16,6 +16,7 @@ use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::generic_fixer::GenericFixer;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
+use crate::analysis::top_level_collector::TopLevelCollector;
 use crate::analysis::type_resolution::TypeResolver;
 use crate::ast::walking::folder::Folder;
 use crate::error::context::{ErrorContext, Errors, Span};
@@ -41,9 +42,9 @@ impl Analyzer {
     }
 
     pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
-        self.record_top_level(registry);
-
         let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table, &mut self.type_table);
+
+        TopLevelCollector::collect(&mut type_resolver, self.root.clone());
 
         Self::record_consts(self.root.clone(), &mut type_resolver, &mut self.errors);
 
@@ -88,8 +89,10 @@ impl Analyzer {
                     FunctionStmt {name, generics, params, return_type, .. } => {
                         let mut resolved_generics = OrderMap::new();
 
+                        self.type_table.push();
                         for g in generics {
                             resolved_generics.insert(g.clone(), registry.register(UnknownType));
+                            self.type_table.record(g.clone(), registry.register(GenericType {name: g.clone()}));
                         }
 
                         let t = FunctionType {
@@ -99,6 +102,7 @@ impl Analyzer {
                             return_type: *return_type
                         };
 
+                        self.type_table.pop();
                         let func_type = registry.register(t);
 
                         self.record_function(registry, func_type);

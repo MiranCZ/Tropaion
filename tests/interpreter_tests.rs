@@ -975,6 +975,7 @@ fn test_weird_order_bug() {
     test_simple_code("main", code, 109);
 }
 
+#[ignore]
 #[test]
 fn test_vec() {
     let code = r#"

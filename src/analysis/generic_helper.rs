@@ -70,9 +70,12 @@ impl GenericHelper {
 
     pub fn has_implementation(&self,registry: &TypeRegistry ,key: &String, generics: OrderMap<String, TypeEntry>) -> bool {
         if let Some(vec) = self.implemented_functions.get(key) {
+
+            'loopCheck:
             for e in vec {
                 let gens = &e.0;
 
+                println!("Hecking {:?} {:?}", gens[0].format(registry), generics[0].format(registry));
                 if gens.len() != generics.len() {
                     return false;
                 }
@@ -82,16 +85,18 @@ impl GenericHelper {
 
                 while let Some(g1) = i1.next() && let Some(g2) = i2.next() {
                     if *g1.0 != *g2.0 {
-                        return false;
+                        continue 'loopCheck;
                     }
 
                     if !g1.1.get(registry).equals(&g2.1.get(registry), registry) {
-                        return false;
+                        continue 'loopCheck;
                     }
                 }
+
+                return true;
             }
 
-            return true;
+            return false;
         }
 
         false
