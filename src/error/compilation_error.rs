@@ -3,6 +3,7 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
 use crate::error::compilation_error::CompilationError::{IllegalCall, IllegalIndexing, IllegalMemberAccess};
+use crate::error::Error;
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 
@@ -49,6 +50,9 @@ pub enum CompilationError {
 
     #[error("Int constant of '{0}' does not fit integer bounds ({min} < n < {max})", min=i32::MIN, max=i32::MAX)]
     IntOutOfBounds(i64)
+}
+
+impl Error for CompilationError {
 }
 
 impl CompilationError {

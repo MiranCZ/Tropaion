@@ -5,6 +5,7 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
+use crate::compiler::compiler::CompilationResult;
 use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
@@ -77,12 +78,12 @@ type ValueRes = Result<Value, RuntimeError>;
 impl Interpreter {
 
 
-    pub fn new(instructions: Vec<ByteCode>, line_maps: Vec<usize>, functions_map: HashMap<String, FunctionInfo>) -> Self {
-        let mut functions = Vec::with_capacity(functions_map.len());
-        functions.resize(functions_map.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
+    pub fn new(compilation_result: CompilationResult) -> Self {
+        let mut functions = Vec::with_capacity(compilation_result.functions.len());
+        functions.resize(compilation_result.functions.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
 
 
-        for e in functions_map.iter() {
+        for e in compilation_result.functions.iter() {
             let f = e.1;
 
             functions[f.index as usize] = *f;
@@ -92,8 +93,10 @@ impl Interpreter {
         stack.resize(STACK_SIZE, Null);
 
         Self {
-            instructions,line_maps ,functions,
-            function_mapping: functions_map,
+            instructions: compilation_result.instructions,
+            line_maps: compilation_result.lines,
+            function_mapping: compilation_result.functions,
+            functions,
 
             insn_addr: 0,
             pointer: 1, // 0 is nullptr
@@ -105,11 +108,11 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(&mut self, function: String) -> Result<(Vec<Value>, &Heap), ErrorContext<RuntimeError>> {
+    pub fn run_function(mut self, function: String) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
         let res = self._run_function(function);
 
         if let Ok(v) = res {
-            return Ok((v, &self.heap));
+            return Ok((v, self.heap));
         } else if let Err(e) = res {
             let line_num = self.line_maps[min(self.insn_addr, self.line_maps.len()-1)];
 

@@ -1,5 +1,6 @@
 use thiserror::Error;
 use crate::compiler::bytecode::ByteCode;
+use crate::error::Error;
 use crate::interpreter::value::{Value, ValueType};
 
 
@@ -72,4 +73,7 @@ pub enum RuntimeError {
 
     #[error("Illegal allocation size of {0}")]
     IllegalAllocSize(i32)
+}
+
+impl Error for RuntimeError {
 }

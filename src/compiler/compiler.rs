@@ -14,6 +14,11 @@ pub struct Compiler {
     pub generator: BytecodeGen
 }
 
+pub struct CompilationResult {
+    pub instructions: Vec<ByteCode>,
+    pub lines: Vec<usize>,
+    pub functions: HashMap<String, FunctionInfo>
+}
 
 impl Compiler {
     pub fn new(root: TypedStmt, text: Vec<char>) -> Self {
@@ -23,7 +28,7 @@ impl Compiler {
         }
     }
 
-    pub fn compile(mut self, registry: &TypeRegistry) -> Result<(Vec<ByteCode>, Vec<usize>, HashMap<String, FunctionInfo>), CompilationError> {
+    pub fn compile(mut self, registry: &TypeRegistry) -> Result<CompilationResult, CompilationError> {
         self.collect_functions(registry, &self.root.clone());
 
         for e in get_injected_function_identifiers() {
@@ -34,8 +39,11 @@ impl Compiler {
 
         self.root.gen_bytecode(registry, &mut self.generator)?;
 
-
-        Ok((self.generator.instructions, self.generator.lines, self.generator.functions))
+        Ok(CompilationResult{
+            instructions: self.generator.instructions,
+            lines: self.generator.lines,
+            functions:self.generator.functions
+        })
     }
 
     fn collect_functions(&mut self, registry: &TypeRegistry ,stmt: &TypedStmt) {

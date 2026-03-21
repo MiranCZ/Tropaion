@@ -3,6 +3,7 @@ use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::expression::UntypedExpr;
 use crate::ast::statement::{Statement, UntypedStmt};
 use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
+use crate::error::Error;
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 
@@ -80,6 +81,9 @@ pub enum AnalysisError {
 
     #[error("Constants must have an explicit type")]
     TypelessConst
+}
+
+impl Error for AnalysisError {
 }
 
 impl AnalysisError {

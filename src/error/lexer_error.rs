@@ -1,6 +1,6 @@
-use std::io::Error;
 use std::num::{ParseFloatError, ParseIntError};
 use thiserror::Error;
+use crate::error::Error;
 use crate::lexer::token::Token;
 
 #[derive(Error, Debug, PartialEq)]
@@ -22,4 +22,7 @@ pub enum LexerError {
     #[error("Failed to parse float literal '{0}' ({1})")]
     FloatParseFail(String, ParseFloatError),
     
+}
+
+impl Error for LexerError {
 }

@@ -1,21 +1,10 @@
-use Tropaion::get_interpreter_for;
-use Tropaion::interpreter::heap::Heap;
-use Tropaion::interpreter::interpreter::Interpreter;
-use Tropaion::interpreter::value::Value;
 use Tropaion::interpreter::value::Value::IntValue;
+use Tropaion::run_code;
 
-fn run(interpreter: &mut Interpreter, name: String) -> (Vec<Value>, &Heap) {
-    let res = interpreter.run_function(name);
-    match res {
-        Ok(v) => return v,
-        Err(e) => panic!("{e:?}"),
-    }
-}
 
 fn test_simple_code(main: &str, code: &str, expected: i32) {
-    let main = main.to_owned() + "_";
-    let mut interpret = get_interpreter_for(code.to_string());
-    let (stack, heap) = run(&mut interpret, main.to_string());
+    let (stack, heap) = run_code(code.to_string(), main).unwrap();
+
     assert_eq!(stack.len(), 2);
     assert_eq!(stack[1], IntValue(expected));
 }
@@ -29,8 +18,10 @@ fn test_math_expr(expr: &str, expected: i32) {
         + r#";
     }
     "#;
-    let mut interpret = get_interpreter_for(text.to_string());
-    let (stack, _heap) = run(&mut interpret, "main_".to_string());
+
+
+    let (stack, heap) = run_code(text.to_string(), "main").unwrap();
+
     assert_eq!(stack.len(), 2);
     assert_eq!(
         stack[1],
@@ -253,8 +244,8 @@ fn test_chained_else_if() {
         "#,
             n
         );
-        let mut interpret = get_interpreter_for(code);
-        let (stack, _) = run(&mut interpret, "main_".to_string());
+        let (stack, _) = run_code(code, "main").unwrap();
+
         if let IntValue(v) = stack[1] { v } else { panic!("not int") }
     };
 

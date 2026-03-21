@@ -1,26 +1,8 @@
-use Tropaion::error::runtime_error::RuntimeError;
-use Tropaion::get_interpreter_for;
-use Tropaion::interpreter::heap::Heap;
-use Tropaion::interpreter::interpreter::Interpreter;
-use Tropaion::interpreter::value::Value;
 use Tropaion::interpreter::value::Value::IntValue;
-
-fn run(interpreter: &mut Interpreter, name: String) -> (Vec<Value>, &Heap) {
-    let res = interpreter.run_function(name);
-    
-    match res {
-        Ok(v) => return v,
-        Err(e) => panic!("{e:?}")
-    }
-}
+use Tropaion::run_code;
 
 fn test_simple_code(main: &str, code: &str, expected: i32) {
-    let main = main.to_owned() + "_"; // FIXME should really fix the trailing `_` at some point bruh
-
-    let mut interpret = get_interpreter_for(code.to_string());
-
-    let (stack, heap) = run(&mut interpret, main.to_string());
-
+    let (stack, heap) = run_code(code.to_string(), main).unwrap();
 
     assert_eq!(stack.len(), 2, "{:?}", &stack[0..stack.len()]); // nullptr, value
     assert_eq!(stack[1], IntValue(expected));
@@ -32,10 +14,8 @@ fn test_math_expr(expr: &str, expected: i32) {
         return "#.to_owned() +expr+r#";
     }
     "#;
-    let mut interpret = get_interpreter_for(text.to_string());
-
-    let (stack, heap) = run(&mut interpret, "main_".to_string());
-
+    let (stack, heap) = run_code(text.to_string(), "main").unwrap();
+    
     assert_eq!(stack.len(), 2); // nullptr, value
     assert_eq!(stack[1], IntValue(expected), "Failed for expression '{} = {}'", expr, expected);
 }
