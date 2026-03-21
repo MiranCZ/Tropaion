@@ -159,6 +159,11 @@ impl TypedExpr {
 
                 return;
             }
+            if let NullableType{underlying: t} = &mut self.get_type().get(registry) {
+                t.mutate(registry, NullableType {underlying});
+
+                return;
+            }
 
             // set underlying type
             self.set_type(registry, underlying.get(registry));

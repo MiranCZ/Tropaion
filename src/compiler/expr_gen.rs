@@ -337,7 +337,7 @@ impl TypedExpr {
         fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, args: &Vec<TypedExpr>,typ: TypeEntry) -> EmptyRes {
             match typ.get(registry) {
                 AstType::FunctionType { name, .. } => {
-                    generator.comment(format!("Loading func {name}, with args {args:?}"));
+                    generator.comment(format!("Loading func {name}, with args {:?}", args.iter().map(|a| a.get_type().format(registry)).collect::<Vec<String>>()));
                     for a in args {
                         a.generate_bytecode(registry, generator, Load)?;
                     }

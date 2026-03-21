@@ -34,44 +34,9 @@ pub fn main() {
     }
     "#;
 
-    let code = r#"
-    struct Fuck() {
-        fn test() -> int {
-            return Box(109).get_value();
-        }
-    }
-
-    fn main() -> int {
-        return Fuck().test();
-    }
-
-    fn gener<T>(value: T) -> T {
-        return value;
-    }
-
-    struct Box<T>(value: T) {
-        fn get_value() -> T{
-            return value;
-        }
-    }
-    "#;
-
-    let code2 = r#"
-    struct A(b: B?, i: int);
-    struct B(a: A);
-
-    fn main() -> int {
-        let a = A(null, 5);
-        let b = B(a);
-
-        a.b = b;
-
-        return 1;
-    }
-    "#;
 
 
-    interpret(code2.to_string());
+    interpret(text.to_string());
 }
 
 pub fn get_interpreter_for(mut text: String) -> Interpreter {
