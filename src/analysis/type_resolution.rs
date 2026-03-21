@@ -1,13 +1,13 @@
 use crate::analysis::generic_helper::GenericHelper;
 use crate::analysis::mangling;
 use crate::analysis::symbol_table::{TypeSymTable, TypeSymTableInfo};
-use crate::analysis::type_duplicator::TypeDuplicator;
+use crate::analysis::type_duplicator::{TypeDuplicator, UntypedTypeDuplicator};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionType, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::expression::{deref, Expression, TypedExpr};
-use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
+use crate::ast::statement::Statement::{CommentStmt, FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::walking::folder::{FoldedBlock, FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
@@ -193,6 +193,101 @@ impl <'a> TypeResolver<'a> {
     }
 }
 
+
+impl <'a> TypeResolver<'a> {
+
+    pub fn resolve_generic_funcs(&mut self) {
+        let mut resolved_functions = vec![];
+        for e in self.generic_helper.get_requests().clone() {
+            let key = e.0;
+
+            let original = if let Some(o) = self.generic_helper.get_generic(self.registry, &key) {
+                o
+            } else {
+                unreachable!("Trying to access non-existent generic function")
+            };
+
+            for info in e.1 {
+                let generic_types = &info.0;
+                let owner = &info.1;
+
+                self.symbol_table.push();
+                self.type_table.push();
+                if let Some(struct_type) = owner {
+                    let registered = self.registry.register(struct_type.clone());
+
+                    self.symbol_table.record(String::from("this"), registered);
+
+                    if let StructType {children,generics, ..} = &struct_type {
+                        for p in children {
+                            self.symbol_table.record_with_info(p.0.clone(), p.1.0, TypeSymTableInfo::inside_struct(struct_type.clone()));
+                        }
+
+                        for (name, typ) in generics {
+                            self.type_table.record(name.clone(), *typ);
+                        }
+                    } else {
+                        unreachable!("Function owner is not a struct but {:?}", struct_type)
+                    }
+                }
+
+                for (name, typ) in generic_types {
+                    self.type_table.record(name.clone(), *typ);
+                }
+
+                let node = UntypedTypeDuplicator::duplicate(self.registry, original.clone());
+                
+                let resolved;
+                if let FunctionStmt {name, params, return_type, body, ..} = node.node.clone() {
+                    resolved = Spanned::of(
+                        self.resolve_function(name, params, return_type, body),
+                        original.span
+                    );
+                } else {
+                    unreachable!("Function template is not a function type!")
+                }
+
+                resolved_functions.push((key.clone(), resolved));
+
+                self.symbol_table.pop();
+                self.type_table.push();
+            }
+        }
+
+        for (key, func) in resolved_functions {
+            self.generic_helper.record_implementation(key, func);
+        }
+    }
+
+    fn resolve_function(&mut self, name: String, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
+        let return_type = self.fold_type_entry(return_type);
+
+        let mut typed_params = vec![];
+
+        for p in params.iter() {
+            typed_params.push(Parameter{
+                name: p.name.clone(),
+                param_type: self.fold_type_entry(p.param_type)
+            });
+        }
+
+        self.symbol_table.push();
+
+        self.symbol_table.record_return_type(return_type);
+
+        for p in typed_params.clone().iter() {
+            self.symbol_table.record(p.name.clone(), p.param_type);
+        }
+
+        let typed_body = self.fold_block(body.clone());
+
+        self.symbol_table.pop();
+
+        FunctionStmt {name, generics: vec![], params: typed_params, return_type, body: typed_body}
+    }
+
+}
+
 impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     fn get_registry(&self) -> &TypeRegistry {
         self.registry
@@ -280,16 +375,15 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             self.symbol_table.record(p.name.clone(), p.param_type);
         }
 
+
+        if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
+            return FunctionStmt {name, generics, params: typed_params, return_type, body: vec![Spanned::of(CommentStmt("Generic stub".to_string()), Span::new(0,0))]}
+        }
+
         let typed_body = self.fold_block(body.clone());
 
         self.symbol_table.pop();
         self.type_table.pop();
-
-        // if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
-        //     let key = self.get_func_key(name.clone(), &params);
-        //
-        //     self.generic_helper.record_generic(key, name.clone(), params, return_type, body, span);
-        // }
 
         FunctionStmt {name, generics, params: typed_params, return_type, body: typed_body}
     }
@@ -604,9 +698,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             let mut err = false;
             for arg in args.clone() {
-                println!("Folding expr {arg:?} type");
                 let arg = self.fold_expr(arg);
-                println!("\tresult type {}", arg.get_type().format(self.registry));
 
                 if arg.is_err(self.registry) {
                     err = true;
@@ -643,15 +735,14 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
 
             if let AstType::FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
-                if (generics.len() > 0) {
-                    println!("at start {}", generics[0].format(self.registry));
-                }
                 let key = self.get_func_key_type(name.clone(), &params);
 
                 self.type_table.push();
 
                 for e in generics.clone() {
-                    self.type_table.record(e.0.clone(), e.1);
+                    if self.symbol_table.get(&e.0).is_none() {
+                        self.type_table.record(e.0.clone(), e.1);
+                    }
                 }
 
                 // resolve argument types
@@ -659,13 +750,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     let arg = &mut resolved_args[i];
                     let p = params[i];
 
-                    println!("BOXING {} into {}", arg.get_type().format(self.registry), p.format(self.registry));
                     // auto null-boxing
                     self.box_arg(arg, p);
-                }
-
-                if (generics.len() > 0) {
-                    println!("at mid {}", generics[0].format(self.registry));
                 }
 
                 // FIXME not at all sure if `set_type` or `change_type` should be called here aaaa
@@ -676,15 +762,17 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 self.type_table.push();
                 if let FunctionType {params,generics,..} = resolved_func.get_type().get(self.registry) {
                     for g in generics {
-                        self.type_table.record(g.0, g.1);
+                        if self.symbol_table.get(&g.0).is_none() {
+                            self.type_table.record(g.0, g.1);
+                        }
                     }
 
                 }
 
-                println!("checking key {key}");
                 if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
                     let mut struct_scope = false;
 
+                    let mut owner = None;
                     if let Some(record) = self.symbol_table.get_with_info(&name) &&
                         let Some(info) = record.1 &&
                         let Some(struct_type) = info.owner {
@@ -702,26 +790,28 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         } else {
                             return self.error(AnalysisError::type_mismatch(ValueTypeVariant::Struct, registered, self.registry), span);
                         }
+                        owner = Some(struct_type);
                     }
 
-                    if !self.generic_helper.has_implementation(self.registry, &key, generics.clone()) {
-                        println!("registered impl {}",generics[0].format(self.registry));
-                        // register that we are already evaluating this type of function
-                        let pos = self.generic_helper.register_implementation(key.clone(), generics.clone());
-                        let resolved = self.fold_stmt(original);
-                        self.type_table.pop();
-
-                        if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
-                            return_type = *resolved_return;
-                        }
-
-                        // record the actual concrete function
-                        self.generic_helper.record_implementation(&key, pos, resolved);
-                    } else {
+                    self.generic_helper.request_resolution(self.registry, key, generics.clone(), owner);
+                    // if !self.generic_helper.has_implementation(self.registry, &key, generics.clone()) {
+                    //     println!("registered impl {}",generics[0].format(self.registry));
+                    //     // register that we are already evaluating this type of function
+                    //     let pos = self.generic_helper.register_implementation(key.clone(), generics.clone());
+                    //     let resolved = self.fold_stmt(original);
+                    //     self.type_table.pop();
+                    //
+                    //     if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
+                    //         return_type = *resolved_return;
+                    //     }
+                    //
+                    //     // record the actual concrete function
+                    //     self.generic_helper.record_implementation(&key, pos, resolved);
+                    // } else {
                         let duplicate_ret_type = return_type.duplicate(self.registry);
 
                         return_type = self.fold_type_entry(duplicate_ret_type);
-                    }
+                    // }
                     if struct_scope {
                         self.symbol_table.pop();
                     }

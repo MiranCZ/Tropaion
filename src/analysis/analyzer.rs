@@ -49,6 +49,7 @@ impl Analyzer {
         Self::record_consts(self.root.clone(), &mut type_resolver, &mut self.errors);
 
         let mut resolved_root: TypedStmt = self.root.clone().walk_fold(&mut type_resolver);
+        type_resolver.resolve_generic_funcs();
 
         let mut errors = type_resolver.errors;
         let generic_helper = type_resolver.generic_helper;

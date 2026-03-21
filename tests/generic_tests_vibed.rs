@@ -272,7 +272,6 @@ fn test_generics_passed_to_function() {
     test_simple_code("main", code, 33);
 }
 
-#[ignore]
 #[test]
 fn test_generics_recursive_fn() {
     // Generic function used recursively (e.g. identity applied n times)

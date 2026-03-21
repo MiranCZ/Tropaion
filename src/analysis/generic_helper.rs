@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use ordermap::OrderMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
+use crate::ast::ast_type::AstType;
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::statement::Statement::FunctionStmt;
 use crate::error::context::Span;
@@ -8,7 +9,8 @@ use crate::util::spanned::Spanned;
 
 pub struct GenericHelper {
     generic_functions: HashMap<String, (String, Vec<Parameter>, TypeEntry, StatementBlock<()>, Span)>,
-    implemented_functions: HashMap<String, Vec<(OrderMap<String, TypeEntry>, Option<TypedStmt>)>>
+    implemented_functions: HashMap<String, Vec<TypedStmt>>,
+    requests: HashMap<String, Vec<(OrderMap<String, TypeEntry>, Option<AstType>)>>
 }
 
 
@@ -17,7 +19,8 @@ impl GenericHelper {
     pub fn new() -> Self {
         Self {
             generic_functions: HashMap::new(),
-            implemented_functions: HashMap::new()
+            implemented_functions: HashMap::new(),
+            requests: HashMap::new()
         }
     }
 
@@ -49,33 +52,38 @@ impl GenericHelper {
         ))
     }
 
-    pub fn register_implementation(&mut self, key: String, generics: OrderMap<String, TypeEntry>) -> usize {
+    pub fn request_resolution(&mut self,type_registry: &TypeRegistry ,key: String, generic_types: OrderMap<String, TypeEntry>, owner: Option<AstType>) {
+        if self.has_requested(type_registry, &key, &generic_types) {
+            return;
+        }
+
+        if let Some(arr) = self.requests.get_mut(&key) {
+            arr.push((generic_types, owner));
+        } else {
+            self.requests.insert(key, vec![(generic_types, owner)]);
+        }
+    }
+
+    pub fn get_requests(&self) -> &HashMap<String, Vec<(OrderMap<String, TypeEntry>, Option<AstType>)>> {
+        &self.requests
+    }
+
+
+    pub fn record_implementation(&mut self,key: String, func: TypedStmt) {
         if let Some(arr) = self.implemented_functions.get_mut(&key) {
-            arr.push((generics, None));
-
-            return arr.len()-1;
+            arr.push(func);
         } else {
-            self.implemented_functions.insert(key, vec![(generics, None)]);
-            return 0;
+            self.implemented_functions.insert(key, vec![func]);
         }
     }
 
-    pub fn record_implementation(&mut self,key: &String, pos: usize, func: TypedStmt) {
-        if let Some(arr) = self.implemented_functions.get_mut(key) {
-            arr[pos].1 = Some(func);
-        } else {
-            panic!("Not registered");
-        }
-    }
-
-    pub fn has_implementation(&self,registry: &TypeRegistry ,key: &String, generics: OrderMap<String, TypeEntry>) -> bool {
-        if let Some(vec) = self.implemented_functions.get(key) {
+    fn has_requested(&self,registry: &TypeRegistry ,key: &String, generics: &OrderMap<String, TypeEntry>) -> bool {
+        if let Some(vec) = self.requests.get(key) {
 
             'loopCheck:
             for e in vec {
                 let gens = &e.0;
 
-                println!("Hecking {:?} {:?}", gens[0].format(registry), generics[0].format(registry));
                 if gens.len() != generics.len() {
                     return false;
                 }
@@ -104,7 +112,7 @@ impl GenericHelper {
 
     pub fn get_implementation(&mut self, key: &String) -> Vec<TypedStmt> {
         if let Some(arr) = self.implemented_functions.get(key) {
-            return arr.iter().filter(|e| e.1.is_some()).map(|(_, v) | v.clone().unwrap()).collect();
+            return arr.clone();
         }
 
         vec![]

@@ -178,19 +178,9 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
 
         let resolved_return = self.resolver.fold_type_entry(*return_type);
 
-        println!("Recording function {name}");
-
-        for p in resolved_params.iter() {
-            println!("\t{} {:?}",p.format(self.resolver.registry), p.get(self.resolver.registry));
-        }
-
-
-        println!("\treturns {}", resolved_return.format(self.resolver.registry));
-
         if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(*return_type, self.resolver.registry) {
             let key = self.get_func_key_type(name.clone(), owner.clone(), &resolved_params);
 
-            println!("\tgeneric key {key}");
             self.resolver.generic_helper.record_generic(key, name.clone(), params.clone(), *return_type, body.clone(), *span);
         }
 
