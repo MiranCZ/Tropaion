@@ -35,7 +35,6 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
     pub fn collect(resolver: &'a mut TypeResolver<'b>, stmt: UntypedStmt) {
         let mut new = Self::new(resolver);
 
-        // new.resolver.type_table.push();
         if let BlockStmt {body} = &stmt.node {
             for s in body {
                 match &s.node {
@@ -48,7 +47,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             }
         }
 
-        /*
+
         for func in get_injected_functions(new.resolver.registry) {
             let t = new.resolver.registry.register(func);
             new.record_function(t);
@@ -62,11 +61,9 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             } else {
                 panic!("Invalid injected {struct_type:?}");
             }
-        }*/
+        }
 
         stmt.walk_fold(&mut new);
-
-        // new.resolver.type_table.pop();
     }
 
 

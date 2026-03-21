@@ -938,8 +938,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             return t.get(self.registry);
         }
 
-        panic!("failed {name}");
-        // self.error_type(TypeResolutionFailed(name))
+        self.error_type(TypeResolutionFailed(name))
     }
 
     fn fold_struct_type(
