@@ -26,6 +26,9 @@ impl ValueTypeVariant {
 pub enum RuntimeError {
     #[error("Stack underflow! {0}")]
     StackUnderflow(&'static str),
+    
+    #[error("Stack overflow!")]
+    StackOverflow,
 
     #[error("Stack frame is missing!")]
     StackFrameMissing,

@@ -8,7 +8,7 @@ use crate::compiler::codegen::FunctionInfo;
 use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
-use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
@@ -263,6 +263,9 @@ impl Interpreter {
         self.stack[self.pointer] = value;
 
         self.pointer += 1;
+        if self.pointer >= self.stack.len() {
+            return Err(StackOverflow)
+        }
 
         ok()
     }
