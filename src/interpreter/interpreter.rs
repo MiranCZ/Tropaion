@@ -16,8 +16,7 @@ use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
 use crate::interpreter::value::Value::{FloatValue, IntValue, Null, RefValue};
 use crate::interpreter::value::ValueType::{Address, Float, Int};
-
-
+use crate::util::arg_convertor::ValueConvertable;
 
 macro_rules! math_op {
     ($method:ident) => {
@@ -108,8 +107,8 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(mut self, function: String) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
-        let res = self._run_function(function);
+    pub fn run_function(mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
+        let res = self._run_function(function, arguments);
 
         if let Ok(v) = res {
             return Ok((v, self.heap));
@@ -122,7 +121,15 @@ impl Interpreter {
         panic!()
     }
 
-    fn _run_function(&mut self, function: String) -> Result<Vec<Value>, RuntimeError> {
+    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<Vec<Value>, RuntimeError> {
+        for a in arguments {
+            for value in a.into_value(self) {
+                self.push(value)?;
+            }
+        }
+
+        println!("values {:?}", &self.stack[0..self.pointer]);
+
         let fun = self.function_mapping.get(&function);
 
         let fun = if let Some(fun) = fun {
@@ -138,8 +145,8 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
-            // println!("\t{insn:?}\n");
+            println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
+            println!("\t{insn:?}\n");
 
             self.execute(insn)?;
             self.insn_addr += 1;
@@ -152,6 +159,13 @@ impl Interpreter {
         }
 
         Ok(result)
+    }
+
+    pub fn stack_top(&self) -> u32 {
+        self.pointer as u32
+    }
+    pub unsafe fn get_heap(&mut self) -> &mut Heap {
+        &mut self.heap
     }
 
     fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {
@@ -602,6 +616,7 @@ impl Interpreter {
         }
         values.reverse();
 
+        println!("RESOLVED ARGS {:?} {size}", &self.stack[0..self.pointer]);
         self.insn_addr = (info.start as usize);
 
         let next_insn = &self.instructions[self.insn_addr];

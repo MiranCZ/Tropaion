@@ -1,12 +1,19 @@
 use crate::analysis::type_registry::TypeRegistry;
 use crate::{compile, lex_code, parse_tokens, resolve_types, run_compiled};
 use std::time::Instant;
+use crate::util::arg_convertor::into_arg;
 
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() -> int {
-        return 10;
+    fn main(value: Vec<int>) -> int {
+        value.pop();
+        value.push(77);
+        let x = value.pop();
+
+        600000;
+
+        return x;
     }
     "#;
 
@@ -33,7 +40,7 @@ fn interpret(mut text: String) {
 
     let mut registry = TypeRegistry::new();
 
-    let (v, parser_errors) = parse_tokens(tokens, &mut registry, "main", vec![10]);
+    let (v, parser_errors) = parse_tokens(tokens, &mut registry);
 
     if !parser_errors.is_empty() {
         eprintln!("--------- Parser has {} errors ---------- \n", parser_errors.len());
@@ -92,7 +99,7 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(compilation_res);
+    let result = run_compiled(compilation_res, "main", vec![into_arg(vec![10, 40])]);
 
     let result = if let Ok(r) = result {
         r

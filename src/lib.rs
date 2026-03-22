@@ -17,6 +17,8 @@ use crate::lexer::{Lexer, TokenInfo};
 use crate::parser::Parser;
 use crate::util::spanned::Spanned;
 use intrinsics::builtins::builtin_injector::inject_builtins;
+use crate::util::arg_convertor;
+use crate::util::arg_convertor::ValueConvertable;
 
 pub mod lexer;
 pub mod parser;
@@ -41,24 +43,12 @@ pub fn lex_code(code: &mut String) -> (Vec<TokenInfo>, Errors<LexerError>) {
     (result, lexer.errors)
 }
 
-pub fn parse_tokens(tokens: Vec<TokenInfo>, registry: &mut TypeRegistry, entry_point: &str, arguments: Vec<i32>) -> (UntypedStmt, Errors<ParserError>) {
+pub fn parse_tokens(tokens: Vec<TokenInfo>, registry: &mut TypeRegistry) -> (UntypedStmt, Errors<ParserError>) {
     let mut parser = Parser::new(tokens);
 
-    let mut v = parser.parse(registry);
+    let untyped = parser.parse(registry);
 
-    // inject entry_point
-    // TODO add arguments
-    if let Statement::BlockStmt{body} = &mut v.node {
-        body.push(Spanned::of(FunctionStmt {
-            name: "#__start".to_string(),
-            generics: vec![],
-            params: vec![],
-            return_type: registry.register(Void),
-            body: vec![parse_isolated_string(format!("return {entry_point}();"))]
-        }, Span::new(0,0)));
-    }
-
-    (v, parser.errors)
+    (untyped, parser.errors)
 }
 
 pub fn resolve_types(untyped: UntypedStmt, registry: &mut TypeRegistry) -> (TypedStmt, Errors<AnalysisError>) {
@@ -75,10 +65,16 @@ pub fn compile(typed: TypedStmt, registry: &mut TypeRegistry, code: &String) -> 
     comp.compile(registry)
 }
 
-pub fn run_compiled(compilation_result: CompilationResult) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
+pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
     let interpret = Interpreter::new(compilation_result);
 
-    interpret.run_function("#__start_".to_string())
+    let mut mangled = format!("{entry_point}_");
+
+    for a in args.iter() {
+        mangled.push_str(a.get_mangled().as_str());
+    }
+
+    interpret.run_function(mangled, args)
 }
 
 
@@ -86,11 +82,11 @@ pub fn run_code(code: String, entry_point: &str) -> Result<(Vec<Value>, Heap), E
     run_code_with_args(code, entry_point, vec![])
 }
 
-pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<i32>) -> Result<(Vec<Value>, Heap), Errors<Box<dyn Error>>> {
+pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), Errors<Box<dyn Error>>> {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();
-    let (parsed, parser_errors) = parse_tokens(tokens, &mut registry, entry_point, arguments);
+    let (parsed, parser_errors) = parse_tokens(tokens, &mut registry);
 
     let (typed, analysis_errors) = resolve_types(parsed, &mut registry);
 
@@ -120,7 +116,7 @@ pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<i3
 
     match compiled {
         Ok(compilation_result) => {
-            let run_result =  run_compiled(compilation_result);
+            let run_result =  run_compiled(compilation_result, entry_point, arguments);
 
             match run_result {
                 Ok(value) => Ok(value),
