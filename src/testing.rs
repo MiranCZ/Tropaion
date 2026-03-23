@@ -7,17 +7,12 @@ use crate::util::arg_convertor::into_arg;
 pub fn main() {
     let text = r#"
     fn main(value: Vec<int>) -> int {
-        value.pop();
-        value.push(77);
         let x = value.pop();
-
-        600000;
 
         return x;
     }
+
     "#;
-
-
 
     interpret(text.to_string());
 }

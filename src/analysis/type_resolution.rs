@@ -82,6 +82,12 @@ impl <'a> TypeResolver<'a> {
         mangling::mangle_name_type(self.registry, name.clone(), owner, &params)
     }
 
+    fn prepend_owner(&self, name: String) -> String {
+        let owner = self.get_current_owner(&name);
+
+        mangling::from_owner(name, owner)
+    }
+
     fn get_current_owner(&self, name: &String) -> String {
         if let Some(data) = self.symbol_table.get_with_info(name) {
             if let Some(info) = data.1 &&
@@ -92,7 +98,8 @@ impl <'a> TypeResolver<'a> {
                 String::new()
             }
         } else {
-            panic!("Could not find {name}")
+            return String::new();
+            // panic!("Could not find {name}")
         }
     }
 
@@ -204,7 +211,7 @@ impl <'a> TypeResolver<'a> {
             let original = if let Some(o) = self.generic_helper.get_generic(self.registry, &key) {
                 o
             } else {
-                unreachable!("Trying to access non-existent generic function")
+                continue;
             };
 
             for info in e.1 {
@@ -238,11 +245,19 @@ impl <'a> TypeResolver<'a> {
                 let node = UntypedTypeDuplicator::duplicate(self.registry, original.clone());
                 
                 let resolved;
+                let key;
                 if let FunctionStmt {name, params, return_type, body, ..} = node.node.clone() {
                     resolved = Spanned::of(
                         self.resolve_function(name, params, return_type, body),
                         original.span
                     );
+
+                    if let FunctionStmt {name, params, ..} = &resolved.node {
+                        // key = self.get_func_key(name.clone(), params);
+                        key = self.prepend_owner(name.clone());
+                    } else {
+                        unreachable!()
+                    }
                 } else {
                     unreachable!("Function template is not a function type!")
                 }
@@ -250,7 +265,7 @@ impl <'a> TypeResolver<'a> {
                 resolved_functions.push((key.clone(), resolved));
 
                 self.symbol_table.pop();
-                self.type_table.push();
+                self.type_table.pop();
             }
         }
 
@@ -377,6 +392,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
 
         if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(return_type, self.registry) {
+            self.symbol_table.pop();
+            self.type_table.pop();
+
             return FunctionStmt {name, generics, params: typed_params, return_type, body: vec![Spanned::of(CommentStmt("Generic stub".to_string()), Span::new(0,0))]}
         }
 
@@ -734,9 +752,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             }
 
 
-            if let AstType::FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
-                let key = self.get_func_key_type(name.clone(), &params);
-
+            if let FunctionType { name, generics, mut return_type, params, .. } = func.get(self.registry) {
                 self.type_table.push();
 
                 for e in generics.clone() {
@@ -769,52 +785,51 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
                 }
 
-                if let Some(original) = self.generic_helper.get_generic(self.registry, &key) {
-                    let mut struct_scope = false;
+                // FIXME not sure how good is requesting resolution of EVERY function... but whatever ig
+                let mut struct_scope = false;
 
-                    let mut owner = None;
-                    if let Some(record) = self.symbol_table.get_with_info(&name) &&
-                        let Some(info) = record.1 &&
-                        let Some(struct_type) = info.owner {
-                        struct_scope = true;
+                let mut owner = None;
+                if let Some(record) = self.symbol_table.get_with_info(&name)
+                    && let Some(info) = record.1
+                    && let Some(struct_type) = info.owner
+                {
+                    struct_scope = true;
 
-                        let registered = self.registry.register(struct_type.clone());
+                    let registered = self.registry.register(struct_type.clone());
 
-                        self.symbol_table.push();
-                        self.symbol_table.record(String::from("this"), registered);
+                    self.symbol_table.push();
+                    self.symbol_table.record(String::from("this"), registered);
 
-                        if let StructType {children,..} = &struct_type {
-                            for p in children {
-                                self.symbol_table.record_with_info(p.0.clone(), p.1.0, TypeSymTableInfo::inside_struct(struct_type.clone()));
-                            }
-                        } else {
-                            return self.error(AnalysisError::type_mismatch(ValueTypeVariant::Struct, registered, self.registry), span);
+                    if let StructType { children, .. } = &struct_type {
+                        for p in children {
+                            self.symbol_table.record_with_info(
+                                p.0.clone(),
+                                p.1.0,
+                                TypeSymTableInfo::inside_struct(struct_type.clone()),
+                            );
                         }
-                        owner = Some(struct_type);
+                    } else {
+                        return self.error(
+                            AnalysisError::type_mismatch(
+                                ValueTypeVariant::Struct,
+                                registered,
+                                self.registry,
+                            ),
+                            span,
+                        );
                     }
+                    owner = Some(struct_type);
+                }
 
-                    self.generic_helper.request_resolution(self.registry, key, generics.clone(), owner);
-                    // if !self.generic_helper.has_implementation(self.registry, &key, generics.clone()) {
-                    //     println!("registered impl {}",generics[0].format(self.registry));
-                    //     // register that we are already evaluating this type of function
-                    //     let pos = self.generic_helper.register_implementation(key.clone(), generics.clone());
-                    //     let resolved = self.fold_stmt(original);
-                    //     self.type_table.pop();
-                    //
-                    //     if let FunctionStmt { name, params, return_type: resolved_return, .. } = &resolved.node {
-                    //         return_type = *resolved_return;
-                    //     }
-                    //
-                    //     // record the actual concrete function
-                    //     self.generic_helper.record_implementation(&key, pos, resolved);
-                    // } else {
-                        let duplicate_ret_type = return_type.duplicate(self.registry);
+                let untyped_key = self.prepend_owner(name.clone());
 
-                        return_type = self.fold_type_entry(duplicate_ret_type);
-                    // }
-                    if struct_scope {
-                        self.symbol_table.pop();
-                    }
+                self.generic_helper.request_resolution(self.registry, untyped_key, generics.clone(), owner, );
+
+                let duplicate_ret_type = return_type.duplicate(self.registry);
+                return_type = self.fold_type_entry(duplicate_ret_type);
+
+                if struct_scope {
+                    self.symbol_table.pop();
                 }
 
                 if let MemberExpr { t, member, property, null_safe } = &resolved_func.node

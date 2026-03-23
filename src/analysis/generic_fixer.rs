@@ -54,27 +54,30 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
     fn visit_mut_block(&mut self, body: &mut StatementBlock<TypeEntry>) {
         let mut removed = vec![];
 
+        let mut functions = HashSet::new();
         body.retain_mut(|b| {
             return if let Statement::FunctionStmt { name, generics, params, return_type, .. } = &mut b.node {
                 let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
+                let mangled_name = mangling::from_owner(name.clone(), self.owner.clone());
 
                 if GenericChecker::is_generic(*return_type, self.registry) {
-                    removed.push(key);
+                    removed.push(mangled_name);
                     return false;
                 }
 
                 for p in params {
                     if GenericChecker::is_generic(p.param_type, self.registry) {
-                        removed.push(key);
+                        removed.push(mangled_name);
                         return false;
                     }
                 }
 
                 if !generics.is_empty() {
-                    removed.push(key);
+                    removed.push(mangled_name);
                     return false;
                 }
 
+                functions.insert(key);
                 return true;
             } else {
                 true
@@ -83,7 +86,17 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
 
         for r in removed {
             for func in self.generic_helper.get_implementation(&r) {
-                body.push(func);
+
+                if let Statement::FunctionStmt {name, params, ..} = &func.node {
+
+                    let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
+
+                    if !functions.contains(&key) {
+                        body.push(func);
+                    }
+                } else {
+                    unreachable!()
+                }
             }
         }
 

@@ -108,7 +108,24 @@ impl AstType {
                 return res + ")";
             },
             AstType::FunctionsType { name, .. } => format!("{name}(..)"),
-            AstType::FunctionType { name, .. } => format!("{name}()"),
+            AstType::FunctionType { name, params,.. } => {
+                let mut result = format!("{name}(");
+
+                if !params.is_empty() {
+                    let mut iter = params.iter();
+
+                    result.push_str(iter.next().unwrap().format(registry).as_str());
+
+                    for arg in iter {
+                        result.push_str(arg.format(registry).as_str());
+                        result.push_str(", ");
+                    }
+                }
+
+                result.push_str(")");
+                
+                result
+            },
             AstType::StructType {name,generics, .. } => {
                 let mut res = name.clone();
 

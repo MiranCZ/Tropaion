@@ -52,15 +52,15 @@ impl GenericHelper {
         ))
     }
 
-    pub fn request_resolution(&mut self,type_registry: &TypeRegistry ,key: String, generic_types: OrderMap<String, TypeEntry>, owner: Option<AstType>) {
-        if self.has_requested(type_registry, &key, &generic_types) {
+    pub fn request_resolution(&mut self, type_registry: &TypeRegistry, name: String, generic_types: OrderMap<String, TypeEntry>, owner: Option<AstType>) {
+        if self.has_requested(type_registry, &name, &generic_types) {
             return;
         }
 
-        if let Some(arr) = self.requests.get_mut(&key) {
+        if let Some(arr) = self.requests.get_mut(&name) {
             arr.push((generic_types, owner));
         } else {
-            self.requests.insert(key, vec![(generic_types, owner)]);
+            self.requests.insert(name, vec![(generic_types, owner)]);
         }
     }
 

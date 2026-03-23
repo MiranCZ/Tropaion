@@ -208,8 +208,6 @@ fn test_generics_fn_with_struct_arg() {
     test_simple_code("main", code, 13);
 }
 
-// TODO still not sure if I want to allow this - probably yes tho
-#[ignore]
 #[test]
 fn test_generics_fn_overload_coexistence() {
     // Generic function and a concrete overload with the same name can coexist

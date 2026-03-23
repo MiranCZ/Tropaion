@@ -186,7 +186,7 @@ pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, pa
     name
 }
 
-fn from_owner(name: String, owner: String) -> String {
+pub fn from_owner(name: String, owner: String) -> String {
     if owner.is_empty() {
         name
     } else {

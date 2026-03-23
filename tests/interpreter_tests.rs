@@ -865,13 +865,14 @@ fn test_generics_shadowing() {
     }
 
     fn main() -> int {
-        let a = Scope().box(5);
+        let a = box(100);
+        let b = Scope().box(5);
 
-        return a;
+        return a+b;
     }
     "#;
 
-    test_simple_code("main", code, 5);
+    test_simple_code("main", code, 6);
 }
 
 #[test]

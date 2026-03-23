@@ -128,8 +128,6 @@ impl Interpreter {
             }
         }
 
-        println!("values {:?}", &self.stack[0..self.pointer]);
-
         let fun = self.function_mapping.get(&function);
 
         let fun = if let Some(fun) = fun {
@@ -145,8 +143,8 @@ impl Interpreter {
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
-            println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
-            println!("\t{insn:?}\n");
+            // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
+            // println!("\t{insn:?}\n");
 
             self.execute(insn)?;
             self.insn_addr += 1;

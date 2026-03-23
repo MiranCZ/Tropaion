@@ -176,7 +176,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         let resolved_return = self.resolver.fold_type_entry(*return_type);
 
         if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(*return_type, self.resolver.registry) {
-            let key = self.get_func_key_type(name.clone(), owner.clone(), &resolved_params);
+            let key = mangling::from_owner(name.clone(), owner.clone());
 
             self.resolver.generic_helper.record_generic(key, name.clone(), params.clone(), *return_type, body.clone(), *span);
         }
