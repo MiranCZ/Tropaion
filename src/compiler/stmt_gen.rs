@@ -82,7 +82,7 @@ impl TypedStmt {
                 for param in params.iter().rev() {
                     let name = param.name.clone();
 
-                    generator.store_new_var(name, registry, param.param_type)?;
+                    generator.store_param(name, registry, param.param_type)?;
                 }
 
                 for b in body {

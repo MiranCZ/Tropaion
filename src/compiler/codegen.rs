@@ -527,7 +527,22 @@ impl BytecodeGen {
 
         ok()
     }
-    
+
+    pub fn store_param(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        match value.get(registry) {
+            AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i)),
+            AstType::Float => self.store_new(name, |i| Store(i)),
+            AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::TupleType(..) => self.store_new(name, |i| Store(i)),
+
+            _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
+        };
+
+        ok()
+    }
+
     pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
             AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i)),

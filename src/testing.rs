@@ -6,14 +6,17 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() -> int {
-        let t = (5, 17.23, 300);
+    fn get_second(t: (float, int, float)) -> int {
+        return t.1;
+    }
 
-        let x = t.2;
+    fn main() -> int {
+        let t = (1.0, 2, 3.0);
+
+        let x = get_second(t);
 
         return x;
     }
-
     "#;
 
     interpret(text.to_string());

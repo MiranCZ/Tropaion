@@ -994,3 +994,22 @@ fn test_tuples() {
 
     test_simple_code("main", code, 300);
 }
+
+#[test]
+fn test_tuples_passing() {
+    let code = r#"
+    fn get_second(t: (float, int, float)) -> int {
+        return t.1;
+    }
+
+    fn main() -> int {
+        let t = (1.0, 2, 3.0);
+
+        let x = get_second(t);
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 2);
+}
