@@ -12,6 +12,9 @@ pub enum ByteCode {
     Pop,
     Dup,
     Swap,
+    
+    I2F,
+    F2I,
 
     Or,
     And,

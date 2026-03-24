@@ -185,6 +185,9 @@ impl Interpreter {
             },
             ByteCode::Dup => self.dup(),
             ByteCode::Swap => self.swap(),
+            
+            ByteCode::I2F => self.i2f(),
+            ByteCode::F2I => self.f2i(),
 
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
@@ -451,6 +454,30 @@ impl Interpreter {
         }
 
         self.stack.swap(self.pointer-2, self.pointer-1);
+
+        ok()
+    }
+    
+    fn i2f(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let IntValue(i) = top {
+            self.push(FloatValue(i as f32))?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
+        }
+
+        ok()       
+    }
+
+    fn f2i(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let FloatValue(f) = top {
+            self.push(IntValue(f as i32))?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Float, got: top});
+        }
 
         ok()
     }

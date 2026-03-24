@@ -23,7 +23,7 @@ pub fn main() {
         let x = unbox(a);
         let y = unbox(b);
 
-        return x;
+        return x + int(y);
     }
     "#;
 

@@ -924,7 +924,7 @@ fn test_generic_struct_shadow(){
         return b.value * 2;
     }
 
-    fn unbox(b: Box<float>) -> int {
+    fn unbox(b: Box<float>) -> float {
         return b.value/2.0;
     }
 
@@ -935,11 +935,11 @@ fn test_generic_struct_shadow(){
         let x = unbox(a);
         let y = unbox(b);
 
-        return x;
+        return x+int(y);
     }
     "#;
 
-    test_simple_code("main", code, 20);
+    test_simple_code("main", code, 120);
 }
 
 #[test]
