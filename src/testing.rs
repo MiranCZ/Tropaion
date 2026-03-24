@@ -6,8 +6,10 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main(value: Vec<int>) -> int {
-        let x = value.pop();
+    fn main() -> int {
+        let t = (5, 17.23, 300);
+
+        let x = t.2;
 
         return x;
     }
@@ -94,7 +96,7 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(compilation_res, "main", vec![into_arg(vec![10, 40])]);
+    let result = run_compiled(compilation_res, "main", vec![]);
 
     let result = if let Ok(r) = result {
         r

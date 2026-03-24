@@ -978,3 +978,19 @@ fn test_vec() {
 
     test_simple_code("main", code, 6);
 }
+
+
+#[test]
+fn test_tuples() {
+    let code = r#"
+    fn main() -> int {
+        let t = (5, 17.23, 300, 400, 500);
+
+        let x = t.2;
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 300);
+}

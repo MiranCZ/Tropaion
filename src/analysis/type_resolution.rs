@@ -669,9 +669,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
         let mut struct_scope = false;
-        if let AstType::StructType{name, children, generics, ..} = self.deref(member.get_type()) {
+        if let StructType{name, children, generics, ..} = self.deref(member.get_type()) {
             struct_scope = true;
-
 
             self.symbol_table.push();
             for x in children {
@@ -682,6 +681,30 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             for g in generics {
                 self.type_table.record(g.0, g.1);
             }
+        } else if let TupleType(values) = member.get_type().get(self.registry) {
+            return if let IntLiteralExpr(_, v) = property.node {
+                if v < 0 || v >= (values.len() as i64) {
+                    return self.error(AnalysisError::IndexOutOfBounds(v, values.len() as i64), span);
+                }
+
+                let typ = values.get(v as usize);
+
+                match typ {
+                    None => self.error(AnalysisError::IndexOutOfBounds(v, values.len() as i64), span),
+                    Some(t) => {
+                        MemberExpr {
+                            t: *t,
+                            member: member.boxed(),
+                            property: Spanned::of(IntLiteralExpr(self.registry.register(Int), v), property.span).boxed(),
+                            null_safe
+                        }
+                    }
+                }
+            } else {
+                self.error(AnalysisError::IllegalTupleIndex, span)
+            }
+        } else {
+            return self.error(AnalysisError::illegal_member_access(member.get_type(), self.registry), span);
         }
 
         let property = self.fold_expr(*property);

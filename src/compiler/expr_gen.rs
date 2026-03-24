@@ -1,10 +1,10 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::NullableType;
+use crate::ast::ast_type::AstType::{NullableType, TupleType};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::NullableExpr;
 use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, Store, StoreField, StoreRefOffset};
+use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, LoadRefOffset, Store, StoreField, StoreRefOffset};
 use crate::error::compilation_error::CompilationError::{IllegalBinOperator, InvalidOperator, MemberNotFound, StructTooLarge};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::ok;
@@ -314,6 +314,8 @@ impl TypedExpr {
                         generator.null_ptr();
                         generator.end_scope()?;
                     }
+                } else if let TupleType(..) = member.get_type().get(registry) {
+                    member.generate_bytecode(registry, generator, LoadRefOffset(*property.clone()))?;
                 } else {
                     return Err(CompilationError::illegal_member_access(member.get_type().get(registry), registry))
                 }
@@ -462,6 +464,17 @@ impl TypedExpr {
     pub fn load_ref_offset(&self,registry: &TypeRegistry ,index: TypedExpr, generator: &mut BytecodeGen) -> EmptyRes {
 
         fn load_from_ref(registry: &TypeRegistry, generator: &mut BytecodeGen, index: &TypedExpr, t: &TypeEntry) -> EmptyRes {
+            if let AstType::TupleType(values) = t.get(registry) {
+                return if let Expression::IntLiteralExpr(_, v) = index.node {
+                    generator.i_const(v as i32);
+                    generator.load_var_offset()?;
+
+                    ok()
+                } else {
+                    Err(CompilationError::illegal_indexing(t.get(registry), registry))
+                }
+            }
+
             index.generate_bytecode(registry, generator, Load)?;
 
             let typ;
@@ -473,7 +486,6 @@ impl TypedExpr {
             }
 
             generator.load_var_offset()?;
-            // generator.load_var_offset(registry, typ)?;
 
             ok()
         }

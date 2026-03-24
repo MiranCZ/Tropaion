@@ -1,11 +1,11 @@
-use thiserror::Error;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::expression::UntypedExpr;
-use crate::ast::statement::{Statement, UntypedStmt};
-use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
-use crate::error::Error;
+use crate::ast::ast_type::AstType;
+use crate::ast::statement::UntypedStmt;
+use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
 use crate::error::runtime_error::ValueTypeVariant;
+use crate::error::Error;
 use crate::lexer::token::SimpleToken;
+use thiserror::Error;
 
 pub type EmptyRes = Result<(), AnalysisError>;
 
@@ -80,7 +80,17 @@ pub enum AnalysisError {
     NullableAccess,
 
     #[error("Constants must have an explicit type")]
-    TypelessConst
+    TypelessConst,
+
+    #[error("Tried accessing a member for type {0} which is not allowed")]
+    IllegalMemberAccess(String),
+
+    #[error("Tuples can only be indexed with non-negative int literals")]
+    IllegalTupleIndex,
+
+    #[error("Index is out of bounds (must satisfy 0 <= {0} < {1})")]
+    IndexOutOfBounds(i64, i64)
+
 }
 
 impl Error for AnalysisError {
@@ -121,6 +131,10 @@ impl AnalysisError {
 
     pub fn illegal_null_deref(typ: TypeEntry, registry: &TypeRegistry) -> AnalysisError {
         IllegalNullDeref(typ.get(registry).format(registry))
+    }
+
+    pub fn illegal_member_access(typ: TypeEntry, registry: &TypeRegistry) -> AnalysisError {
+        IllegalMemberAccess(typ.format(registry))
     }
 
 }
