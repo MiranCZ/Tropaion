@@ -365,7 +365,15 @@ impl AstType {
                 name + ";"
             }
             AstType::FunctionType { .. } => panic!("Functions do not have names!"),
-            AstType::StructType {name, .. } => format!("L{name};"),
+            AstType::StructType {name,generics, .. } => {
+                let mut name = format!("L{name}_");
+
+                for t in generics {
+                    name += t.1.get(registry).get_type_name(registry).as_str();
+                }
+
+                name + ";"
+            },
             AstType::NullableType {underlying} => underlying.get(registry).get_type_name(registry),
             AstType::GenericType {name} => "g".to_string(),
             AstType::UnknownType => "?".to_string(),

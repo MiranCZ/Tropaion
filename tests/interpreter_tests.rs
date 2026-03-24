@@ -916,6 +916,33 @@ fn test_generics4() {
 }
 
 #[test]
+fn test_generic_struct_shadow(){
+    let code = r#"
+    struct Box<T>(value: T);
+
+    fn unbox(b: Box<int>) -> int {
+        return b.value * 2;
+    }
+
+    fn unbox(b: Box<float>) -> int {
+        return b.value/2.0;
+    }
+
+    fn main() -> int {
+        let a = Box(10);
+        let b = Box(200.0);
+
+        let x = unbox(a);
+        let y = unbox(b);
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 20);
+}
+
+#[test]
 fn test_loop_interrupt() {
     let code = r#"
     fn main() -> int {

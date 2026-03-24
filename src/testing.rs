@@ -6,14 +6,22 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    fn get_second(t: (float, int, float)) -> int {
-        return t.1;
+    struct Box<T>(value: T);
+
+    fn unbox(b: Box<int>) -> int {
+        return b.value * 2;
+    }
+
+    fn unbox(b: Box<float>) -> int {
+        return b.value/2.0;
     }
 
     fn main() -> int {
-        let t = (1.0, 2, 3.0);
+        let a = Box(10);
+        let b = Box(200.0);
 
-        let x = get_second(t);
+        let x = unbox(a);
+        let y = unbox(b);
 
         return x;
     }
