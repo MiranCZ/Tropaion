@@ -3,10 +3,11 @@ use Tropaion::run_code;
 
 
 fn test_simple_code(main: &str, code: &str, expected: i32) {
-    let (stack, heap) = run_code(code.to_string(), main).unwrap();
+    let mut blob = run_code(code.to_string(), main).unwrap();
 
-    assert_eq!(stack.len(), 2);
-    assert_eq!(stack[1], IntValue(expected));
+    let value = blob.next_int().unwrap();
+    blob.expect_end().unwrap();
+    assert_eq!(value, expected);
 }
 
 fn test_math_expr(expr: &str, expected: i32) {
@@ -20,12 +21,13 @@ fn test_math_expr(expr: &str, expected: i32) {
     "#;
 
 
-    let (stack, heap) = run_code(text.to_string(), "main").unwrap();
+    let mut blob = run_code(text.to_string(), "main").unwrap();
 
-    assert_eq!(stack.len(), 2);
+    let value = blob.next_int().unwrap();
+    blob.expect_end().unwrap();
     assert_eq!(
-        stack[1],
-        IntValue(expected),
+        value,
+        expected,
         "Failed for expression '{} = {}'",
         expr,
         expected
@@ -244,9 +246,9 @@ fn test_chained_else_if() {
         "#,
             n
         );
-        let (stack, _) = run_code(code, "main").unwrap();
+        let mut blob = run_code(code, "main").unwrap();
 
-        if let IntValue(v) = stack[1] { v } else { panic!("not int") }
+        blob.next_int().unwrap()
     };
 
     assert_eq!(classify(-5), -1);

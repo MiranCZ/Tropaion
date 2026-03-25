@@ -3,10 +3,11 @@ use Tropaion::run_code;
 
 
 fn test_simple_code(main: &str, code: &str, expected: i32) {
-    let (stack, heap) = run_code(code.to_string(), main).unwrap();
+    let mut blob = run_code(code.to_string(), main).unwrap();
 
-    assert_eq!(stack.len(), 2); // nullptr, value
-    assert_eq!(stack[1], IntValue(expected));
+    let value = blob.next_int().unwrap();
+    blob.expect_end().unwrap();
+    assert_eq!(value, expected);
 }
 // --- Structs ---
 

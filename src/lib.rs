@@ -17,6 +17,7 @@ use crate::lexer::{Lexer, TokenInfo};
 use crate::parser::Parser;
 use crate::util::spanned::Spanned;
 use intrinsics::builtins::builtin_injector::inject_builtins;
+use crate::memory_blob::MemoryBlob;
 use crate::util::arg_convertor;
 use crate::util::arg_convertor::ValueConvertable;
 
@@ -32,7 +33,7 @@ mod intrinsics;
 
 #[cfg(test)]
 mod testing;
-
+pub mod memory_blob;
 
 pub fn lex_code(code: &mut String) -> (Vec<TokenInfo>, Errors<LexerError>) {
     inject_builtins(code);
@@ -65,8 +66,8 @@ pub fn compile(typed: TypedStmt, registry: &mut TypeRegistry, code: &String) -> 
     comp.compile(registry)
 }
 
-pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
-    let interpret = Interpreter::new(compilation_result);
+pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+    let mut interpret = Interpreter::new(compilation_result);
 
     let mut mangled = format!("{entry_point}_");
 
@@ -78,11 +79,11 @@ pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, ar
 }
 
 
-pub fn run_code(code: String, entry_point: &str) -> Result<(Vec<Value>, Heap), Errors<Box<dyn Error>>> {
+pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
     run_code_with_args(code, entry_point, vec![])
 }
 
-pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), Errors<Box<dyn Error>>> {
+pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();

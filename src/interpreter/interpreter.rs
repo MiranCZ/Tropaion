@@ -16,6 +16,7 @@ use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
 use crate::interpreter::value::Value::{FloatValue, IntValue, Null, RefValue};
 use crate::interpreter::value::ValueType::{Address, Float, Int};
+use crate::memory_blob::{resolve_blob, MemoryBlob};
 use crate::util::arg_convertor::ValueConvertable;
 
 macro_rules! math_op {
@@ -107,11 +108,11 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<(Vec<Value>, Heap), ErrorContext<RuntimeError>> {
+    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
         let res = self._run_function(function, arguments);
 
         if let Ok(v) = res {
-            return Ok((v, self.heap));
+            return Ok(v);
         } else if let Err(e) = res {
             let line_num = self.line_maps[min(self.insn_addr, self.line_maps.len()-1)];
 
@@ -121,7 +122,7 @@ impl Interpreter {
         panic!()
     }
 
-    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<Vec<Value>, RuntimeError> {
+    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, RuntimeError> {
         for a in arguments {
             for value in a.into_value(self) {
                 self.push(value)?;
@@ -129,7 +130,6 @@ impl Interpreter {
         }
 
         let fun = self.function_mapping.get(&function);
-
         let fun = if let Some(fun) = fun {
             fun
         } else {
@@ -150,13 +150,11 @@ impl Interpreter {
             self.insn_addr += 1;
         }
 
-        let mut result = vec![];
-
         for v in self.stack[0..self.pointer].iter() {
-            result.push(*v);
+            println!("VALUE: {v:?}");
         }
 
-        Ok(result)
+        Ok(resolve_blob(self.pop()?, self))
     }
 
     pub fn stack_top(&self) -> u32 {
@@ -164,6 +162,10 @@ impl Interpreter {
     }
     pub unsafe fn get_heap(&mut self) -> &mut Heap {
         &mut self.heap
+    }
+
+    pub unsafe fn load_at_ptr(&self, ptr: usize) -> Value {
+        self._load_at_ptr(ptr)
     }
 
     fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {
@@ -387,7 +389,7 @@ impl Interpreter {
 
             let absolute_index = (ptr as usize) + (offset as usize);
 
-            let value = self.load_at_ptr(absolute_index);
+            let value = self._load_at_ptr(absolute_index);
 
             self.push(value)?;
         } else {
@@ -397,7 +399,7 @@ impl Interpreter {
         ok()
     }
 
-    fn load_at_ptr(&self, ptr: usize) -> Value {
+    fn _load_at_ptr(&self, ptr: usize) -> Value {
         if ptr < STACK_SIZE {
             self.stack[ptr]
         } else {
@@ -568,8 +570,8 @@ impl Interpreter {
 
                 visited.insert((*p1, *p2));
                 for i in 0..(*l1) {
-                    let v1 = self.load_at_ptr((i + p1) as usize);
-                    let v2 = self.load_at_ptr((i + p2) as usize);
+                    let v1 = self._load_at_ptr((i + p1) as usize);
+                    let v2 = self._load_at_ptr((i + p2) as usize);
 
                     if !self.values_equal(&v1, &v2, visited) {
                         break 'block false;
@@ -619,7 +621,7 @@ impl Interpreter {
 
             visited.insert(ptr);
 
-            let at_ptr = self.load_at_ptr(ptr as usize);
+            let at_ptr = self._load_at_ptr(ptr as usize);
 
             self.try_deref(at_ptr, visited)
         } else {

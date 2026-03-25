@@ -72,7 +72,10 @@ pub enum RuntimeError {
     FunctionNotFound(String),
 
     #[error("Illegal allocation size of {0}")]
-    IllegalAllocSize(i32)
+    IllegalAllocSize(i32),
+   
+    #[error("Expected stack to be empty but found a dangling value")]
+    DanglingValue
 }
 
 impl Error for RuntimeError {
