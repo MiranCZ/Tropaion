@@ -1,5 +1,5 @@
-use Tropaion::interpreter::value::Value::IntValue;
-use Tropaion::run_code;
+use tropaion::interpreter::value::Value::IntValue;
+use tropaion::run_code;
 
 
 fn test_simple_code(main: &str, code: &str, expected: i32) {

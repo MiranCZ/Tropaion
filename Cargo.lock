@@ -3,16 +3,6 @@
 version = 4
 
 [[package]]
-name = "Tropaion"
-version = "0.1.0"
-dependencies = [
- "ordermap",
- "strum",
- "strum_macros",
- "thiserror",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -114,6 +104,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tropaion"
+version = "0.1.0"
+dependencies = [
+ "ordermap",
+ "strum",
+ "strum_macros",
+ "thiserror",
 ]
 
 [[package]]

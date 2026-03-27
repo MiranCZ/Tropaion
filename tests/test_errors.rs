@@ -1,10 +1,10 @@
-use Tropaion::analysis::type_registry::TypeRegistry;
-use Tropaion::error::analysis_error::AnalysisError;
-use Tropaion::error::lexer_error::LexerError;
-use Tropaion::{analysis, lexer};
-use Tropaion::error::analysis_error::AnalysisError::{NullableAccess, RedundantNullable};
-use Tropaion::lexer::token::SimpleToken;
-use Tropaion::parser::Parser;
+use tropaion::analysis::type_registry::TypeRegistry;
+use tropaion::error::analysis_error::AnalysisError;
+use tropaion::error::lexer_error::LexerError;
+use tropaion::{analysis, lexer};
+use tropaion::error::analysis_error::AnalysisError::{NullableAccess, RedundantNullable};
+use tropaion::lexer::token::SimpleToken;
+use tropaion::parser::Parser;
 
 fn test_lexer_error(code: &str, expected: LexerError) {
     let mut lexer = lexer::Lexer::new(code.to_string());
