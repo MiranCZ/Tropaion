@@ -1,34 +1,28 @@
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType::Void;
-use crate::ast::statement::Statement::FunctionStmt;
-use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
+use crate::ast::statement::{TypedStmt, UntypedStmt};
 use crate::compiler::compiler::{CompilationResult, Compiler};
 use crate::error::analysis_error::AnalysisError;
 use crate::error::compilation_error::CompilationError;
-use crate::error::context::{ErrorContext, Errors, Span};
+use crate::error::context::{ErrorContext, Errors};
 use crate::error::lexer_error::LexerError;
 use crate::error::parser_error::ParserError;
 use crate::error::runtime_error::RuntimeError;
 use crate::error::Error;
-use crate::interpreter::heap::Heap;
 use crate::interpreter::interpreter::Interpreter;
-use crate::interpreter::value::Value;
 use crate::lexer::{Lexer, TokenInfo};
-use crate::parser::Parser;
-use crate::util::spanned::Spanned;
-use intrinsics::builtins::builtin_injector::inject_builtins;
 use crate::memory_blob::MemoryBlob;
-use crate::util::arg_convertor;
+use crate::parser::Parser;
 use crate::util::arg_convertor::ValueConvertable;
+use intrinsics::builtins::builtin_injector::inject_builtins;
 
 pub mod lexer;
 pub mod parser;
-mod ast;
+pub mod ast;
 pub mod error;
 pub mod analysis;
-mod compiler;
+pub mod compiler;
 pub mod interpreter;
-mod util;
+pub mod util;
 mod intrinsics;
 
 #[cfg(test)]
