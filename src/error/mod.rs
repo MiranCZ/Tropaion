@@ -11,5 +11,5 @@ pub fn ok<T>() -> Result<(), T>{
     Ok(())
 }
 
-pub trait Error : Debug {
-}
+// pub trait Error : Debug {
+// }

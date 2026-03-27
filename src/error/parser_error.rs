@@ -1,5 +1,4 @@
 use thiserror::Error;
-use crate::error::Error;
 use crate::lexer::token::Token;
 
 #[derive(Error, Debug, PartialEq)]
@@ -18,7 +17,4 @@ pub enum ParserError {
         expected: String,
         actual: Token
     }
-}
-
-impl Error for ParserError {
 }

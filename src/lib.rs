@@ -1,3 +1,4 @@
+use std::error::Error;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::{TypedStmt, UntypedStmt};
 use crate::compiler::compiler::{CompilationResult, Compiler};
@@ -7,7 +8,6 @@ use crate::error::context::{ErrorContext, Errors};
 use crate::error::lexer_error::LexerError;
 use crate::error::parser_error::ParserError;
 use crate::error::runtime_error::RuntimeError;
-use crate::error::Error;
 use crate::interpreter::interpreter::Interpreter;
 use crate::lexer::{Lexer, TokenInfo};
 use crate::memory_blob::MemoryBlob;

@@ -1,6 +1,5 @@
 use thiserror::Error;
 use crate::compiler::bytecode::ByteCode;
-use crate::error::Error;
 use crate::interpreter::value::{Value, ValueType};
 
 
@@ -76,7 +75,4 @@ pub enum RuntimeError {
    
     #[error("Expected stack to be empty but found a dangling value")]
     DanglingValue
-}
-
-impl Error for RuntimeError {
 }

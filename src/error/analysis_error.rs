@@ -3,7 +3,6 @@ use crate::ast::ast_type::AstType;
 use crate::ast::statement::UntypedStmt;
 use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
 use crate::error::runtime_error::ValueTypeVariant;
-use crate::error::Error;
 use crate::lexer::token::SimpleToken;
 use thiserror::Error;
 
@@ -91,9 +90,6 @@ pub enum AnalysisError {
     #[error("Index is out of bounds (must satisfy 0 <= {0} < {1})")]
     IndexOutOfBounds(i64, i64)
 
-}
-
-impl Error for AnalysisError {
 }
 
 impl AnalysisError {
