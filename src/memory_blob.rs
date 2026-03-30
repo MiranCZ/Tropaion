@@ -27,7 +27,7 @@ fn resolve_value(value: Value, mem: &mut Vec<Value>, interpreter: &Interpreter, 
         if let Some(mapped_ptr) = address_map.get(&ptr) {
             mem.push(RefValue {ptr: *mapped_ptr, len})
         } else {
-            let mapped = mem.len() as u32;
+            let mapped = (mem.len() as u32) + 1;
             address_map.insert(ptr, mapped);
             mem.push(RefValue {ptr: mapped, len});
 
