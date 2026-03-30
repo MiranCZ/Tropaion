@@ -3,7 +3,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Pop, Print, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, StrConcat, StrConst, Sub, Swap, Xor, F2I, I2F};
+use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, F2Str, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, I2Str, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Pop, Print, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, StrConcat, StrConst, Sub, Swap, Xor, F2I, I2F};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
 use crate::error::context::Span;
@@ -435,6 +435,14 @@ impl BytecodeGen {
 
     pub fn f2i(&mut self) {
         self.push_insn(F2I);
+    }
+    
+    pub fn i2str(&mut self) {
+        self.push_insn(I2Str);
+    }
+
+    pub fn f2str(&mut self) {
+        self.push_insn(F2Str);
     }
 
     pub fn i_const(&mut self, c: i32) {

@@ -193,6 +193,9 @@ impl Interpreter {
             ByteCode::I2F => self.i2f(),
             ByteCode::F2I => self.f2i(),
 
+            ByteCode::I2Str => self.i2str(),
+            ByteCode::F2Str => self.f2str(),
+
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
             ByteCode::Xor => self.bitxor(),
@@ -207,7 +210,7 @@ impl Interpreter {
             ByteCode::Mul => self.mul(),
             ByteCode::Div => self.div(),
             ByteCode::Mod => self.rem(),
-            
+
             ByteCode::Print => self.print(),
             ByteCode::StrConcat => self.str_concat(),
 
@@ -505,6 +508,30 @@ impl Interpreter {
         ok()
     }
 
+    fn i2str(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let IntValue(i) = top {
+            self.push_string(i.to_string())?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
+        }
+
+        ok()
+    }
+
+    fn f2str(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let FloatValue(f) = top {
+            self.push_string(f.to_string())?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Float, got: top});
+        }
+
+        ok()
+    }
+
     fn bool_not(&mut self) -> Res {
         let top = self.pop()?;
         
@@ -538,11 +565,11 @@ impl Interpreter {
     cmp_op!(ge, >=);
     cmp_op!(lt, <);
     cmp_op!(le, <=);
-    
-    
+
+
     fn print(&mut self) -> Res {
         let v = self.pop()?;
-        
+
         if let RefValue {ptr, len} = v {
             for i in 0..len {
                 let v = self._load_at_ptr((ptr + i) as usize);
@@ -552,24 +579,24 @@ impl Interpreter {
                 } else {
                     return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
                 }
-            }    
+            }
         } else {
             return Err(TypeMismatch {expected: ValueTypeVariant::String, got: v})
         }
         println!();
-        
+
         ok()
     }
-    
+
     fn str_concat(&mut self) -> Res {
         let b = self.pop()?;
         let a = self.pop()?;
-        
+
         let ptr_a;
         let len_a;
         let ptr_b;
         let len_b;
-        
+
         if let RefValue {ptr, len} = a {
             ptr_a = ptr;
             len_a = len;
@@ -583,16 +610,16 @@ impl Interpreter {
         } else {
             return Err(TypeMismatch {expected: ValueTypeVariant::String, got: a})
         }
-        
+
         let new_length = len_a + len_b;
-        
+
         let heap_ptr = self.heap.alloc(new_length);
         let mut total_offset = 0;
-        
+
         // copy over chars
         for i in 0..len_a {
             let v = self._load_at_ptr((ptr_a + i) as usize);
-            
+
             if let CharValue(..) = v {
                 self.heap.store(heap_ptr, total_offset, v);
                 total_offset += 1;
@@ -611,9 +638,9 @@ impl Interpreter {
                 return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
             }
         }
-        
+
         self.push(RefValue {ptr: heap_ptr, len: new_length})?;
-        
+
         ok()
     }
 

@@ -8,6 +8,8 @@ pub fn get_injected_function_identifiers() -> Vec<(&'static str, u32)> {
     vec![
         ("int_f", 1),
         ("float_i", 1),
+        ("str_i", 1),
+        ("str_f", 1),
         ("print_s", 1),
         ("__heap_alloc_i", 1),
         ("address$__load_at_i", 2),
@@ -20,6 +22,8 @@ pub fn get_injected_functions(registry: &mut TypeRegistry) -> Vec<AstType> {
         heap_alloc_func(registry),
         int_func(registry),
         float_func(registry),
+        str_convert_func(registry, Int),
+        str_convert_func(registry, Float),
         print_func(registry)
     ]
 }
@@ -58,6 +62,15 @@ fn float_func(registry: &mut TypeRegistry) -> AstType {
         generics: OrderMap::new(),
         params: vec![registry.register(Int)],
         return_type: registry.register(Float)
+    }
+}
+
+fn str_convert_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
+    FunctionType {
+        name: "str".to_string(),
+        generics: OrderMap::new(),
+        params: vec![registry.register(input)],
+        return_type: registry.register(StringType)
     }
 }
 

@@ -6,17 +6,11 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() -> string {
-        let x = "hello";
+    fn main() {
+        let a = 10.75;
+        let b = 15.11;
 
-        let y: string = x + " five";
-
-        let z: string = "hello" + " " + "world";
-
-        print(z + " ; "+y);
-
-
-        return y;
+        print(str(a) + " + " + str(b) + " = " + str(a+b));
     }
     "#;
 

@@ -17,6 +17,9 @@ pub enum ByteCode {
     I2F,
     F2I,
 
+    I2Str,
+    F2Str,
+
     Or,
     And,
     Xor,
