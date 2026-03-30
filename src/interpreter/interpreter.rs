@@ -1,6 +1,7 @@
 use std::cell::Ref;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
+use std::io::{Error, Write};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
@@ -9,7 +10,7 @@ use crate::compiler::compiler::CompilationResult;
 use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
-use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, InternalError, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
@@ -108,8 +109,8 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
-        let res = self._run_function(function, arguments);
+    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+        let res = self._run_function(function, arguments, out);
 
         if let Ok(v) = res {
             return Ok(v);
@@ -122,7 +123,7 @@ impl Interpreter {
         panic!()
     }
 
-    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, RuntimeError> {
+    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, RuntimeError> {
         for a in arguments {
             for value in a.into_value(self) {
                 self.push(value)?;
@@ -146,7 +147,7 @@ impl Interpreter {
             // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
             // println!("\t{insn:?}\n");
 
-            self.execute(insn)?;
+            self.execute(insn, out)?;
             self.insn_addr += 1;
         }
 
@@ -168,7 +169,7 @@ impl Interpreter {
         self._load_at_ptr(ptr)
     }
 
-    fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {
+    fn execute(&mut self, insn: ByteCode, out: &mut impl Write) -> Result<(), RuntimeError> {
         match insn {
             ByteCode::Comment(_) => {ok()}
             ByteCode::Nop => {ok()}
@@ -211,7 +212,7 @@ impl Interpreter {
             ByteCode::Div => self.div(),
             ByteCode::Mod => self.rem(),
 
-            ByteCode::Print => self.print(),
+            ByteCode::Print => self.print(out),
             ByteCode::StrConcat => self.str_concat(),
 
             ByteCode::CmpEq => self.eq(),
@@ -567,7 +568,7 @@ impl Interpreter {
     cmp_op!(le, <=);
 
 
-    fn print(&mut self) -> Res {
+    fn print(&mut self, output_consumer: &mut impl Write) -> Res {
         let v = self.pop()?;
 
         if let RefValue {ptr, len} = v {
@@ -575,7 +576,8 @@ impl Interpreter {
                 let v = self._load_at_ptr((ptr + i) as usize);
 
                 if let CharValue(ch) = v {
-                    print!("{ch}");
+                    write!(output_consumer, "{ch}")
+                        .map_err(|e| InternalError(e.to_string()))?;
                 } else {
                     return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
                 }
@@ -583,7 +585,12 @@ impl Interpreter {
         } else {
             return Err(TypeMismatch {expected: ValueTypeVariant::String, got: v})
         }
-        println!();
+
+        writeln!(output_consumer).map_err(|e| InternalError(e.to_string()))?;
+
+        output_consumer
+            .flush()
+            .map_err(|e| InternalError(e.to_string()))?;
 
         ok()
     }

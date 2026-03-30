@@ -94,7 +94,7 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(compilation_res, "main", vec![]);
+    let result = run_compiled(compilation_res, "main", vec![], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {
         r

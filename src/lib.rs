@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::Write;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::{TypedStmt, UntypedStmt};
 use crate::compiler::compiler::{CompilationResult, Compiler};
@@ -60,7 +61,7 @@ pub fn compile(typed: TypedStmt, registry: &mut TypeRegistry, code: &String) -> 
     comp.compile(registry)
 }
 
-pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
     let mut interpret = Interpreter::new(compilation_result);
 
     let mut mangled = format!("{entry_point}_");
@@ -69,15 +70,19 @@ pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, ar
         mangled.push_str(a.get_mangled().as_str());
     }
 
-    interpret.run_function(mangled, args)
+    interpret.run_function(mangled, args, out)
 }
 
 
 pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
-    run_code_with_args(code, entry_point, vec![])
+    run_code_with_out(code, entry_point, &mut std::io::stdout())
 }
 
-pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+    run_code_with_args(code, entry_point, vec![], out)
+}
+
+pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();
@@ -111,7 +116,7 @@ pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<Va
 
     match compiled {
         Ok(compilation_result) => {
-            let run_result =  run_compiled(compilation_result, entry_point, arguments);
+            let run_result =  run_compiled(compilation_result, entry_point, arguments, out);
 
             match run_result {
                 Ok(value) => Ok(value),

@@ -74,5 +74,8 @@ pub enum RuntimeError {
     IllegalAllocSize(i32),
    
     #[error("Expected stack to be empty but found a dangling value")]
-    DanglingValue
+    DanglingValue,
+    
+    #[error("Internal error: {0}")]
+    InternalError(String)
 }
