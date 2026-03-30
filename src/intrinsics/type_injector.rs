@@ -11,6 +11,8 @@ pub fn get_injected_function_identifiers() -> Vec<(&'static str, u32)> {
         ("str_i", 1),
         ("str_f", 1),
         ("print_s", 1),
+        ("print_i", 1),
+        ("print_f", 1),
         ("__heap_alloc_i", 1),
         ("address$__load_at_i", 2),
         ("address$__store_at_i?", 3)
@@ -24,7 +26,9 @@ pub fn get_injected_functions(registry: &mut TypeRegistry) -> Vec<AstType> {
         float_func(registry),
         str_convert_func(registry, Int),
         str_convert_func(registry, Float),
-        print_func(registry)
+        print_func(registry, StringType),
+        print_func(registry, Int),
+        print_func(registry, Float)
     ]
 }
 
@@ -74,11 +78,11 @@ fn str_convert_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
     }
 }
 
-fn print_func(registry: &mut TypeRegistry) -> AstType {
+fn print_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
     FunctionType {
         name: "print".to_string(),
         generics: OrderMap::new(),
-        params: vec![registry.register(StringType)],
+        params: vec![registry.register(input)],
         return_type: registry.register(Void)
     }
 }

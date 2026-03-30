@@ -10,7 +10,9 @@ pub fn main() {
         let a = 10.75;
         let b = 15.11;
 
-        print(str(a) + " + " + str(b) + " = " + str(a+b));
+        print("hello");
+        print(10);
+        print(3.13);
     }
     "#;
 

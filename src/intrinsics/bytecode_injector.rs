@@ -52,6 +52,18 @@ fn implement_print(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Empt
     generator.ret(0);
     generator.fn_end("print_s".to_string(), registry)?;
 
+    generator.fn_start("print_i".to_string());
+    generator.i2str();
+    generator.print();
+    generator.ret(0);
+    generator.fn_end("print_i".to_string(), registry)?;
+
+    generator.fn_start("print_f".to_string());
+    generator.f2str();
+    generator.print();
+    generator.ret(0);
+    generator.fn_end("print_f".to_string(), registry)?;
+
     ok()
 }
 
