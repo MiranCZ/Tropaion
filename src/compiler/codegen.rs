@@ -3,7 +3,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
-use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, Sub, Swap, Xor, F2I, I2F};
+use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Pop, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, StrConst, Sub, Swap, Xor, F2I, I2F};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
 use crate::error::context::Span;
@@ -342,6 +342,7 @@ impl BytecodeGen {
             AstType::Float => generator(ValueType::Float)?,
             AstType::NullableType { .. } |
             AstType::ArrayType {..} |
+            AstType::StringType |
             AstType::StructType { .. } => generator(ValueType::Address)?,
 
             _ => return Err(CompilationError::unsupported_type(t, registry))
@@ -444,6 +445,10 @@ impl BytecodeGen {
         self.push_insn(FConst(c));
     }
 
+    pub fn string_const(&mut self, str: String) {
+        self.push_insn(StrConst(str));
+    }
+
     pub fn pop(&mut self) {
         self.push_insn(Pop);
     }
@@ -538,11 +543,12 @@ impl BytecodeGen {
 
     pub fn store_param(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
-            AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i)),
-            AstType::Float => self.store_new(name, |i| Store(i)),
-            AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
-            AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
-            AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::Bool | AstType::Int |
+            AstType::Float |
+            AstType::NullableType { .. } |
+            AstType::StructType { .. } |
+            AstType::ArrayType { .. } |
+            AstType::StringType |
             AstType::TupleType(..) => self.store_new(name, |i| Store(i)),
 
             _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
@@ -557,6 +563,7 @@ impl BytecodeGen {
             AstType::Float => self.store_new(name, |i| Store(i)),
             AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
             AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::StringType => self.store_new(name, |i| Store(i)),
             AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
             AstType::TupleType(arr) => {
                 self.scope_local_count += (arr.len() as u16) + 1;

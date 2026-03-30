@@ -8,6 +8,7 @@ pub enum ByteCode {
     
     IConst(i32),
     FConst(f32),
+    StrConst(String),
 
     Pop,
     Dup,

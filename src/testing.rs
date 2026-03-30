@@ -6,9 +6,11 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Box(value: int);
-    fn main(a: int, b: int, c: int) -> Box {
-        return Box(a);
+    fn main() -> string {
+        let x = "hello";
+
+
+        return x;
     }
     "#;
 
@@ -92,7 +94,7 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(compilation_res, "main", vec![into_arg(10), into_arg(20), into_arg(30)]);
+    let result = run_compiled(compilation_res, "main", vec![]);
 
     let result = if let Ok(r) = result {
         r

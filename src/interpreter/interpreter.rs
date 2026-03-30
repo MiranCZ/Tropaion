@@ -14,7 +14,7 @@ use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
-use crate::interpreter::value::Value::{FloatValue, IntValue, Null, RefValue};
+use crate::interpreter::value::Value::{CharValue, FloatValue, IntValue, Null, RefValue};
 use crate::interpreter::value::ValueType::{Address, Float, Int};
 use crate::memory_blob::{resolve_blob, MemoryBlob};
 use crate::util::arg_convertor::ValueConvertable;
@@ -177,6 +177,8 @@ impl Interpreter {
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),
+            ByteCode::StrConst(str) => self.push_string(str),
+
             ByteCode::Pop => {
                 let v = self.pop();
                 if let Some(e) = v.err() {
@@ -256,6 +258,22 @@ impl Interpreter {
 
     fn push_float(&mut self, value: f32) -> Res {
         self.push(FloatValue(value))?;
+
+        ok()
+    }
+
+    fn push_string(&mut self, value: String) -> Res {
+        let chars = value.chars().collect::<Vec<char>>();
+
+        let ptr =self.heap.alloc(chars.len() as u32);
+
+        self.push(RefValue {ptr, len: chars.len() as u32})?;
+
+        for i in 0..chars.len() {
+            let char = chars[i];
+
+            self.heap.store(ptr, i as u32, CharValue(char));
+        }
 
         ok()
     }

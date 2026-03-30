@@ -10,7 +10,6 @@ use crate::error::analysis_error::{AnalysisError, EmptyRes};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use std::collections::HashMap;
-use std::iter::chain;
 use ordermap::OrderMap;
 use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::generic_fixer::GenericFixer;
