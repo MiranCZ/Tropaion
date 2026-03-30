@@ -32,6 +32,9 @@ pub enum ByteCode {
     Div,
     Mod,
 
+    StrConcat,
+    Print,
+
     CmpEq,
     CmpNotEq,
     CmpGreater,

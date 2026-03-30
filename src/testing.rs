@@ -9,8 +9,14 @@ pub fn main() {
     fn main() -> string {
         let x = "hello";
 
+        let y: string = x + " five";
 
-        return x;
+        let z: string = "hello" + " " + "world";
+
+        print(z + " ; "+y);
+
+
+        return y;
     }
     "#;
 

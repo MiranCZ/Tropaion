@@ -6,9 +6,9 @@ use crate::interpreter::value::{Value, ValueType};
 // FIXME this is not runtime error related but overall helper
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ValueTypeVariant {
-    Null, Int, Float, Address,
+    Null, Int, Float, Address, Char,
     
-    Bool, Number, Nullable, Array, Function, Struct
+    Bool, Number, Nullable, String, Array, Function, Struct
 }
 
 impl ValueTypeVariant {

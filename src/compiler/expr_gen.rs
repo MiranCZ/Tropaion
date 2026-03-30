@@ -241,7 +241,13 @@ impl TypedExpr {
                 }
 
                 match operator {
-                    SimpleToken::Plus => generator.add(),
+                    SimpleToken::Plus => {
+                        if left.get_type().get(registry) == AstType::StringType {
+                            generator.string_concat();
+                        } else {
+                            generator.add();
+                        }
+                    },
                     SimpleToken::Dash => generator.sub(),
                     SimpleToken::Star => generator.mul(),
                     SimpleToken::Slash => generator.div(),
