@@ -7,12 +7,7 @@ use crate::util::arg_convertor::into_arg;
 pub fn main() {
     let text = r#"
     fn main() {
-        let a = 10.75;
-        let b = 15.11;
-
-        print("hello");
-        print(10);
-        print(3.13);
+        print("hello", 5);
     }
     "#;
 

@@ -752,7 +752,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             }
 
             // FIXME leaking the void here a bit
-            let mut func = self.registry.register(Void);
+            let mut func = self.registry.register(UnknownType);
 
             'overloadLoop:
             for overload in overloads.iter() {
@@ -772,6 +772,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 } else {
                     panic!();
                 }
+            }
+            
+            if func.get(self.registry) == UnknownType {
+                return self.error(AnalysisError::illegal_func_args(name, resolved_args, self.registry),span);
             }
 
 

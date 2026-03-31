@@ -1,10 +1,12 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::statement::UntypedStmt;
-use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
+use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalFuncArgs, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 use thiserror::Error;
+use crate::ast::walking::folder::FoldedExpr;
+use crate::util::spanned::Spanned;
 
 pub type EmptyRes = Result<(), AnalysisError>;
 
@@ -56,6 +58,12 @@ pub enum AnalysisError {
     #[error("Type '{called_type}' cannot be called")]
     IllegalCall {
         called_type: String
+    },
+
+    #[error("Could not find function '{func_name}' with parameters '({args})'")]
+    IllegalFuncArgs {
+        func_name: String,
+        args: String
     },
 
     #[error("Type '{typ}' cannot be indexed")]
@@ -131,6 +139,31 @@ impl AnalysisError {
 
     pub fn illegal_member_access(typ: TypeEntry, registry: &TypeRegistry) -> AnalysisError {
         IllegalMemberAccess(typ.format(registry))
+    }
+
+    pub fn illegal_func_args(name: String, resolved_args: Vec<Spanned<FoldedExpr<TypeEntry>>>, registry: &TypeRegistry) -> AnalysisError {
+
+        if resolved_args.is_empty() {
+            return IllegalFuncArgs {func_name: name, args: String::new()};
+        }
+        if resolved_args.len() == 1 {
+            return IllegalFuncArgs {func_name: name, args: resolved_args[0].get_type().format(registry)};
+        }
+
+
+        let mut args_string = String::new();
+
+        let mut iter = resolved_args.iter();
+
+        args_string.push_str(iter.next().unwrap().get_type().format(registry).as_str());
+
+        for arg in iter {
+            args_string.push_str(", ");
+
+            args_string.push_str(arg.get_type().format(registry).as_str());
+        }
+
+        IllegalFuncArgs {func_name: name, args: args_string}
     }
 
 }
