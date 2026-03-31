@@ -11,6 +11,7 @@ type SimpleType = usize;
 const Bool: SimpleType = 0;
 const Int: SimpleType = 1;
 const Float: SimpleType = 2;
+const StringT: SimpleType = 3;
 
 #[derive(Debug)]
 pub struct OperatorTable {
@@ -46,7 +47,7 @@ impl OperatorTable {
                 return Ok(underlying.get(registry));
             }
         }
-        println!("Evaluating {op:?}\n{right_type:?}\n{left_type:?}");
+        println!("Evaluating {op:?}\n{}\n{}", left_type.format(registry), right_type.format(registry));
 
         let right = from_ast_type(right_type.get(registry), registry);
         let left = from_ast_type(left_type.get(registry), registry);
@@ -113,6 +114,8 @@ impl OperatorTable {
         for t in [Bool, Int, Float] {
             self.add(t, Assign, t, t);
         }
+
+        self.add(StringT, Plus, StringT, StringT);
     }
 
     fn add(&mut self, left: SimpleType, op: SimpleToken, right: SimpleType, result: SimpleType) {
@@ -125,6 +128,7 @@ fn from_ast_type(t: AstType, registry: &TypeRegistry) -> Option<SimpleType> {
         AstType::Bool => Some(Bool),
         AstType::Int => Some(Int),
         AstType::Float => Some(Float),
+        AstType::StringType => Some(StringT),
         _ => None,
     }
 }
@@ -138,6 +142,9 @@ fn to_ast_type(t: SimpleType) -> AstType {
     }
     if t == Float {
         return AstType::Float;
+    }
+    if t == StringT {
+        return AstType::StringType;
     }
 
     panic!("Invalid simple type! {t:?}")

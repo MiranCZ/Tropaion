@@ -26,6 +26,8 @@ impl Token {
                         Float
                     } else if v == "bool" {
                         Bool
+                    } else if v == "string" { // TODO figure out what text should be used as string type
+                        StringType
                     } else {
                         return parse_symbol_type(v.clone(), registry, parser);
                     };

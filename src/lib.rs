@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::io::{stdout, Write};
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::{TypedStmt, UntypedStmt};
 use crate::compiler::compiler::{CompilationResult, Compiler};
@@ -97,7 +98,7 @@ pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Err
     Err(errors)
 }
 
-pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
     let mut interpret = Interpreter::new(compilation_result);
 
     let mut mangled = format!("{entry_point}_");
@@ -106,20 +107,24 @@ pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, ar
         mangled.push_str(a.get_mangled().as_str());
     }
 
-    interpret.run_function(mangled, args)
+    interpret.run_function(mangled, args, out)
 }
 
 
 pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
-    run_code_with_args(code, entry_point, vec![])
+    run_code_with_out(code, entry_point, &mut stdout())
 }
 
-pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+    run_code_with_args(code, entry_point, vec![], out)
+}
+
+pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
     let compiled = compile(code);
 
     match compiled {
         Ok(compilation_result) => {
-            let run_result =  run_compiled(compilation_result, entry_point, arguments);
+            let run_result =  run_compiled(compilation_result, entry_point, arguments, out);
 
             match run_result {
                 Ok(value) => Ok(value),

@@ -14,7 +14,8 @@ macro_rules! impl_math_op {
                     Value::IntValue(v) => Value::IntValue(v.$wrapping(rhs.try_as_int())),
                     Value::FloatValue(v) => Value::FloatValue(v.$method(rhs.try_as_float())),
                     Value::RefValue{..} => panic!("Cannot apply {} to references", stringify!($method)),
-                    Value::Null => panic!("Cannot write operations with null!")
+                    Value::Null => panic!("Cannot perform operations with null!"),
+                    Value::CharValue(..) => panic!("Cannot perform operations with chars!")
                 }
             }
         }
@@ -27,6 +28,7 @@ pub enum Value {
     Null,
     IntValue(i32),
     FloatValue(f32),
+    CharValue(char),
     RefValue{
         ptr: u32,
         len: u32 
@@ -164,6 +166,7 @@ impl PartialOrd for Value {
             FloatValue(v) => v.partial_cmp(&other.try_as_float()),
 
             RefValue{..} => panic!("Cannot compare references"),
+            Value::CharValue(..) => panic!("Cannot make operations with chars!"),
             Value::Null => panic!("Cannot make operations with null!")
         }
     }

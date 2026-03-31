@@ -86,9 +86,7 @@ impl TypedExpr {
                 generator.i_const(*i as i32);
             },
             Expression::FloatLiteralExpr(_, f) => generator.f_const(*f),
-            Expression::StringLiteralExpr(..) => {
-                todo!()
-            }
+            Expression::StringLiteralExpr(_, str) => generator.string_const(str.clone()),
             Expression::ArrayLiteralExpr(t, values) => {
                 generator.heap_alloc(values.len() as u32);
 
@@ -111,6 +109,7 @@ impl TypedExpr {
                     AstType::Float => generator.f_load(name.clone()),
                     AstType::StructType { .. } |
                     AstType::ArrayType { .. } |
+                    AstType::StringType |
                     AstType::TupleType { .. } => generator.a_load(name.clone()),
                     AstType::NullableType {underlying: t} => {
                         generator.a_load(name.clone());
@@ -242,7 +241,13 @@ impl TypedExpr {
                 }
 
                 match operator {
-                    SimpleToken::Plus => generator.add(),
+                    SimpleToken::Plus => {
+                        if left.get_type().get(registry) == AstType::StringType {
+                            generator.string_concat();
+                        } else {
+                            generator.add();
+                        }
+                    },
                     SimpleToken::Dash => generator.sub(),
                     SimpleToken::Star => generator.mul(),
                     SimpleToken::Slash => generator.div(),

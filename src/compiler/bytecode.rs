@@ -8,6 +8,7 @@ pub enum ByteCode {
     
     IConst(i32),
     FConst(f32),
+    StrConst(String),
 
     Pop,
     Dup,
@@ -15,6 +16,9 @@ pub enum ByteCode {
     
     I2F,
     F2I,
+
+    I2Str,
+    F2Str,
 
     Or,
     And,
@@ -30,6 +34,9 @@ pub enum ByteCode {
     Mul,
     Div,
     Mod,
+
+    StrConcat,
+    Print,
 
     CmpEq,
     CmpNotEq,

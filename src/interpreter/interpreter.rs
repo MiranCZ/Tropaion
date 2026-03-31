@@ -1,6 +1,7 @@
 use std::cell::Ref;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
+use std::io::{Error, Write};
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
@@ -9,12 +10,12 @@ use crate::compiler::compiler::CompilationResult;
 use crate::error::context::ErrorContext;
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
-use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, InternalError, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
-use crate::interpreter::value::Value::{FloatValue, IntValue, Null, RefValue};
+use crate::interpreter::value::Value::{CharValue, FloatValue, IntValue, Null, RefValue};
 use crate::interpreter::value::ValueType::{Address, Float, Int};
 use crate::memory_blob::{resolve_blob, MemoryBlob};
 use crate::util::arg_convertor::ValueConvertable;
@@ -108,8 +109,8 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
-        let res = self._run_function(function, arguments);
+    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+        let res = self._run_function(function, arguments, out);
 
         if let Ok(v) = res {
             return Ok(v);
@@ -122,7 +123,7 @@ impl Interpreter {
         panic!()
     }
 
-    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, RuntimeError> {
+    fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, RuntimeError> {
         for a in arguments {
             for value in a.into_value(self) {
                 self.push(value)?;
@@ -146,7 +147,7 @@ impl Interpreter {
             // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
             // println!("\t{insn:?}\n");
 
-            self.execute(insn)?;
+            self.execute(insn, out)?;
             self.insn_addr += 1;
         }
 
@@ -168,7 +169,7 @@ impl Interpreter {
         self._load_at_ptr(ptr)
     }
 
-    fn execute(&mut self, insn: ByteCode) -> Result<(), RuntimeError> {
+    fn execute(&mut self, insn: ByteCode, out: &mut impl Write) -> Result<(), RuntimeError> {
         match insn {
             ByteCode::Comment(_) => {ok()}
             ByteCode::Nop => {ok()}
@@ -177,6 +178,8 @@ impl Interpreter {
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),
+            ByteCode::StrConst(str) => self.push_string(str),
+
             ByteCode::Pop => {
                 let v = self.pop();
                 if let Some(e) = v.err() {
@@ -190,6 +193,9 @@ impl Interpreter {
             
             ByteCode::I2F => self.i2f(),
             ByteCode::F2I => self.f2i(),
+
+            ByteCode::I2Str => self.i2str(),
+            ByteCode::F2Str => self.f2str(),
 
             ByteCode::Or => self.bitor(),
             ByteCode::And => self.bitand(),
@@ -205,6 +211,9 @@ impl Interpreter {
             ByteCode::Mul => self.mul(),
             ByteCode::Div => self.div(),
             ByteCode::Mod => self.rem(),
+
+            ByteCode::Print => self.print(out),
+            ByteCode::StrConcat => self.str_concat(),
 
             ByteCode::CmpEq => self.eq(),
             ByteCode::CmpNotEq => self.ne(),
@@ -256,6 +265,22 @@ impl Interpreter {
 
     fn push_float(&mut self, value: f32) -> Res {
         self.push(FloatValue(value))?;
+
+        ok()
+    }
+
+    fn push_string(&mut self, value: String) -> Res {
+        let chars = value.chars().collect::<Vec<char>>();
+
+        let ptr =self.heap.alloc(chars.len() as u32);
+
+        self.push(RefValue {ptr, len: chars.len() as u32})?;
+
+        for i in 0..chars.len() {
+            let char = chars[i];
+
+            self.heap.store(ptr, i as u32, CharValue(char));
+        }
 
         ok()
     }
@@ -484,6 +509,30 @@ impl Interpreter {
         ok()
     }
 
+    fn i2str(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let IntValue(i) = top {
+            self.push_string(i.to_string())?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Int, got: top});
+        }
+
+        ok()
+    }
+
+    fn f2str(&mut self) -> Res {
+        let top = self.pop()?;
+
+        if let FloatValue(f) = top {
+            self.push_string(f.to_string())?;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::Float, got: top});
+        }
+
+        ok()
+    }
+
     fn bool_not(&mut self) -> Res {
         let top = self.pop()?;
         
@@ -517,6 +566,90 @@ impl Interpreter {
     cmp_op!(ge, >=);
     cmp_op!(lt, <);
     cmp_op!(le, <=);
+
+
+    fn print(&mut self, output_consumer: &mut impl Write) -> Res {
+        let v = self.pop()?;
+
+        if let RefValue {ptr, len} = v {
+            for i in 0..len {
+                let v = self._load_at_ptr((ptr + i) as usize);
+
+                if let CharValue(ch) = v {
+                    write!(output_consumer, "{ch}")
+                        .map_err(|e| InternalError(e.to_string()))?;
+                } else {
+                    return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
+                }
+            }
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::String, got: v})
+        }
+
+        writeln!(output_consumer).map_err(|e| InternalError(e.to_string()))?;
+
+        output_consumer
+            .flush()
+            .map_err(|e| InternalError(e.to_string()))?;
+
+        ok()
+    }
+
+    fn str_concat(&mut self) -> Res {
+        let b = self.pop()?;
+        let a = self.pop()?;
+
+        let ptr_a;
+        let len_a;
+        let ptr_b;
+        let len_b;
+
+        if let RefValue {ptr, len} = a {
+            ptr_a = ptr;
+            len_a = len;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::String, got: a})
+        }
+
+        if let RefValue {ptr, len} = b {
+            ptr_b = ptr;
+            len_b = len;
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::String, got: a})
+        }
+
+        let new_length = len_a + len_b;
+
+        let heap_ptr = self.heap.alloc(new_length);
+        let mut total_offset = 0;
+
+        // copy over chars
+        for i in 0..len_a {
+            let v = self._load_at_ptr((ptr_a + i) as usize);
+
+            if let CharValue(..) = v {
+                self.heap.store(heap_ptr, total_offset, v);
+                total_offset += 1;
+            } else {
+                return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
+            }
+        }
+
+        for i in 0..len_b {
+            let v = self._load_at_ptr((ptr_b + i) as usize);
+
+            if let CharValue(..) = v {
+                self.heap.store(heap_ptr, total_offset, v);
+                total_offset += 1;
+            } else {
+                return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
+            }
+        }
+
+        self.push(RefValue {ptr: heap_ptr, len: new_length})?;
+
+        ok()
+    }
 
     fn not(&mut self) -> Res {
         let a = self.pop()?;
