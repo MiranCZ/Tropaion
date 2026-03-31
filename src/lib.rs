@@ -86,16 +86,20 @@ pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Err
         errors.push(ctx)
     }
 
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
     let compiled = compile_typed(typed, &mut registry, &code);
 
     if let Err(e) = compiled {
         let ctx: ErrorContext<Box<dyn Error>> = ErrorContext::new(Box::new(e), 0,0);
-        errors.push(ctx);
+        return Err(vec![ctx]);
     } else if let Ok(res) = compiled {
         return Ok(res);
     }
 
-    Err(errors)
+    unreachable!()
 }
 
 pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
