@@ -102,16 +102,14 @@ pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Err
     unreachable!()
 }
 
-pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
-    let mut interpret = Interpreter::new(compilation_result);
-
+pub fn run_compiled(interpreter: &mut Interpreter, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
     let mut mangled = format!("{entry_point}_");
 
     for a in args.iter() {
         mangled.push_str(a.get_mangled().as_str());
     }
 
-    interpret.run_function(mangled, args, out)
+    interpreter.run_function(mangled, args, out)
 }
 
 
@@ -126,7 +124,7 @@ pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) 
 pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
     let compilation_result = compile(code)?;
 
-    let run_result =  run_compiled(compilation_result, entry_point, arguments, out);
+    let run_result =  run_compiled(&mut Interpreter::new(compilation_result), entry_point, arguments, out);
 
     match run_result {
         Ok(value) => Ok(value),

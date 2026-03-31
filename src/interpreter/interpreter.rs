@@ -110,6 +110,11 @@ impl Interpreter {
 
 
     pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+        self.stack_frames.clear();
+        self.call_stack.clear();
+        self.pointer = 1;
+        self.insn_addr = 0;
+
         let res = self._run_function(function, arguments, out);
 
         if let Ok(v) = res {
