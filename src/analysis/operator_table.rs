@@ -47,7 +47,6 @@ impl OperatorTable {
                 return Ok(underlying.get(registry));
             }
         }
-        println!("Evaluating {op:?}\n{}\n{}", left_type.format(registry), right_type.format(registry));
 
         let right = from_ast_type(right_type.get(registry), registry);
         let left = from_ast_type(left_type.get(registry), registry);
