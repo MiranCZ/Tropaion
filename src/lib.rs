@@ -120,22 +120,15 @@ pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) 
 }
 
 pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
-    let compiled = compile(code);
+    let compilation_result = compile(code)?;
 
-    match compiled {
-        Ok(compilation_result) => {
-            let run_result =  run_compiled(compilation_result, entry_point, arguments, out);
+    let run_result =  run_compiled(compilation_result, entry_point, arguments, out);
 
-            match run_result {
-                Ok(value) => Ok(value),
-                Err(err) => {
-                    let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
-                    Err(vec![ctx])
-                }
-            }
-        }
-        Err(e) => {
-            Err(e)
+    match run_result {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
+            Err(vec![ctx])
         }
     }
 }
