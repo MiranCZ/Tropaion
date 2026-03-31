@@ -54,30 +54,13 @@ pub fn resolve_types(untyped: UntypedStmt, registry: &mut TypeRegistry) -> (Type
     (resolved_root, analyzer.errors)
 }
 
-pub fn compile(typed: TypedStmt, registry: &mut TypeRegistry, code: &String) -> Result<CompilationResult, CompilationError> {
+pub fn compile_typed(typed: TypedStmt, registry: &mut TypeRegistry, code: &String) -> Result<CompilationResult, CompilationError> {
     let comp = Compiler::new(typed, code.chars().collect());
 
     comp.compile(registry)
 }
 
-pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
-    let mut interpret = Interpreter::new(compilation_result);
-
-    let mut mangled = format!("{entry_point}_");
-
-    for a in args.iter() {
-        mangled.push_str(a.get_mangled().as_str());
-    }
-
-    interpret.run_function(mangled, args)
-}
-
-
-pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
-    run_code_with_args(code, entry_point, vec![])
-}
-
-pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();
@@ -102,12 +85,37 @@ pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<Va
         errors.push(ctx)
     }
 
+    let compiled = compile_typed(typed, &mut registry, &code);
 
-    if !errors.is_empty() {
-        return Err(errors);
+    if let Err(e) = compiled {
+        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext::new(Box::new(e), 0,0);
+        errors.push(ctx);
+    } else if let Ok(res) = compiled {
+        return Ok(res);
     }
 
-    let compiled = compile(typed, &mut registry, &code);
+    Err(errors)
+}
+
+pub fn run_compiled(compilation_result: CompilationResult, entry_point: &str, args: Vec<ValueConvertable>) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+    let mut interpret = Interpreter::new(compilation_result);
+
+    let mut mangled = format!("{entry_point}_");
+
+    for a in args.iter() {
+        mangled.push_str(a.get_mangled().as_str());
+    }
+
+    interpret.run_function(mangled, args)
+}
+
+
+pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+    run_code_with_args(code, entry_point, vec![])
+}
+
+pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+    let compiled = compile(code);
 
     match compiled {
         Ok(compilation_result) => {
@@ -122,7 +130,7 @@ pub fn run_code_with_args(mut code: String, entry_point: &str, arguments: Vec<Va
             }
         }
         Err(e) => {
-            Err(vec![ErrorContext::new(Box::new(e), 0,0)])
+            Err(e)
         }
     }
 }
