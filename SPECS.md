@@ -311,6 +311,23 @@ let a = Rect(5, 10);
 let area = a.area();
 ```
 
+# Enums 
+
+- values get replaced by `int`s at compile-time
+
+
+```
+enum Direction(UP, DOWN) {
+    fn opposite() {
+        if this == UP {
+           return DOWN; 
+        } else {
+           return UP; 
+        }
+    }
+}
+```
+
 # Comparing values
 
 - the `==` operator compares the rhs and lhs **by value**
