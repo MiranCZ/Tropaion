@@ -110,6 +110,11 @@ impl Interpreter {
 
 
     pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+        self.stack_frames.clear();
+        self.call_stack.clear();
+        self.pointer = 1;
+        self.insn_addr = 0;
+
         let res = self._run_function(function, arguments, out);
 
         if let Ok(v) = res {
@@ -149,10 +154,6 @@ impl Interpreter {
 
             self.execute(insn, out)?;
             self.insn_addr += 1;
-        }
-
-        for v in self.stack[0..self.pointer].iter() {
-            println!("VALUE: {v:?}");
         }
 
         Ok(resolve_blob(self.pop()?, self))
@@ -776,7 +777,6 @@ impl Interpreter {
         }
         values.reverse();
 
-        println!("RESOLVED ARGS {:?} {size}", &self.stack[0..self.pointer]);
         self.insn_addr = (info.start as usize);
 
         let next_insn = &self.instructions[self.insn_addr];

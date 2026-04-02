@@ -14,6 +14,7 @@ pub struct Compiler {
     pub generator: BytecodeGen
 }
 
+#[derive(Clone, Debug)]
 pub struct CompilationResult {
     pub instructions: Vec<ByteCode>,
     pub lines: Vec<usize>,

@@ -1,6 +1,7 @@
 use crate::analysis::type_registry::TypeRegistry;
-use crate::{compile, lex_code, parse_tokens, resolve_types, run_compiled};
+use crate::{compile, compile_typed, lex_code, parse_tokens, resolve_types, run_compiled};
 use std::time::Instant;
+use crate::interpreter::interpreter::Interpreter;
 use crate::util::arg_convertor::into_arg;
 
 #[test]
@@ -74,7 +75,7 @@ fn interpret(mut text: String) {
     // println!("-------------------");
     // println!();
 
-    let res = compile(resolved_root, &mut registry, &text);
+    let res = compile_typed(resolved_root, &mut registry, &text);
 
     let compilation_res = if let Ok(r) = res {
         r
@@ -96,7 +97,7 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(compilation_res, "main", vec![], &mut std::io::stdout());
+    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {
         r
