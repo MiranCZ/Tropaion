@@ -46,6 +46,10 @@ pub enum CompilationError {
    
     #[error("Tried indexing type {0} which is not allowed")]
     IllegalIndexing(String),
+    
+    // FIXME show normal funtion string instead of mangled name
+    #[error("Function {0} already defined")]
+    DuplicateFunction(String),
 
     #[error("Int constant of '{0}' does not fit integer bounds ({min} < n < {max})", min=i32::MIN, max=i32::MAX)]
     IntOutOfBounds(i64)

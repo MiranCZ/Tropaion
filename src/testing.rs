@@ -7,14 +7,19 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    fn main() {
-        let x = Direction.LEFT;
+    struct Aaa() {
+        fn haha() {}
+        // fn haha() {}
 
-        let y = 100;
-        print(x.to_string());
-        print(x.opposite().to_string());
-        print(x.rot_clockwise().to_string());
-    }a"#;
+    }
+
+
+    fn haha() {}
+
+    fn main() {
+
+    }
+    "#;
 
     interpret(text.to_string());
 }

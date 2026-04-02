@@ -10,3 +10,4 @@ mod type_duplicator;
 mod generic_helper;
 mod generic_fixer;
 mod top_level_collector;
+mod unique_name_checker;

@@ -17,6 +17,7 @@ use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
 use crate::analysis::top_level_collector::TopLevelCollector;
 use crate::analysis::type_resolution::TypeResolver;
+use crate::analysis::unique_name_checker::UniqueNameChecker;
 use crate::ast::walking::folder::Folder;
 use crate::error::context::{ErrorContext, Errors, Span};
 use crate::intrinsics::type_injector::{get_injected_functions, get_injected_structs};
@@ -60,6 +61,8 @@ impl Analyzer {
         }
 
         // TODO semantic analysis would probs be nice xd
+        
+        self.errors.append(&mut UniqueNameChecker::check(registry, &resolved_root));
         
         let mut mangler = ManglingVisitor::new(registry);
         resolved_root.walk_visit_mut(&mut mangler);

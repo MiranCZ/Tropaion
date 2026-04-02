@@ -104,7 +104,8 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
                     overloads.push(func);
                     t.mutate(registry, FunctionsType {name, overloads});
                 } else {
-                    panic!("Invalid overload {name} {:?}", t.get(registry).format(registry))
+                    // FIXME add span
+                    return Err(ErrorContext::of(AnalysisError::NameAlreadyUsed(name), Span::new(0,0)));
                 }
             }
         } else {

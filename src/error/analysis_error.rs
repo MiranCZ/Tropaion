@@ -1,7 +1,7 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::statement::UntypedStmt;
-use crate::error::analysis_error::AnalysisError::{IllegalBinaryExpression, IllegalCall, IllegalFuncArgs, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, TypeMismatch};
+use crate::ast::statement::{Parameter, UntypedStmt};
+use crate::error::analysis_error::AnalysisError::{FunctionAlreadyDefined, IllegalBinaryExpression, IllegalCall, IllegalFuncArgs, IllegalIndexing, IllegalMemberAccess, IllegalNullDeref, IllegalTypeAssignment, NameAlreadyUsed, TypeMismatch};
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 use thiserror::Error;
@@ -96,7 +96,13 @@ pub enum AnalysisError {
     IllegalTupleIndex,
 
     #[error("Index is out of bounds (must satisfy 0 <= {0} < {1})")]
-    IndexOutOfBounds(i64, i64)
+    IndexOutOfBounds(i64, i64),
+    
+    #[error("The name '{0}' is already in use")]
+    NameAlreadyUsed(String),
+    
+    #[error("Function '{0}' is already defined")]
+    FunctionAlreadyDefined(String)
 
 }
 
@@ -164,6 +170,36 @@ impl AnalysisError {
         }
 
         IllegalFuncArgs {func_name: name, args: args_string}
+    }
+    
+    pub fn function_already_defined(name: String, params: &Vec<Parameter>, registry: &TypeRegistry) -> AnalysisError {
+        let mut str = name;
+
+        str.push('(');
+        
+        
+        if params.is_empty() {
+            str.push(')');
+            return FunctionAlreadyDefined(str);
+        }
+        if params.len() == 1 {
+            str.push_str(params[0].param_type.format(registry).as_str());
+            str.push(')');
+            return FunctionAlreadyDefined(str);
+        }
+
+        let mut iter = params.iter();
+        str.push_str(iter.next().unwrap().param_type.format(registry).as_str());
+        
+        for x in iter {
+            str.push_str(", ");
+
+
+            str.push_str(x.param_type.format(registry).as_str());
+        }
+
+        str.push(')');
+        FunctionAlreadyDefined(str)
     }
 
 }

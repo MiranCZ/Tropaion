@@ -292,7 +292,11 @@ impl BytecodeGen {
         ok()
     }
 
-    pub fn register_func(&mut self, name: String, params_len: u32) {
+    pub fn register_func(&mut self, name: String, params_len: u32) -> Result<(), CompilationError> {
+        if self.functions.contains_key(&name) {
+            return Err(CompilationError::DuplicateFunction(name));
+        }
+
         self.functions.insert(name, FunctionInfo{
             index: self.func_count,
             params_len,
@@ -300,6 +304,8 @@ impl BytecodeGen {
             end: 0
         });
         self.func_count += 1;
+
+        ok()
     }
 
     pub fn pop_insn(&mut self) {
