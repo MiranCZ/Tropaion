@@ -14,8 +14,7 @@ pub fn main() {
         print(x.to_string());
         print(x.opposite().to_string());
         print(x.rot_clockwise().to_string());
-    }
-    "#;
+    }a"#;
 
     interpret(text.to_string());
 }

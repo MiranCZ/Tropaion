@@ -1,5 +1,7 @@
 pub fn inject_builtins(src: &mut String) {
+    src.push('\n');
     inject_vec(src);
+    src.push('\n');
     inject_direction(src);
 }
 
