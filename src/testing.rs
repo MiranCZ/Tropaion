@@ -6,35 +6,13 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    enum Dir(LEFT, RIGHT) {
-
-        fn opposite() -> Dir {
-            if this == LEFT {
-                return RIGHT;
-            } else {
-                return LEFT;
-            }
-            // return LEFT;
-        }
-
-        fn str() -> string {
-            if this == LEFT {
-                return "LEFT";
-            } else if this == RIGHT {
-                return "RIGHT";
-            }
-
-            return "<idk>";
-        }
-
-    }
-
     fn main() {
-        let x = Dir.LEFT;
+        let x = Direction.LEFT;
 
         let y = 100;
-        print(x.str());
-        print(x.opposite().str());
+        print(x.to_string());
+        print(x.opposite().to_string());
+        print(x.rot_clockwise().to_string());
     }
     "#;
 

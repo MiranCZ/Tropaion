@@ -1,0 +1,51 @@
+enum Direction(UP, DOWN, LEFT, RIGHT) {
+    
+    fn opposite() -> Direction {
+        if this == UP {
+            return DOWN;    
+        } else if this == DOWN {
+            return UP;    
+        } else if this == LEFT {
+            return RIGHT;     
+        } else if this == RIGHT {
+            return LEFT;     
+        }
+    }
+
+    fn rot_clockwise() -> Direction {
+        if this == UP {
+            return RIGHT; 
+        } else if this == DOWN {
+            return LEFT;    
+        } else if this == LEFT {
+            return UP;     
+        } else if this == RIGHT {
+            return DOWN;     
+        }
+    }
+
+    fn rot_anti_clockwise() -> Direction {
+        if this == UP {
+            return LEFT; 
+        } else if this == DOWN {
+            return RIGHT;    
+        } else if this == LEFT {
+            return DOWN;     
+        } else if this == RIGHT {
+            return UP;     
+        }
+    }
+
+    fn to_string() -> string {
+        if this == UP {
+            return "UP"; 
+        } else if this == DOWN {
+            return "DOWN";    
+        } else if this == LEFT {
+            return "LEFT";     
+        } else if this == RIGHT {
+            return "RIGHT";     
+        }
+    }
+    
+}
