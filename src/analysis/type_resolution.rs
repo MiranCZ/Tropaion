@@ -7,7 +7,7 @@ use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, Functio
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::expression::{deref, Expression, TypedExpr};
-use crate::ast::statement::Statement::{CommentStmt, FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
+use crate::ast::statement::Statement::{CommentStmt, EnumStmt, FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::walking::folder::{FoldedBlock, FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
@@ -448,6 +448,24 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         StructStmt {name, fields: typed_fields, body, generics}
     }
 
+    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
+        let enum_type = self.symbol_table.get(&name).unwrap();
+
+        self.symbol_table.push();
+
+        self.symbol_table.record(String::from("this"), enum_type);
+
+        for v in values.iter() {
+            self.symbol_table.record_with_info(v.clone(), enum_type, TypeSymTableInfo::inside_struct(enum_type.get(self.registry)));
+        }
+
+        let body = self.fold_block(body);
+
+        self.symbol_table.pop();
+        
+        EnumStmt {name, values, body}
+    }
+
     fn fold_return(&mut self, expr: Spanned<Expression<()>>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut expr = self.fold_expr(expr);
 
@@ -680,6 +698,15 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             self.type_table.push();
             for g in generics {
                 self.type_table.record(g.0, g.1);
+            }
+        } else if let AstType::EnumType {name, values, ..} = member.get_type().get(self.registry) {
+            struct_scope = true;
+
+            let this_type = member.get_type();
+
+            self.symbol_table.push();
+            for x in values {
+                self.symbol_table.record_with_info(x, this_type, TypeSymTableInfo::owner(this_type.get(self.registry)));
             }
         } else if let TupleType(values) = member.get_type().get(self.registry) {
             return if let IntLiteralExpr(_, v) = property.node {

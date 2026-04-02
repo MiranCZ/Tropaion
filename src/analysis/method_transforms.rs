@@ -59,6 +59,14 @@ impl <'a> VisitorMut<'a> for TransformVisitor<'a> {
         });
     }
 
+    fn visit_mut_enum(&mut self, name: &mut String, values: &mut Vec<String>, body: &mut StatementBlock<TypeEntry>, span: Span) {
+        self.with_inside(Some(self.symbol_table.get(&name).unwrap()), |visitor| {
+            for s in body {
+                s.walk_visit_mut(visitor);
+            }
+        });
+    }
+
     fn visit_mut_expr(&mut self, expr: &mut TypedExpr) {
         // don't care about expressions
     }

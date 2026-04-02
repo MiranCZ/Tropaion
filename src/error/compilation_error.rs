@@ -54,6 +54,7 @@ pub enum CompilationError {
 impl CompilationError {
 
     pub fn unsupported_type(typ: AstType, registry: &TypeRegistry) -> CompilationError {
+        panic!();
         CompilationError::UnsupportedType(typ.format(registry))
     }
 
@@ -66,6 +67,7 @@ impl CompilationError {
     }
     
     pub fn illegal_member_access(typ: AstType, registry: &TypeRegistry) -> CompilationError {
+        panic!();
         IllegalMemberAccess(typ.format(registry))
     }
     

@@ -1,5 +1,5 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ArrayType, ErroredType, NullableType, ReferenceType, StructType, SymbolType, TupleType};
+use crate::ast::ast_type::AstType::{ArrayType, EnumType, ErroredType, NullableType, ReferenceType, StructType, SymbolType, TupleType};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
@@ -46,7 +46,10 @@ pub enum AstType {
         // fields and methods
         children: HashMap<String, MemberInfo>,
     },
-    
+    EnumType {
+        name: String,
+        values: Vec<String>
+    },
     GenericType {
         name: String
     }
@@ -147,6 +150,7 @@ impl AstType {
 
                 res
             }
+            AstType::EnumType {name, ..} => name.clone(),
             AstType::GenericType {name, ..} => format!("{name}")
         }
     }
@@ -222,6 +226,26 @@ impl AstType {
 
                     if !a.get(registry)._equals(&b.get(registry), registry, loose) {
                         return false;
+                    }
+                }
+
+                true
+            }
+            (EnumType {name: n1, values: v1}, EnumType {name: n2, values: v2}) => {
+                if *n1 != *n2 {
+                    return false;
+                }
+
+                if v1.len() != v2.len() {
+                    return false;
+                }
+
+                let mut it1 = v1.iter();
+                let mut it2 = v2.iter();
+
+                while let Some(x1) = it1.next() && let Some(x2) = it2.next() {
+                    if *x1 != *x2 {
+                        return false
                     }
                 }
 

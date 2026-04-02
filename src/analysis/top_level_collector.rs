@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use ordermap::OrderMap;
+use Statement::EnumStmt;
 use crate::analysis::generic_fixer::GenericChecker;
 use crate::analysis::mangling;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::analysis::type_resolution::TypeResolver;
-use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, GenericType, StructType, UnknownType};
-use crate::ast::ast_type::MemberInfo;
+use crate::ast::ast_type::AstType::{EnumType, FunctionType, FunctionsType, GenericType, StructType, UnknownType};
+use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression;
 use crate::ast::statement::{Parameter, Statement, StatementBlock, UntypedStmt};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
@@ -31,6 +32,12 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         }
     }
 
+    fn construct_enum_type(name: &String, values: &Vec<String>) -> AstType {
+        EnumType {
+            name: name.clone(),
+            values: values.clone()
+        }
+    }
 
     pub fn collect(resolver: &'a mut TypeResolver<'b>, stmt: UntypedStmt) {
         let mut new = Self::new(resolver);
@@ -42,6 +49,11 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
                         let t = new.resolver.registry.register(UnknownType);
                         new.resolver.type_table.record(name.clone(), t);
                     },
+                    EnumStmt {name, values, ..} => {
+                        let t = new.resolver.registry.register(Self::construct_enum_type(name, values));
+                        new.resolver.type_table.record(name.clone(), t);
+                        new.resolver.symbol_table.record(name.clone(), t);
+                    }
                     _ => {}
                 }
             }

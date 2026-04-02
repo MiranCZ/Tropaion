@@ -51,7 +51,8 @@ impl Compiler {
             BlockStmt { body, .. } |
             Statement::IfStmt { body, .. } |
             Statement::WhileStmt { body, .. } |
-            StructStmt { body, .. } => {
+            StructStmt { body, .. } |
+            Statement::EnumStmt {body, ..} => {
                 for b in body {
                     self.collect_functions(registry,b)
                 }

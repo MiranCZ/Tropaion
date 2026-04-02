@@ -158,6 +158,14 @@ where
             generics
         }
     }
+    
+    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<I>) -> FoldedStmt<O> {
+        Statement::EnumStmt {
+            name,
+            values,
+            body: self.fold_block(body),
+        }
+    }
 
     fn fold_return(&mut self, expr: Spanned<Expression<I>>, span: Span) -> FoldedStmt<O> {
         Statement::ReturnStmt(self.fold_expr(expr))
@@ -480,6 +488,10 @@ where
             generics: folded_generics
         }
     }
+    
+    fn fold_enum_type(&mut self, name: String, values: Vec<String>) -> AstType {
+        AstType::EnumType { name, values }
+    }
 
     fn fold_generic_type(&mut self, name: String) -> AstType {
 
@@ -528,6 +540,9 @@ impl<I: Clone> Spanned<Statement<I>> {
                 } => folder.fold_function(name, generics, params, return_type, body, span),
                 Statement::StructStmt { name, fields, body, generics } => {
                     folder.fold_struct(name, fields, body, generics, span)
+                }
+                Statement::EnumStmt {name, values, body} => {
+                    folder.fold_enum(name, values, body)
                 }
                 Statement::ReturnStmt(expr) => folder.fold_return(expr, span),
                 Statement::LoopInterrupt {break_loop} => folder.fold_loop_interrupt(break_loop, span),
@@ -628,6 +643,10 @@ impl AstType {
                 fields,
                 children,
             } => folder.fold_struct_type(name, generics, fields, children),
+            AstType::EnumType {
+                name,
+                values
+            } => folder.fold_enum_type(name, values),
             AstType::GenericType {name} => folder.fold_generic_type(name)
         }
     }

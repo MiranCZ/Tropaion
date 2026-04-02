@@ -125,6 +125,10 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_block(body);
     }}
 
+    fn {suffix}_enum(&mut self, name: {borrow} String, values: {borrow} Vec<String>, body: {borrow} StatementBlock<TypeEntry>, span: Span) {{
+        self.{suffix}_block(body);
+    }}
+
     fn {suffix}_return(&mut self, expr: {borrow}TypedExpr, span: Span) {{
         self.{suffix}_expr(expr);
     }}
@@ -306,6 +310,9 @@ pub trait {trait_name}<'a> where Self: Sized {{
         }}
     }}
 
+    fn {suffix}_enum_type(&mut self, name: {borrow} String, values: {borrow} Vec<String>) {{
+    }}
+
     fn {suffix}_generic_type(&mut self, name: {borrow} String) {{
     }}
 
@@ -335,6 +342,9 @@ impl TypedStmt {{
             }}
             Statement::StructStmt {{ name, fields, body, generics }} => {{
                 visitor.{suffix}_struct(name, fields, body, generics, self.span);
+            }}
+            Statement::EnumStmt {{ name, values, body }} => {{
+                visitor.{suffix}_enum(name, values, body, self.span);
             }}
             Statement::ReturnStmt(expr) => {{
                 visitor.{suffix}_return(expr, self.span);
@@ -439,6 +449,7 @@ impl AstType {{
             AstType::FunctionsType {{ name, overloads }} => visitor.{suffix}_functions_type(name, overloads),
             AstType::FunctionType {{ name,generics, params, return_type }} => visitor.{suffix}_function_type(name, generics, params, return_type),
             AstType::StructType {{ name, generics, fields, children }} => visitor.{suffix}_struct_type(name, generics, fields, children),
+            AstType::EnumType {{name, values}} => visitor.{suffix}_enum_type(name, values),
             AstType::GenericType {{ name }} => visitor.{suffix}_generic_type(name),
         }}
     }}

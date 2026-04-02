@@ -46,6 +46,11 @@ pub enum Statement<T> {
         body: StatementBlock<T>,
         generics: Vec<String>
     },
+    EnumStmt {
+        name: String,
+        values: Vec<String>,
+        body: StatementBlock<T>
+    },
     ReturnStmt(Spanned<Expression<T>>),
     LoopInterrupt {
         break_loop: bool

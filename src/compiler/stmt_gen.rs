@@ -103,6 +103,11 @@ impl TypedStmt {
                     b.gen_bytecode(registry, generator)?;
                 }
             }
+            Statement::EnumStmt {body, ..} => {
+                for b in body {
+                    b.gen_bytecode(registry, generator)?;
+                }
+            }
             Statement::ReturnStmt(e) => {
                 e.generate_bytecode(registry, generator, Load)?;
 

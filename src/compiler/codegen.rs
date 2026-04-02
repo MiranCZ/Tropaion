@@ -563,6 +563,7 @@ impl BytecodeGen {
             AstType::Float |
             AstType::NullableType { .. } |
             AstType::StructType { .. } |
+            AstType::EnumType { .. } |
             AstType::ArrayType { .. } |
             AstType::StringType |
             AstType::TupleType(..) => self.store_new(name, |i| Store(i)),
@@ -579,6 +580,7 @@ impl BytecodeGen {
             AstType::Float => self.store_new(name, |i| Store(i)),
             AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
             AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::EnumType { .. } => self.store_new(name, |i| Store(i)),
             AstType::StringType => self.store_new(name, |i| Store(i)),
             AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
             AstType::TupleType(arr) => {
@@ -633,6 +635,7 @@ impl BytecodeGen {
     }
 
     pub fn i_load(&mut self, name: String) {
+        println!("LOADING {name}");
         let ind = self.symbol_table.get(&name).unwrap();
 
         self.push_insn(Load(ind));

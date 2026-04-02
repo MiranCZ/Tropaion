@@ -8,7 +8,7 @@ use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Greater, If, Less, OpenCurly, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
@@ -322,6 +322,50 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
             fields,
             body,
             generics
+        }
+    })
+}
+
+pub fn parse_enum_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        parser.expect_next(Enum)?;
+
+        let enum_name = parser.expect_next_identifier()?;
+
+        parser.expect_next(OpenBracket)?;
+
+        let mut values = vec![];
+
+
+        loop {
+            if parser.consume_if_next(CloseBracket)? {
+                break;
+            }
+
+            let value_name = parser.expect_next_identifier()?;
+            values.push(value_name);
+
+            if !parser.consume_if_next(Comma)? {
+                parser.expect_next(CloseBracket)?;
+                break;
+            }
+        }
+
+        let body;
+
+        if parser.is_next(OpenCurly)? {
+            body = _parse_block_stmt(registry, parser)?;
+        }  else {
+
+            // a struct without methods
+            parser.expect_next(Semicolon)?;
+            body = vec![];
+        }
+
+        EnumStmt {
+            name: enum_name,
+            values,
+            body
         }
     })
 }

@@ -12,6 +12,7 @@ use crate::error::runtime_error::ValueTypeVariant;
 use crate::error::runtime_error::ValueTypeVariant::Nullable;
 use crate::lexer::token::SimpleToken;
 use std::collections::HashMap;
+use std::ops::Index;
 use crate::lexer::token::SimpleToken::TwoQuestion;
 
 #[derive(Clone)]
@@ -105,6 +106,7 @@ impl TypedExpr {
             Expression::IdentifierExpr(t, name) => {
                 match t.get(registry) {
                     AstType::Bool |
+                    AstType::EnumType {..} |
                     AstType::Int => generator.i_load(name.clone()),
                     AstType::Float => generator.f_load(name.clone()),
                     AstType::StructType { .. } |
@@ -318,6 +320,30 @@ impl TypedExpr {
                         generator.pop(); // the address was duplicated for comparison, that was null, so the other is not needed
                         generator.null_ptr();
                         generator.end_scope()?;
+                    }
+                } else if let AstType::EnumType {values, ..} = member.get_type().get(registry) {
+                    if let Expression::IdentifierExpr(_, str) = &property.node {
+                        let mut ind = -1;
+
+                        for i in 0..values.len() {
+                            let v = &values[i];
+                            if *v == *str {
+                                ind = i as i32;
+                                break;
+                            }
+                        }
+
+                        if ind == -1 {
+                            unreachable!()
+                        }
+
+                        generator.i_const(ind);
+                    } else if let Expression::CallExpr {func, args, ..} = &property.node {
+                        member.generate_bytecode(registry, generator, Load)?;
+
+                        Self::generate_call_expr_load(registry, generator, func, args)?;
+                    } else {
+                        panic!("Cannot call LOAD_FIELD on {:?}", property.node);
                     }
                 } else if let TupleType(..) = member.get_type().get(registry) {
                     member.generate_bytecode(registry, generator, LoadRefOffset(*property.clone()))?;
