@@ -162,6 +162,10 @@ impl Interpreter {
     pub fn stack_top(&self) -> u32 {
         self.pointer as u32
     }
+    pub unsafe fn push_to_stack(&mut self, value: Value) -> Result<(), RuntimeError> {
+        self.push(value)
+    }
+    
     pub unsafe fn get_heap(&mut self) -> &mut Heap {
         &mut self.heap
     }

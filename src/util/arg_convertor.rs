@@ -3,12 +3,13 @@ use crate::ast::expression::int;
 use crate::interpreter::interpreter::Interpreter;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::Value::{FloatValue, IntValue, RefValue};
-use crate::util::arg_convertor::ValueConvertable::{FloatValueConv, IntValueConv, TupleValueConv, VecValueConv};
+use crate::util::arg_convertor::ValueConvertable::{FloatValueConv, IntValueConv, StructValueConv, TupleValueConv, VecValueConv};
 
 pub enum ValueConvertable {
     IntValueConv(i32),
     FloatValueConv(f32),
     VecValueConv(Vec<ValueConvertable>),
+    StructValueConv(String, Vec<ValueConvertable>),
     TupleValueConv(Vec<ValueConvertable>)
 }
 
@@ -18,7 +19,13 @@ impl ValueConvertable {
         match self {
             IntValueConv(_) => "i".to_string(),
             FloatValueConv(_) => "f".to_string(),
-            VecValueConv(_) => "LVec;".to_string(),
+            VecValueConv(values) => {
+                if values.is_empty() {
+                    return "LVec_?;".to_string();
+                }
+                format!("LVec_{};", values[0].get_mangled())
+            },
+            StructValueConv(name, _) => format!("L{name}_;"),
             TupleValueConv(types) => {
                 let mut name = "T".to_string();
                 for t in types {
@@ -34,36 +41,41 @@ impl ValueConvertable {
         match self {
             IntValueConv(i) => vec![IntValue(i)],
             FloatValueConv(f) => vec![FloatValue(f)],
-            TupleValueConv(types) => {
+            StructValueConv(_, values) |
+            TupleValueConv(values) => {
                 let ptr = interpreter.stack_top();
 
-                let rf = RefValue {ptr, len: types.len() as u32};
+                let rf = RefValue {ptr, len: values.len() as u32};
 
-                let mut result = vec![];
-                for x in types {
+                for x in values {
                     let value = x.into_value(interpreter);
 
                     for v in value {
-                        result.push(v);
+                        // result.push(v);
+                        unsafe{interpreter.push_to_stack(v).unwrap();}
                     }
                 }
 
-                result.push(rf);
-
-                result
+                vec![rf]
             }
             VecValueConv(values) => {
                 // vector is ptr -> (capacity, len, arr_ptr)
                 let ptr = interpreter.stack_top();
+
                 let capacity = values.len();
                 let length = values.len();
+
+
+                unsafe{interpreter.push_to_stack(IntValue(capacity as i32)).unwrap();}
+                unsafe{interpreter.push_to_stack(IntValue(length as i32)).unwrap();}
 
                 let arr_ptr = unsafe {interpreter.get_heap().alloc(values.len() as u32)};
 
                 let ptr = RefValue {ptr, len: 3};
                 let arr_ptr_value = RefValue {ptr: arr_ptr, len: capacity as u32};
 
-                let mut result = vec![IntValue(capacity as i32), IntValue(length as i32), arr_ptr_value, ptr];
+
+                unsafe{interpreter.push_to_stack(arr_ptr_value).unwrap();}
 
                 let mut offset = 0;
                 for x in values {
@@ -75,14 +87,14 @@ impl ValueConvertable {
                     }
                 }
 
-                result
+                vec![ptr]
             }
         }
     }
 
 }
 
-trait ValueLike {
+pub trait ValueLike {
     fn into_convertable(self) -> ValueConvertable;
 }
 
@@ -119,6 +131,27 @@ impl <T: ValueLike> ValueLike for Vec<T> {
 
 pub fn into_arg<T: ValueLike>(value: T) -> ValueConvertable {
     value.into_convertable()
+}
+
+pub struct StructConvertor {
+    name: String,
+    values: Vec<ValueConvertable>
+}
+
+impl StructConvertor {
+
+    pub fn add_field(&mut self, field: impl ValueLike) {
+        self.values.push(field.into_convertable());
+    }
+
+    pub fn convert(self) -> ValueConvertable {
+        StructValueConv(self.name, self.values)
+    }
+
+}
+
+pub fn struct_convertor(name: &str) -> StructConvertor {
+    StructConvertor{name: name.to_string(), values: vec![]}
 }
 
 
