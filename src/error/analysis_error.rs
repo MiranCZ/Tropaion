@@ -102,7 +102,11 @@ pub enum AnalysisError {
     NameAlreadyUsed(String),
     
     #[error("Function '{0}' is already defined")]
-    FunctionAlreadyDefined(String)
+    FunctionAlreadyDefined(String),
+
+    #[error("Cannot access private member '{0}'")]
+    IllegalAccess(String)
+   
 
 }
 

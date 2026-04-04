@@ -7,17 +7,17 @@ use crate::util::arg_convertor::into_arg;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Aaa() {
-        fn haha() {}
-        // fn haha() {}
+    struct Test() {
+
+        fn get() -> int {
+            return 77;
+        }
 
     }
+    pub fn main() -> int {
+        let t = Test();
 
-
-    fn haha() {}
-
-    fn main() {
-
+        return t.get();
     }
     "#;
 

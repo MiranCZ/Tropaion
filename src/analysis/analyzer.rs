@@ -89,7 +89,7 @@ impl Analyzer {
                         // will resolve after functions and structs
                     },
 
-                    FunctionStmt {name, generics, params, return_type, .. } => {
+                    FunctionStmt {name, modifier, generics, params, return_type, .. } => {
                         let mut resolved_generics = OrderMap::new();
 
                         self.type_table.push();
@@ -100,6 +100,7 @@ impl Analyzer {
 
                         let t = FunctionType {
                             name: name.clone(),
+                            modifier: *modifier,
                             generics: resolved_generics,
                             params: params.iter().map(|p| p.param_type.clone()).collect(),
                             return_type: *return_type
@@ -118,7 +119,7 @@ impl Analyzer {
 
                         let mut i = 0;
                         for f in fields {
-                            let info = MemberInfo(f.param_type, f.name.clone(), i);
+                            let info = MemberInfo::new(f.param_type, f.name.clone(), i);
                             children.insert(f.name.clone(), info.clone());
 
                             field_infos.push(info);
@@ -129,7 +130,7 @@ impl Analyzer {
 
                         for x in body {
                             match &x.node {
-                                FunctionStmt {name,generics, return_type, params, .. } => {
+                                FunctionStmt {name, modifier,generics, return_type, params, .. } => {
                                     let mut resolved_generics = OrderMap::new();
 
                                     for g in generics {
@@ -138,6 +139,7 @@ impl Analyzer {
 
                                     let t = FunctionType {
                                         name: name.clone(),
+                                        modifier: *modifier,
                                         generics: resolved_generics,
                                         return_type: *return_type,
                                         params: params.iter().map(|p| p.clone().param_type).collect()
@@ -165,7 +167,7 @@ impl Analyzer {
                             let name = e.0;
 
                             // functions don't have order
-                            let info = MemberInfo(t.0.clone(), name.clone(), u16::MAX);
+                            let info = MemberInfo::new(t.0.clone(), name.clone(), u16::MAX);
 
                             children.insert(name.clone(), info);
                         }

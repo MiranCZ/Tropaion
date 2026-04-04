@@ -6,6 +6,7 @@ use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, NullableType, S
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::IdentifierExpr;
 use crate::ast::expression::TypedExpr;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::{Parameter, StatementBlock};
 use crate::ast::statement::Statement::FunctionStmt;
 use crate::ast::walking::visitor_mut::VisitorMut;
@@ -49,7 +50,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         }
     }
 
-    fn visit_mut_function(&mut self, name: &mut String, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
+    fn visit_mut_function(&mut self, name: &mut String, modifier: &mut Modifier, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
         let owner = self.owner_table.get_or(name, String::new());
 
         *name = mangle_name(self.registry, name.clone(), owner.clone(), params);
@@ -121,7 +122,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         }
     }
 
-    fn visit_mut_function_type(&mut self, name: &mut String, generics: &mut OrderMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
+    fn visit_mut_function_type(&mut self, name: &mut String, modifier: &mut Modifier, generics: &mut OrderMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
         let owner = self.owner_table.get_or(name, String::new());
 
         *name = mangle_name_type(self.registry, name.clone(), owner.clone(), &params);
@@ -140,7 +141,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
 
         self.owner_table.push();
         for i in children.values_mut() {
-            match i.0.get(self.registry) {
+            match i.typ.get(self.registry) {
                 FunctionType {name: fn_name, ..} |
                 FunctionsType {name: fn_name, ..} => {
                     self.owner_table.record(name.clone(), fn_name);
@@ -150,7 +151,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         }
 
         for i in children.values_mut() {
-            self.visit_mut_type(&mut i.0);
+            self.visit_mut_type(&mut i.typ);
         }
 
         self.owner_table.pop();

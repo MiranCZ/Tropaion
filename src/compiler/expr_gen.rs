@@ -448,8 +448,8 @@ impl TypedExpr {
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
-                    if f.1 == *name {
-                        generator.load_offset_value(registry, f.2 as u32, *t)?;
+                    if f.name == *name {
+                        generator.load_offset_value(registry, f.index as u32, *t)?;
 
                         return ok();
                     }
@@ -458,7 +458,7 @@ impl TypedExpr {
                 let value = children.get(name);
 
                 if let Some(member) = value {
-                    generator.call(&member.1);
+                    generator.call(&member.name);
                 } else {
                     return Err(MemberNotFound(name.clone()));
                 }
@@ -477,8 +477,8 @@ impl TypedExpr {
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
                 for f in fields.clone() {
-                    if f.1 == *name {
-                        generator.store_offset_value(registry, f.2 as u32, *t)?;
+                    if f.name == *name {
+                        generator.store_offset_value(registry, f.index as u32, *t)?;
 
                         return ok();
                     }

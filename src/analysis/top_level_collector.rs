@@ -9,6 +9,7 @@ use crate::analysis::type_resolution::TypeResolver;
 use crate::ast::ast_type::AstType::{EnumType, FunctionType, FunctionsType, GenericType, StructType, UnknownType};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::{Parameter, Statement, StatementBlock, UntypedStmt};
 use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
@@ -131,13 +132,15 @@ impl <'a, 'b> Folder<(), ()> for TopLevelCollector<'a, 'b> {
         expr
     }
 
-    fn fold_function(&mut self, name: String, generics: Vec<String>, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) -> FoldedStmt<()> {
-        let func_type = self.resolve_func_signature(&name, &generics, &params, &return_type, &body, &span, String::new());
+    fn fold_function(&mut self, name: String, modifier: Modifier, generics: Vec<String>, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) -> FoldedStmt<()> {
+        let func_type = self.resolve_func_signature(&name, &modifier, &generics, &params, &return_type, &body, &span, String::new());
 
         self.record_function(func_type);
 
         Statement::FunctionStmt {
-            name,generics,
+            name,
+            modifier,
+            generics,
             params,
             return_type,
             body,
@@ -164,7 +167,7 @@ impl <'a, 'b> Folder<(), ()> for TopLevelCollector<'a, 'b> {
 }
 
 impl <'a, 'b> TopLevelCollector<'a, 'b> {
-    fn resolve_func_signature(&mut self, name: &String, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<()>, span: &Span, owner: String) -> TypeEntry {
+    fn resolve_func_signature(&mut self, name: &String, modifier: &Modifier, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<()>, span: &Span, owner: String) -> TypeEntry {
         let mut resolved_generics = OrderMap::new();
 
         self.resolver.type_table.push();
@@ -191,11 +194,12 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         if !generics.is_empty() || has_generics_params ||  GenericChecker::is_generic(*return_type, self.resolver.registry) {
             let key = mangling::from_owner(name.clone(), owner.clone());
 
-            self.resolver.generic_helper.record_generic(key, name.clone(), params.clone(), *return_type, body.clone(), *span);
+            self.resolver.generic_helper.record_generic(key, name.clone(), *modifier, params.clone(), *return_type, body.clone(), *span);
         }
 
         let t = FunctionType {
             name: name.clone(),
+            modifier: *modifier,
             generics: resolved_generics,
             params: resolved_params,
             return_type: resolved_return
@@ -229,7 +233,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         for f in fields {
             let resolved_param = self.resolver.fold_type_entry(f.param_type);
 
-            let info = MemberInfo(resolved_param, f.name.clone(), i);
+            let info = MemberInfo::new(resolved_param, f.name.clone(), i);
             children.insert(f.name.clone(), info.clone());
 
             field_infos.push(info);
@@ -242,8 +246,8 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
 
         for s in body {
             match &s.node {
-                Statement::FunctionStmt { name: fn_name, generics, params, return_type, body,  } => {
-                    let func_type = self.resolve_func_signature(fn_name, generics, params, return_type, body, &s.span, name.clone());
+                Statement::FunctionStmt { name: fn_name, modifier, generics, params, return_type, body,  } => {
+                    let func_type = self.resolve_func_signature(fn_name, modifier, generics, params, return_type, body, &s.span, name.clone());
 
                     let res = Self::_record_function(&mut table,self.resolver.registry ,func_type);
 
@@ -263,7 +267,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             let name = e.0;
 
             // functions don't have order
-            let info = MemberInfo(t.0.clone(), name.clone(), u16::MAX);
+            let info = MemberInfo::new(t.0.clone(), name.clone(), u16::MAX);
 
             children.insert(name.clone(), info);
         }

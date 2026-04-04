@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType::{UnknownType, Void};
 use crate::ast::expression::UntypedExpr;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::Statement::ExpressionStmt;
 use crate::ast::statement::Statement::*;
 use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Pub, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
@@ -130,6 +131,31 @@ pub fn parse_return_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Ret
     })
 }
 
+pub fn parse_public_modifier(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+
+        let from = parser.current_span().from;
+        parser.expect_next(Pub)?;
+        let to = parser.current_span().from;
+
+        let mut underlying = parse_statement(registry, parser)?.node;
+
+        if let FunctionStmt {modifier, ..} = &mut underlying {
+            let res = modifier.public();
+            if let Ok(m) = res {
+                *modifier = m;
+            } else if let Err(e) = res {
+                // FIXME this terminates parsing of the whole function which is not ideal
+                return Err(ErrorContext::new(e, from, to));
+            }
+        } else {
+            panic!()
+        }
+
+        underlying
+    })
+}
+
 pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
         parser.expect_next(SimpleToken::Fn)?;
@@ -183,6 +209,7 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
 
         FunctionStmt{
             name: fn_name,
+            modifier: Modifier::new(),
             generics,
             params,
             return_type,

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use crate::analysis::mangling;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::expression::TypedExpr;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::{Parameter, StatementBlock, TypedStmt};
 use crate::ast::walking::visitor::Visitor;
 use crate::error::analysis_error::AnalysisError;
@@ -56,7 +57,7 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.owners.pop();
     }
 
-    fn visit_function(&mut self, name: &String, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_function(&mut self, name: &String, modifier: &Modifier, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<TypeEntry>, span: Span) {
         if self.class_like.contains(name) {
             self.errors.push(ErrorContext::of(AnalysisError::NameAlreadyUsed(name.clone()), span));
             return;

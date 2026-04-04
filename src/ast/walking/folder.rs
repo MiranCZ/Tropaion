@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::ops::Index;
 use ordermap::OrderMap;
 use crate::ast::ast_type::AstType::GenericType;
+use crate::ast::modifier::Modifier;
 // ── Type aliases ─────────────────────────────────────────────────────────────
 
 pub type FoldedStmt<O> = Statement<O>;
@@ -113,6 +114,7 @@ where
     fn fold_function(
         &mut self,
         name: String,
+        modifier: Modifier,
         generics: Vec<String>,
         params: Vec<Parameter>,
         return_type: TypeEntry,
@@ -128,7 +130,7 @@ where
             .collect();
 
         Statement::FunctionStmt {
-            name,generics,
+            name, modifier, generics,
             params: folded_params,
             return_type: self.fold_type_entry(return_type),
             body: self.fold_block(body),
@@ -435,6 +437,7 @@ where
     fn fold_function_type(
         &mut self,
         name: String,
+        modifier: Modifier,
         generics: OrderMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry,
@@ -446,7 +449,7 @@ where
 
 
         AstType::FunctionType {
-            name,
+            name, modifier,
             generics: folded_generics,
             params: params
                 .into_iter()
@@ -465,13 +468,15 @@ where
     ) -> AstType {
         let folded_children: HashMap<String, MemberInfo> = children
             .into_iter()
-            .map(|(k, MemberInfo(t, n, idx))| (k, MemberInfo(self.fold_type_entry(t), n, idx)))
+            .map(
+                |(k, MemberInfo{typ, name, index})|
+                    (k, MemberInfo::new(self.fold_type_entry(typ), name, index)))
             .collect();
 
 
         let folded_fields = fields
             .into_iter()
-            .map(|MemberInfo(t, n, idx)| (folded_children.get(&n).unwrap().clone()))
+            .map(|MemberInfo{name, ..} | (folded_children.get(&name).unwrap().clone()))
             .collect();
 
 
@@ -533,11 +538,12 @@ impl<I: Clone> Spanned<Statement<I>> {
                 }
                 Statement::FunctionStmt {
                     name,
+                    modifier,
                     generics,
                     params,
                     return_type,
                     body,
-                } => folder.fold_function(name, generics, params, return_type, body, span),
+                } => folder.fold_function(name, modifier, generics, params, return_type, body, span),
                 Statement::StructStmt { name, fields, body, generics } => {
                     folder.fold_struct(name, fields, body, generics, span)
                 }
@@ -633,10 +639,11 @@ impl AstType {
             }
             AstType::FunctionType {
                 name,
+                modifier,
                 generics,
                 params,
                 return_type,
-            } => folder.fold_function_type(name, generics, params, return_type),
+            } => folder.fold_function_type(name, modifier, generics, params, return_type),
             AstType::StructType {
                 name,
                 generics,

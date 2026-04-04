@@ -16,5 +16,8 @@ pub enum ParserError {
     MismatchedTokenType {
         expected: String,
         actual: Token
-    }
+    },
+
+    #[error("Clashing modifier")]
+    ClashingModifier
 }

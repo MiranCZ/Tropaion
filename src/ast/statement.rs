@@ -5,6 +5,7 @@ use crate::ast::statement::Statement::ExpressionStmt;
 use crate::error::context::Span;
 use crate::util::spanned::Spanned;
 use std::fmt::Debug;
+use crate::ast::modifier::Modifier;
 
 pub type UntypedStmt = Spanned<Statement<()>>;
 pub type TypedStmt = Spanned<Statement<TypeEntry>>;
@@ -35,6 +36,7 @@ pub enum Statement<T> {
     },
     FunctionStmt {
         name: String,
+        modifier: Modifier,
         generics: Vec<String>,
         params: Vec<Parameter>,
         return_type: TypeEntry,

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use ordermap::OrderMap;
+use crate::ast::modifier::Modifier;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -35,6 +36,7 @@ pub enum AstType {
     },
     FunctionType {
         name: String,
+        modifier: Modifier,
         generics: OrderMap<String, TypeEntry>,
         params: Vec<TypeEntry>,
         return_type: TypeEntry
@@ -57,7 +59,18 @@ pub enum AstType {
 
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MemberInfo(pub TypeEntry, pub String, pub u16);
+pub struct MemberInfo{
+    pub typ: TypeEntry,
+    pub name: String,
+    pub index: u16
+}
+
+impl MemberInfo {
+    pub fn new(typ: TypeEntry, name: String, index: u16) -> MemberInfo {
+        MemberInfo{typ, name, index }
+    }
+
+}
 
 impl AstType {
     pub fn boxed(self) -> Box<Self> {

@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use ordermap::OrderMap;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::statement::Statement::FunctionStmt;
 use crate::error::context::Span;
 use crate::util::spanned::Spanned;
 
 pub struct GenericHelper {
-    generic_functions: HashMap<String, (String, Vec<Parameter>, TypeEntry, StatementBlock<()>, Span)>,
+    generic_functions: HashMap<String, (String, Modifier, Vec<Parameter>, TypeEntry, StatementBlock<()>, Span)>,
     implemented_functions: HashMap<String, Vec<TypedStmt>>,
     requests: HashMap<String, Vec<(OrderMap<String, TypeEntry>, Option<AstType>)>>
 }
@@ -24,12 +25,12 @@ impl GenericHelper {
         }
     }
 
-    pub fn record_generic(&mut self, key: String, name: String, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) {
-        self.generic_functions.insert(key, (name, params, return_type, body, span));
+    pub fn record_generic(&mut self, key: String, name: String, modifier: Modifier, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) {
+        self.generic_functions.insert(key, (name, modifier, params, return_type, body, span));
     }
 
     pub fn get_generic(&self, registry: &mut TypeRegistry, key: &String) -> Option<UntypedStmt> {
-        let (name, params, return_type, body, span) = self.generic_functions.get(key)?.clone();
+        let (name, modifier, params, return_type, body, span) = self.generic_functions.get(key)?.clone();
 
 
         let mut cloned_params = vec![];
@@ -43,6 +44,7 @@ impl GenericHelper {
         Some(Spanned::of(
             FunctionStmt {
                 name: name.clone(),
+                modifier,
                 generics: vec![],
                 params: cloned_params,
                 return_type: cloned_ret_type,
