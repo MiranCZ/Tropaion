@@ -133,7 +133,7 @@ fn test_generics_method_accepts_t_arg() {
     // Method takes an argument of type T
     let code = r#"
     struct Box<T>(value: T) {
-        fn replace(new_val: T) -> T {
+        pub fn replace(new_val: T) -> T {
             let old = value;
             value = new_val;
             return old;

@@ -365,15 +365,15 @@ fn test_pass_struct_to_fn() {
 fn test_struct_field_mutation() {
     let code = r#"
     struct Counter(value: int) {
-        fn increment() {
+        pub fn increment() {
             this.value += 1;
         }
 
-        fn add(n: int) {
+        pub fn add(n: int) {
             this.value += n;
         }
 
-        fn get() -> int {
+        pub fn get() -> int {
             return this.value;
         }
     }
@@ -396,19 +396,19 @@ fn test_struct_field_mutation() {
 fn test_struct_method_chain_logic() {
     let code = r#"
     struct Accumulator(total: int, count: int) {
-        fn add(n: int) {
+        pub fn add(n: int) {
             this.total += n;
             this.count += 1;
         }
 
-        fn average() -> int {
+        pub fn average() -> int {
             if this.count == 0 {
                 return 0;
             }
             return this.total / this.count;
         }
 
-        fn weighted(factor: int) -> int {
+        pub fn weighted(factor: int) -> int {
             return average() * factor;
         }
     }
@@ -450,11 +450,11 @@ fn test_nested_struct_access() {
 fn test_struct_returned_from_fn() {
     let code = r#"
     struct Range(lo: int, hi: int) {
-        fn size() -> int {
+        pub fn size() -> int {
             return this.hi - this.lo;
         }
 
-        fn contains(n: int) -> bool {
+        pub fn contains(n: int) -> bool {
             return n >= this.lo && n < this.hi;
         }
     }
@@ -532,13 +532,13 @@ fn test_nullable_default_chain() {
 fn test_safe_call_chain() {
     let code = r#"
     struct Inner(value: int) {
-        fn doubled() -> int {
+        pub fn doubled() -> int {
             return value * 2;
         }
     }
 
     struct Outer(inner: Inner?) {
-        fn get_inner() -> Inner? {
+        pub fn get_inner() -> Inner? {
             return this.inner;
         }
     }
@@ -847,21 +847,21 @@ fn test_autobox_struct() {
 fn test_manual_stack() {
     let code = r#"
     struct Stack(data: [int], size: int) {
-        fn push(val: int) {
+        pub fn push(val: int) {
             data[size] = val;
             this.size += 1;
         }
 
-        fn pop() -> int {
+        pub fn pop() -> int {
             this.size -= 1;
             return data[size];
         }
 
-        fn peek() -> int {
+        pub fn peek() -> int {
             return data[size - 1];
         }
 
-        fn is_empty() -> bool {
+        pub fn is_empty() -> bool {
             return this.size == 0;
         }
     }
@@ -1016,17 +1016,17 @@ fn test_linked_list_length() {
 fn test_capped_counter() {
     let code = r#"
     struct CappedCounter(value: int, max: int) {
-        fn tick() {
+        pub fn tick() {
             if this.value < this.max {
                 this.value += 1;
             }
         }
 
-        fn reset() {
+        pub fn reset() {
             this.value = 0;
         }
 
-        fn is_full() -> bool {
+        pub fn is_full() -> bool {
             return this.value == this.max;
         }
     }

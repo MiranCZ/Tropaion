@@ -105,7 +105,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
     {
         let load_at = FunctionType {
             name: "__load_at".to_string(),
-            modifier: Modifier::new(),
+            modifier: Modifier::new().public().unwrap(),
             generics: OrderMap::new(),
             params: vec![registry.register(Int)],
             return_type: registry.register(UnknownType)
@@ -138,7 +138,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
         // };
         let store_at = FunctionType {
             name: "__store_at".to_string(),
-            modifier: Modifier::new(),
+            modifier: Modifier::new().public().unwrap(),
             generics: OrderMap::new(),
             params: vec![registry.register(Int), registry.register(UnknownType)],
             return_type: registry.register(Void)

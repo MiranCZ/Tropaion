@@ -7,22 +7,45 @@ use crate::util::arg_convertor::{into_arg, struct_convertor, ValueConvertable, V
 #[test]
 pub fn main() {
     let text = r#"
-    struct Point(x: int, y: int);
+    struct Test() {
 
-    fn main(vec: Vec<Point>) {
-        let i = 0;
-
-        while i < 3  {
-            let p = vec.pop();
-
-            print(str(p.x) + " : " + str(p.y));
-
-            i++;
+        fn get() -> int {
+            return 88;
         }
+
+        pub fn get_pub() -> int {
+            return get();
+        }
+
+    }
+
+    fn main() -> int {
+        let t = Test();
+        return t.get_pub();
     }
     "#;
 
-    interpret(text.to_string());
+    let code = r#"
+    struct T(a: int) {
+        fn get() -> int {
+            return a * 2;
+        }
+
+        pub fn sum() -> int {
+            return get() + this.get();
+        }
+
+    }
+
+    fn main() -> int {
+        let t = T(5);
+
+        return t.sum();
+    }
+    "#;
+
+
+    interpret(code.to_string());
 }
 
 fn interpret(mut text: String) {
@@ -105,7 +128,7 @@ fn interpret(mut text: String) {
 
 
     let points = vec![Point{x: 10, y: 66}, Point{x: 0, y:1}, Point{x: 100, y: 200}];
-    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![into_arg(points)], &mut std::io::stdout());
+    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {
         r

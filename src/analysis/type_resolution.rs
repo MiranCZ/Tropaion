@@ -25,6 +25,7 @@ pub struct TypeResolver<'a> {
     pub registry: &'a mut TypeRegistry,
     pub symbol_table: &'a mut TypeSymTable,
     pub type_table: &'a mut TypeSymTable,
+    scopes: Vec<TypeEntry>,
     pub generic_helper: GenericHelper,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
@@ -35,6 +36,7 @@ impl <'a> TypeResolver<'a> {
     pub fn new(registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable, type_table: &'a mut TypeSymTable) -> Self {
         Self {
             registry, symbol_table, type_table,
+            scopes: vec![],
             generic_helper: GenericHelper::new(),
             errors: vec![]
         }
@@ -441,7 +443,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             return self.error_stmt(AnalysisError::type_mismatch(ValueTypeVariant::Struct, struct_type, self.registry), span);
         }
 
+        self.scopes.push(struct_type);
         let body = self.fold_block(body);
+        self.scopes.pop();
 
         self.symbol_table.pop();
         self.type_table.pop();
@@ -460,7 +464,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             self.symbol_table.record_with_info(v.clone(), enum_type, TypeSymTableInfo::inside_struct(enum_type.get(self.registry)));
         }
 
+        self.scopes.push(enum_type);
         let body = self.fold_block(body);
+        self.scopes.pop();
 
         self.symbol_table.pop();
         
@@ -691,9 +697,36 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         if let StructType{name, children, generics, ..} = self.deref(member.get_type()) {
             struct_scope = true;
 
+            let mut allow_private = false;
+
+            if let Some(scope) = self.scopes.last() && scope.get(self.registry).equals(&self.deref(member.get_type()), self.registry) {
+                allow_private = true;
+            }
+
             self.symbol_table.push();
-            for x in children {
-                self.symbol_table.record_with_info(x.0, x.1.typ, TypeSymTableInfo::owner(self.deref(member.get_type())));
+            for (name, info) in children {
+
+                // FIXME kinda wasting time by repeatedly creating new 'FunctionsType' only with public funcs again on every member
+                // FIXME this does not send an error that the function is private but only just that it was not found, but that's probs ok
+                let mut typ = info.typ;
+
+                if !allow_private {
+                    if let FunctionsType { overloads, name: funcs_name } = info.typ.get(self.registry) {
+                        let mut public_funcs = vec![];
+
+                        for x in overloads {
+                            if let FunctionType { modifier, .. } = x.get(self.registry) {
+                                if modifier.is_public() {
+                                    public_funcs.push(x);
+                                }
+                            }
+                        }
+
+                        typ = self.registry.register(FunctionsType { name: funcs_name, overloads: public_funcs });
+                    }
+                }
+
+                self.symbol_table.record_with_info(name, typ, TypeSymTableInfo::owner(self.deref(member.get_type())));
             }
 
             self.type_table.push();

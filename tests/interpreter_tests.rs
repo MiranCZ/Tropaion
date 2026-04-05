@@ -503,7 +503,7 @@ fn test_method_call() {
             return a * 2;
         }
 
-        fn sum() -> int {
+        pub fn sum() -> int {
             return get() + this.get();
         }
 
@@ -534,7 +534,7 @@ fn test_method_call2() {
             return sum() * 2;
         }
 
-        fn value(n: int) -> int {
+        pub fn value(n: int) -> int {
             return cir() * n;
         }
 
@@ -641,7 +641,7 @@ fn test_autoboxing() {
 fn test_safe_calls() {
     let code = r#"
     struct Rect(a: int, b: int) {
-        fn area() -> int {
+        pub fn area() -> int {
             return a * b;
         }
     }
@@ -712,12 +712,12 @@ fn test_a_lot() {
 
     struct Player(hp: int, score: int, current_item: Item?) {
 
-        fn heal(amount: int) -> int {
+        pub fn heal(amount: int) -> int {
             this.hp += amount;
             return this.hp;
         }
 
-        fn equip(i: Item?) -> bool {
+        pub fn equip(i: Item?) -> bool {
             if i == null {
                 this.current_item = null;
                 return false;
@@ -732,7 +732,7 @@ fn test_a_lot() {
             return true;
         }
 
-        fn attack(base_dmg: int) -> int {
+        pub fn attack(base_dmg: int) -> int {
             let bonus = 0;
 
             if this.current_item != null {
@@ -859,7 +859,7 @@ fn test_generics2() {
 fn test_generics_shadowing() {
     let code = r#"
     struct Scope<T>() {
-        fn box(value: T) -> T {
+        pub fn box(value: T) -> T {
             return value;
         }
     }
@@ -884,7 +884,7 @@ fn test_generics3() {
     let code = r#"
     struct Vec2<T>(a: T, b: T) {
 
-        fn get_a() -> T {
+        pub fn get_a() -> T {
             return a;
         }
 
@@ -978,7 +978,7 @@ fn test_weird_order_bug() {
     }
 
     struct Box<T>(value: T) {
-        fn get_value() -> T{ // 2- only now the generic gets registered
+        pub fn get_value() -> T{ // 2- only now the generic gets registered
             return value;
         }
     }
@@ -1043,4 +1043,30 @@ fn test_tuples_passing() {
     "#;
 
     test_simple_code("main", code, 2);
+}
+
+#[test]
+fn test_visibility() {
+    let code = r#"
+    struct Foo(bar: int) {
+
+        fn larger(mult: int) {
+            bar *= mult;
+        }
+
+        pub fn larger() {
+            larger(10);
+        }
+    }
+
+    fn main() -> int {
+        let f = Foo(5);
+        f.larger();
+        f.larger();
+
+        return f.bar;
+    }
+    "#;
+
+    test_simple_code("main", code, 500);
 }

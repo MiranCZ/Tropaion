@@ -1,13 +1,13 @@
 struct Vec<T>(capacity: int, len: int, array: address) {
 
-    fn push(element: T) {
+    pub fn push(element: T) {
         ensure_size();
 
         array.__store_at(len, element);
         len++;
     }
 
-    fn pop() -> T {
+    pub fn pop() -> T {
         len--;
         return array.__load_at(len);
     }

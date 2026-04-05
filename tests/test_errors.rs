@@ -128,3 +128,50 @@ fn test_illegal_deconstruct() {
         right: "int?".to_string()
     });
 }
+
+#[test]
+fn test_illegal_access() {
+    let code = r#"
+    struct Foo(bar: int) {
+
+        fn get_bar() -> int {
+            return bar;
+        }
+
+    }
+
+    fn main() {
+        let f = Foo(10);
+
+        let x = f.get_bar();
+    }
+    "#;
+
+    test_analysis_error(code, AnalysisError::IllegalFuncArgs {func_name: "get_bar".to_string(), args: String::new()})
+}
+
+#[test]
+fn test_illegal_access2() {
+    let code = r#"
+    struct Foo(bar: int) {
+
+        fn larger(mult: int) {
+            bar *= mult;
+        }
+
+        pub fn larger() {
+            larger(10);
+        }
+    }
+
+    fn main() -> int {
+        let f = Foo(5);
+        f.larger(); // legal
+        f.larger(10); // should error
+
+        return f.bar;
+    }
+    "#;
+
+    test_analysis_error(code, AnalysisError::IllegalFuncArgs {func_name: "larger".to_string(), args: "int".to_string()})
+}
