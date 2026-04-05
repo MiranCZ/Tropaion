@@ -2,22 +2,23 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::{compile, compile_typed, lex_code, parse_tokens, resolve_types, run_compiled};
 use std::time::Instant;
 use crate::interpreter::interpreter::Interpreter;
-use crate::util::arg_convertor::into_arg;
+use crate::util::arg_convertor::{into_arg, struct_convertor, ValueConvertable, ValueLike};
 
 #[test]
 pub fn main() {
     let text = r#"
-    struct Test() {
+    struct Point(x: int, y: int);
 
-        fn get() -> int {
-            return 77;
+    fn main(vec: Vec<Point>) {
+        let i = 0;
+
+        while i < 3  {
+            let p = vec.pop();
+
+            print(str(p.x) + " : " + str(p.y));
+
+            i++;
         }
-
-    }
-    pub fn main() -> int {
-        let t = Test();
-
-        return t.get();
     }
     "#;
 
@@ -101,7 +102,10 @@ fn interpret(mut text: String) {
     println!();
 
     let now = Instant::now();
-    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![], &mut std::io::stdout());
+
+
+    let points = vec![Point{x: 10, y: 66}, Point{x: 0, y:1}, Point{x: 100, y: 200}];
+    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![into_arg(points)], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {
         r
@@ -111,6 +115,22 @@ fn interpret(mut text: String) {
 
     println!("Took {:?}", now.elapsed());
     println!("RESULT: {result:?}")
+}
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+impl ValueLike for Point {
+    fn into_convertable(self) -> ValueConvertable {
+        let mut struct_arg = struct_convertor("Point");
+
+        struct_arg.add_field(self.x);
+        struct_arg.add_field(self.y);
+
+        struct_arg.convert()
+    }
 }
 
 
