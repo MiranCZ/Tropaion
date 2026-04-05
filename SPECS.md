@@ -277,6 +277,8 @@ fn foo(arg1: int, arg2: string) -> float {
 - structs with methods do not need a `;` after
 - struct without methods do need `;`
 
+- if you want a function inside a struct to be visible outside the structs scope the `pub` keyword must be used
+
 - =TODO= can structs hold references?
 
 - =TODO= some keyword/way of defining secondary constructors?
@@ -297,11 +299,11 @@ print(holder.name); // tom
 // a struct with methods
 struct Rect(width: float, height: float) {
  
-  fn circumference() -> float {
+  pub fn circumference() -> float {
     return 2 * (width + height); 
   } 
   
-  fn area() -> float {
+  pub fn area() -> float {
     return this.width * this.height;
   }
 
