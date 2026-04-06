@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use ordermap::OrderMap;
 use crate::ast::modifier::Modifier;
+use crate::ast::statement::{Parameter, StatementBlock};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {
@@ -41,9 +42,15 @@ pub enum AstType {
         params: Vec<TypeEntry>,
         return_type: TypeEntry
     },
+    ConstructorType {
+        modifier: Modifier,
+        params: Vec<TypeEntry>,
+        owner: TypeEntry
+    },
     StructType {
         name: String,
         generics: OrderMap<String, TypeEntry>,
+        constructors: Vec<TypeEntry>,
         fields: Vec<MemberInfo>, 
         // fields and methods
         children: HashMap<String, MemberInfo>,
@@ -140,6 +147,24 @@ impl AstType {
 
                 result.push_str(")");
                 
+                result
+            },
+            AstType::ConstructorType {params, owner, ..} => {
+                let mut result = format!("{}#<init>(", owner.format(registry));
+
+                if !params.is_empty() {
+                    let mut iter = params.iter();
+
+                    result.push_str(iter.next().unwrap().format(registry).as_str());
+
+                    for arg in iter {
+                        result.push_str(arg.format(registry).as_str());
+                        result.push_str(", ");
+                    }
+                }
+
+                result.push_str(")");
+
                 result
             },
             AstType::StructType {name,generics, .. } => {
@@ -339,7 +364,7 @@ impl AstType {
                 }
             },
 
-            (StructType {name: n1, generics: g1, fields, children }, StructType {name: n2, generics: g2, .. }) => {
+            (StructType {name: n1, generics: g1, fields, children, constructors }, StructType {name: n2, generics: g2, .. }) => {
                 if *n1 != *n2 {
                     return None;
                 }
@@ -370,6 +395,7 @@ impl AstType {
 
                 return Some(StructType {
                     name: n1.clone(),
+                    constructors: constructors.clone(),
                     generics: assigned_generics,
                     fields: fields.clone(),
                     children: children.clone()

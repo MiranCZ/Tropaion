@@ -54,6 +54,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         let owner = self.owner_table.get_or(name, String::new());
 
         *name = mangle_name(self.registry, name.clone(), owner.clone(), params);
+        println!("MANGLED INTO {name}");
 
         for s in body {
             s.walk_visit_mut(self);
@@ -65,7 +66,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         self.visit_mut_type(return_type);
     }
 
-    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
+    fn visit_mut_struct(&mut self, name: &mut String, pc: &mut bool, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
         self.owner_table.push();
         for b in body.iter() {
             if let FunctionStmt {name: fn_name, ..} = &b.node {
@@ -134,7 +135,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         self.visit_mut_type(return_type);
     }
 
-    fn visit_mut_struct_type(&mut self, name: &mut String, generics: &mut OrderMap<String, TypeEntry>, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
+    fn visit_mut_struct_type(&mut self, name: &mut String, generics: &mut OrderMap<String, TypeEntry>, constructors: &mut Vec<TypeEntry>, fields: &mut Vec<MemberInfo>, children: &mut HashMap<String, MemberInfo>) {
         for g in generics.values_mut() {
             self.visit_mut_type(g);
         }

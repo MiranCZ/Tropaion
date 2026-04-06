@@ -105,7 +105,7 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
         }
     }
 
-    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
+    fn visit_mut_struct(&mut self, name: &mut String, pc: &mut bool, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
         self.with_owner(name.clone(), |ctx| {
             ctx.visit_mut_block(body);
         });

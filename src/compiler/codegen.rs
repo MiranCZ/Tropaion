@@ -660,6 +660,7 @@ impl BytecodeGen {
     }
 
     pub fn call(&mut self, name: &String) {
+        println!("TRYING TO CALL {name}");
         let info = self.functions.get(name).unwrap();
 
         self.push_insn(Call(info.index));

@@ -6,46 +6,32 @@ use crate::util::arg_convertor::{into_arg, struct_convertor, ValueConvertable, V
 
 #[test]
 pub fn main() {
+    unsafe {backtrace_on_stack_overflow::enable()}
+
     let text = r#"
-    struct Test() {
+    struct Box<T>(v: T?) {
 
-        fn get() -> int {
-            return 88;
-        }
-
-        pub fn get_pub() -> int {
-            return get();
+        pub init(v: int) {
+            print("THIS CALLED");
+            this(v * 100);
         }
 
     }
 
-    fn main() -> int {
-        let t = Test();
-        return t.get_pub();
-    }
-    "#;
+    fn creator(v: int) -> Box<int> {
+        print("CALLED WITH" +str(v));
 
-    let code = r#"
-    struct T(a: int) {
-        fn get() -> int {
-            return a * 2;
-        }
-
-        pub fn sum() -> int {
-            return get() + this.get();
-        }
-
+        return Box(v);
     }
 
-    fn main() -> int {
-        let t = T(5);
+    fn main() -> int? {
+        let b = creator(5);
 
-        return t.sum();
+        return b.v;
     }
     "#;
 
-
-    interpret(code.to_string());
+    interpret(text.to_string());
 }
 
 fn interpret(mut text: String) {

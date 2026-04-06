@@ -98,6 +98,9 @@ impl TypedStmt {
 
                 generator.comment(format!("return of {name} -- END"));
             }
+            Statement::ConstructorStmt {..} => {
+                panic!("Constructors are syntactic sugar!")
+            }
             Statement::StructStmt { body, .. } => {
                 for b in body {
                     b.gen_bytecode(registry, generator)?;

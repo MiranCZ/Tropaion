@@ -12,7 +12,7 @@ use crate::util::spanned::Spanned;
 use std::collections::HashMap;
 use std::ops::Index;
 use ordermap::OrderMap;
-use crate::ast::ast_type::AstType::GenericType;
+use crate::ast::ast_type::AstType::{ConstructorType, GenericType};
 use crate::ast::modifier::Modifier;
 // ── Type aliases ─────────────────────────────────────────────────────────────
 
@@ -137,9 +137,26 @@ where
         }
     }
 
+    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<I>) -> FoldedStmt<O> {
+        let folded_params = params
+            .into_iter()
+            .map(|p| Parameter {
+                name: p.name,
+                param_type: self.fold_type_entry(p.param_type),
+            })
+            .collect();
+
+        Statement::ConstructorStmt {
+            modifier,
+            params: folded_params,
+            body: self.fold_block(body),
+        }
+    }
+
     fn fold_struct(
         &mut self,
         name: String,
+        public_constructor: bool,
         fields: Vec<Parameter>,
         body: StatementBlock<I>,
         generics: Vec<String>,
@@ -155,6 +172,7 @@ where
 
         Statement::StructStmt {
             name,
+            public_constructor,
             fields: folded_fields,
             body: self.fold_block(body),
             generics
@@ -458,10 +476,24 @@ where
             return_type: self.fold_type_entry(return_type),
         }
     }
+    
+    fn fold_constructor_type(&mut self, modifier: Modifier, params: Vec<TypeEntry>, owner: TypeEntry) -> AstType{
+        let folded_params = params
+            .into_iter()
+            .map(|typ| self.fold_type_entry(typ))
+            .collect();
+        
+        ConstructorType {
+            modifier,
+            params: folded_params,
+            owner
+        }
+    }
 
     fn fold_struct_type(
         &mut self,
         name: String,
+        constructors: Vec<TypeEntry>,
         generics: OrderMap<String, TypeEntry>,
         fields: Vec<MemberInfo>,
         children: HashMap<String, MemberInfo>,
@@ -479,6 +511,10 @@ where
             .map(|MemberInfo{name, ..} | (folded_children.get(&name).unwrap().clone()))
             .collect();
 
+        let folded_constructors = constructors
+            .into_iter()
+            .map(|typ| self.fold_type_entry(typ))
+            .collect();
 
         let folded_generics = generics
             .into_iter()
@@ -488,6 +524,7 @@ where
 
         AstType::StructType {
             name,
+            constructors: folded_constructors,
             fields: folded_fields,
             children: folded_children,
             generics: folded_generics
@@ -544,8 +581,11 @@ impl<I: Clone> Spanned<Statement<I>> {
                     return_type,
                     body,
                 } => folder.fold_function(name, modifier, generics, params, return_type, body, span),
-                Statement::StructStmt { name, fields, body, generics } => {
-                    folder.fold_struct(name, fields, body, generics, span)
+                Statement::ConstructorStmt {modifier, params, body} => {
+                    folder.fold_constructor(modifier, params, body)
+                }
+                Statement::StructStmt { name, public_constructor, fields, body, generics } => {
+                    folder.fold_struct(name, public_constructor, fields, body, generics, span)
                 }
                 Statement::EnumStmt {name, values, body} => {
                     folder.fold_enum(name, values, body)
@@ -644,12 +684,17 @@ impl AstType {
                 params,
                 return_type,
             } => folder.fold_function_type(name, modifier, generics, params, return_type),
+            AstType::ConstructorType {modifier, params, owner} => {
+                folder.fold_constructor_type(modifier, params, owner)
+            }
+            
             AstType::StructType {
                 name,
+                constructors,
                 generics,
                 fields,
                 children,
-            } => folder.fold_struct_type(name, generics, fields, children),
+            } => folder.fold_struct_type(name,constructors , generics, fields, children),
             AstType::EnumType {
                 name,
                 values

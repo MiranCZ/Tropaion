@@ -19,5 +19,8 @@ pub enum ParserError {
     },
 
     #[error("Clashing modifier")]
-    ClashingModifier
+    ClashingModifier,
+    
+    #[error("Modifier '{0}' cannot be used here")]
+    InvalidModifier(String)
 }

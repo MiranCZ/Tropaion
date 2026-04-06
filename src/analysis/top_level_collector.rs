@@ -6,7 +6,7 @@ use crate::analysis::mangling;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::analysis::type_resolution::TypeResolver;
-use crate::ast::ast_type::AstType::{EnumType, FunctionType, FunctionsType, GenericType, StructType, UnknownType};
+use crate::ast::ast_type::AstType::{ConstructorType, EnumType, FunctionType, FunctionsType, GenericType, StructType, UnknownType};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression;
 use crate::ast::modifier::Modifier;
@@ -147,16 +147,17 @@ impl <'a, 'b> Folder<(), ()> for TopLevelCollector<'a, 'b> {
         }
     }
 
-    fn fold_struct(&mut self, name: String, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<()> {
+    fn fold_struct(&mut self, name: String, pc: bool, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<()> {
         // let t = self.resolver.registry.register(UnknownType);
         let t = self.resolver.type_table.get(&name).unwrap();
-        self.resolve_struct_signature(t, &name, &fields, &body, &generics, &span);
+        self.resolve_struct_signature(t, &name, &pc, &fields, &body, &generics, &span);
 
         self.resolver.symbol_table.record(name.clone(), t);
         self.resolver.type_table.record(name.clone(), t);
 
         StructStmt {
-            name, fields, body, generics
+            name, fields, body, generics,
+            public_constructor: pc
         }
     }
 
@@ -219,7 +220,9 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         mangling::mangle_name_type(self.resolver.registry, name, owner, &params)
     }
 
-    fn resolve_struct_signature(&mut self, type_entry: TypeEntry ,name: &String, fields: &Vec<Parameter>, body: &StatementBlock<()>, generics: &Vec<String>, span: &Span) {
+    fn resolve_struct_signature(&mut self, type_entry: TypeEntry ,name: &String, public_constructor: &bool, fields: &Vec<Parameter>, body: &StatementBlock<()>, generics: &Vec<String>, span: &Span) {
+        let mut struct_type = self.get_registry_mut().register(UnknownType);
+
         let mut children = HashMap::new();
 
         let mut field_infos = vec![];
@@ -242,6 +245,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         }
 
 
+        let mut constructors = vec![];
         let mut table = SymbolTable::new();
 
         for s in body {
@@ -257,9 +261,46 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
                         Err(e) => panic!("{e:?}")
                     }
                 }
+                Statement::ConstructorStmt {modifier, params, body} => {
+                    let mut param_types = vec![];
+                    for x in params {
+                        param_types.push(x.param_type);
+                    }
+
+                    constructors.push(self.resolver.registry.register(
+                        ConstructorType {
+                            modifier: *modifier,
+                            params: param_types,
+                            owner: struct_type
+                        }
+                    ));
+                },
 
                 _ => {}
             }
+        }
+
+        // default constructor
+        {
+            let mut param_types = vec![];
+
+            for f in fields {
+                param_types.push(f.param_type);
+            }
+
+            let mut modifier = Modifier::new();
+
+            if *public_constructor {
+                modifier = modifier.public().unwrap();
+            }
+
+            constructors.push(self.resolver.registry.register(
+                ConstructorType {
+                    modifier,
+                    params: param_types,
+                    owner: struct_type
+                }
+            ));
         }
 
         for e in table.last().unwrap().iter() {
@@ -280,8 +321,9 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             resolved_generics.insert(g.clone(), self.resolver.registry.register(UnknownType));
         }
 
-        let struct_type = self.resolver.registry.register(StructType {
+        struct_type.mutate(self.resolver.registry, StructType {
             name: name.clone(),
+            constructors,
             fields: field_infos,
             children,
             generics: resolved_generics

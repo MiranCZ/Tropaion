@@ -7,7 +7,7 @@ use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, Functio
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::expression::{deref, Expression, TypedExpr};
-use crate::ast::statement::Statement::{CommentStmt, EnumStmt, FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
+use crate::ast::statement::Statement::{CommentStmt, ConstructorStmt, EnumStmt, FunctionStmt, ReturnStmt, StructStmt, VarDeclarationStmt};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt, UntypedStmt};
 use crate::ast::walking::folder::{FoldedBlock, FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
@@ -409,7 +409,30 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         FunctionStmt {name, modifier, generics, params: typed_params, return_type, body: typed_body}
     }
 
-    fn fold_struct(&mut self, name: String, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
+    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
+        let mut typed_params = vec![];
+
+        for p in params.iter() {
+            typed_params.push(Parameter{
+                name: p.name.clone(),
+                param_type: self.fold_type_entry(p.param_type)
+            });
+        }
+
+        self.symbol_table.push();
+
+        for p in typed_params.iter() {
+            self.symbol_table.record(p.name.clone(), p.param_type);
+        }
+
+        let typed_body = self.fold_block(body.clone());
+
+        self.symbol_table.pop();
+
+        ConstructorStmt {modifier, params: typed_params, body: typed_body}
+    }
+
+    fn fold_struct(&mut self, name: String, pc: bool, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut typed_fields = vec![];
 
         let struct_type = self.symbol_table.get(&name).unwrap();
@@ -430,9 +453,30 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             });
         }
 
+        let mut constructors = vec![];
+        let mut methods = vec![];
+        // can add static functions later
+
+
+        for b in body {
+            match &b.node {
+                Statement::ConstructorStmt {..} => {
+                    constructors.push(b);
+                }
+                Statement::FunctionStmt {..} => {
+                    methods.push(b);
+                }
+                // TODO other methods
+
+                _ => {}
+            }
+        }
+
         self.symbol_table.push();
 
         self.symbol_table.record(String::from("this"), struct_type.clone());
+
+        let mut resolved_constructors = constructors.iter().map(|c| c.to_owned().walk_fold(self)).collect();
 
 
         if let StructType {children,..} = struct_type.get(self.registry) {
@@ -444,13 +488,19 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         }
 
         self.scopes.push(struct_type);
-        let body = self.fold_block(body);
+
+        let mut resolved_methods = methods.iter().map(|c| c.to_owned().walk_fold(self)).collect();
+
         self.scopes.pop();
 
         self.symbol_table.pop();
         self.type_table.pop();
 
-        StructStmt {name, fields: typed_fields, body, generics}
+        let mut resolved_body = vec![];
+        resolved_body.append(&mut resolved_constructors);
+        resolved_body.append(&mut resolved_methods);
+
+        StructStmt {name, fields: typed_fields, body: resolved_body, generics, public_constructor: pc}
     }
 
     fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
@@ -954,7 +1004,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         }
 
         // calling constructor of a struct
-        if let AstType::StructType { name, fields,generics, mut children, .. } = resolved_func.get_type().get(self.registry) {
+        if let AstType::StructType { name,generics, constructors, mut children, .. } = resolved_func.get_type().get(self.registry) {
             let mut resolved_args = vec![];
 
             let mut err = false;
@@ -971,8 +1021,41 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 return TypedExpr::err(self.registry);
             }
 
-            if fields.len() != resolved_args.len() {
-                panic!("Invalid constructor call");
+
+            let mut constructor = self.registry.register(UnknownType);
+
+            'constructorLoop:
+            for cnst in constructors.iter() {
+                println!("COMPARING {}", cnst.format(self.registry));
+                if let AstType::ConstructorType { params, .. } = cnst.get(self.registry) {
+                    if params.len() != resolved_args.len() {
+                        continue;
+                    }
+
+                    for i in 0..resolved_args.len() {
+                        if !params[i].get(self.registry).loose_equals(&resolved_args[i].get_type().get(self.registry), self.registry) {
+                            continue 'constructorLoop;
+                        }
+                    }
+
+                    constructor = *cnst;
+                    break;
+                } else {
+                    unreachable!()
+                }
+            }
+
+            let constructor = constructor.get(self.registry);
+
+            if let UnknownType = constructor {
+                // TODO maybe have a separate constructor error?
+                return self.error(AnalysisError::illegal_func_args(name, resolved_args, self.registry), span);
+            }
+            let fields;
+            if let AstType::ConstructorType {params, ..} = constructor {
+                fields = params;
+            } else {
+                unreachable!();
             }
 
             self.type_table.push();
@@ -982,7 +1065,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             }
 
             for i in 0..fields.len() {
-                let field = &fields[i].typ;
+                let field = &fields[i];
                 let arg = &mut resolved_args[i];
 
                 self.box_arg(arg, *field);
@@ -1047,13 +1130,14 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     fn fold_struct_type(
         &mut self,
         name: String,
+        constructors: Vec<TypeEntry>,
         generics: OrderMap<String, TypeEntry>,
         fields: Vec<MemberInfo>,
         children: HashMap<String, MemberInfo>,
     ) -> AstType {
-        let new = TypeDuplicator::new(self.registry).fold_struct_type(name, generics, fields, children);
+        let new = TypeDuplicator::new(self.registry).fold_struct_type(name, constructors, generics, fields, children);
 
-        if let StructType {name, generics, fields, children} = new {
+        if let StructType {name, constructors, generics, fields, children} = new {
             let folded_children: HashMap<String, MemberInfo> = children
                 .into_iter()
                 .map(|
@@ -1067,6 +1151,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 .map(|MemberInfo{name, ..}| (folded_children.get(&name).unwrap().clone()))
                 .collect();
 
+            let folded_constructors = constructors
+                .into_iter()
+                .map(|typ| self.fold_type_entry(typ))
+                .collect();
 
             let folded_generics = generics
                 .into_iter()
@@ -1077,12 +1165,13 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             AstType::StructType {
                 name,
+                constructors: folded_constructors,
                 fields: folded_fields,
                 children: folded_children,
                 generics: folded_generics
             }
         } else {
-            panic!()
+            unreachable!()
         }
     }
 

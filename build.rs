@@ -122,7 +122,15 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_type(return_type);
     }}
 
-    fn {suffix}_struct(&mut self, name: {borrow}String, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, generics: {borrow} Vec<String>, span: Span) {{
+    fn {suffix}_constructor(&mut self, modifier: {borrow} Modifier, params: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, span: Span) {{
+        self.{suffix}_block(body);
+
+        for p in params {{
+            self.{suffix}_type({borrow} p.param_type);
+        }}
+    }}
+
+    fn {suffix}_struct(&mut self, name: {borrow}String, public_constructor: {borrow} bool, fields: {borrow}Vec<Parameter>, body: {borrow}StatementBlock<TypeEntry>, generics: {borrow} Vec<String>, span: Span) {{
         self.{suffix}_block(body);
     }}
 
@@ -299,9 +307,16 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_type(return_type);
     }}
 
-    fn {suffix}_struct_type(&mut self, name: {borrow} String, generics: {borrow} OrderMap<String, TypeEntry>, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
+    fn {suffix}_constructor_type(&mut self, modifier: {borrow} Modifier, params: {borrow} Vec<TypeEntry>, owner: {borrow} TypeEntry) {{
+        for t in params {{ self.{suffix}_type(t) }}
+    }}
+
+    fn {suffix}_struct_type(&mut self, name: {borrow} String, generics: {borrow} OrderMap<String, TypeEntry>, constructors: {borrow} Vec<TypeEntry>, fields: {borrow} Vec<MemberInfo>, children: {borrow} HashMap<String, MemberInfo>) {{
         for g in generics.values{mut_suffix}() {{
             self.{suffix}_type(g);
+        }}
+        for c in constructors {{
+            self.{suffix}_type(c);
         }}
         for f in fields {{
             self.{suffix}_type({borrow} f.typ);
@@ -341,8 +356,11 @@ impl TypedStmt {{
             Statement::FunctionStmt {{ name, modifier, generics, params, return_type, body }} => {{
                 visitor.{suffix}_function(name, modifier, generics, params, return_type, body, self.span);
             }}
-            Statement::StructStmt {{ name, fields, body, generics }} => {{
-                visitor.{suffix}_struct(name, fields, body, generics, self.span);
+            Statement::ConstructorStmt {{ modifier, params, body }} => {{
+                visitor.{suffix}_constructor(modifier, params, body, self.span);
+            }}
+            Statement::StructStmt {{ name, public_constructor, fields, body, generics }} => {{
+                visitor.{suffix}_struct(name, public_constructor, fields, body, generics, self.span);
             }}
             Statement::EnumStmt {{ name, values, body }} => {{
                 visitor.{suffix}_enum(name, values, body, self.span);
@@ -449,7 +467,8 @@ impl AstType {{
             AstType::TupleType(types) => visitor.{suffix}_tuple_type(types),
             AstType::FunctionsType {{ name, overloads }} => visitor.{suffix}_functions_type(name, overloads),
             AstType::FunctionType {{ name, modifier, generics, params, return_type }} => visitor.{suffix}_function_type(name, modifier, generics, params, return_type),
-            AstType::StructType {{ name, generics, fields, children }} => visitor.{suffix}_struct_type(name, generics, fields, children),
+            AstType::ConstructorType {{ modifier, params, owner }} => visitor.{suffix}_constructor_type(modifier, params, owner),
+            AstType::StructType {{ name, constructors, generics, fields, children }} => visitor.{suffix}_struct_type(name, generics, constructors, fields, children),
             AstType::EnumType {{name, values}} => visitor.{suffix}_enum_type(name, values),
             AstType::GenericType {{ name }} => visitor.{suffix}_generic_type(name),
         }}

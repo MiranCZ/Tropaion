@@ -9,7 +9,7 @@ use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Pub, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Priv, Pub, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
@@ -140,16 +140,21 @@ pub fn parse_public_modifier(registry: &mut TypeRegistry, parser: &mut Parser) -
 
         let mut underlying = parse_statement(registry, parser)?.node;
 
-        if let FunctionStmt {modifier, ..} = &mut underlying {
-            let res = modifier.public();
-            if let Ok(m) = res {
-                *modifier = m;
-            } else if let Err(e) = res {
-                // FIXME this terminates parsing of the whole function which is not ideal
-                return Err(ErrorContext::new(e, from, to));
+        match &mut underlying {
+            ConstructorStmt {modifier, ..} |
+            FunctionStmt {modifier,..} => {
+                let res = modifier.public();
+                if let Ok(m) = res {
+                    *modifier = m;
+                } else if let Err(e) = res {
+                    // just note the error, we can keep on parsing
+                    parser.errors.push(ErrorContext::new(e, from, to));
+                }
             }
-        } else {
-            panic!()
+            _ => {
+                // just note the error, we can keep on parsing
+                parser.errors.push(ErrorContext::new(ParserError::InvalidModifier("pub".to_string()), from, to));
+            }
         }
 
         underlying
@@ -213,6 +218,41 @@ pub fn parse_fn_declaration_stmt(registry: &mut TypeRegistry,parser: &mut Parser
             generics,
             params,
             return_type,
+            body
+        }
+    })
+}
+
+pub fn parse_constructor_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        parser.expect_next(SimpleToken::Init)?;
+
+        parser.expect_next(SimpleToken::OpenBracket)?;
+
+        let mut params = vec![];
+
+        loop {
+            if parser.consume_if_next(CloseBracket)? {
+                break;
+            }
+
+            let param_name = parser.expect_next_identifier()?;
+            parser.expect_next(Colon)?;
+            let param_type = parse_type(registry, parser, DEFAULT.rbp)?;
+
+            params.push(Parameter{name: param_name, param_type});
+
+            if !parser.consume_if_next(Comma)? {
+                parser.expect_next(CloseBracket)?;
+                break;
+            }
+        }
+
+        let body = _parse_block_stmt(registry, parser)?;
+
+        ConstructorStmt {
+            modifier: Modifier::new(),
+            params,
             body
         }
     })
@@ -311,6 +351,12 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
             }
 
         }
+        
+        let mut public_constructor = true;
+        
+        if parser.consume_if_next(Priv)? {
+            public_constructor = false;
+        }
 
         parser.expect_next(SimpleToken::OpenBracket)?;
 
@@ -346,6 +392,7 @@ pub fn parse_struct_statement(registry: &mut TypeRegistry,parser: &mut Parser) -
 
         StructStmt {
             name: struct_name,
+            public_constructor,
             fields,
             body,
             generics

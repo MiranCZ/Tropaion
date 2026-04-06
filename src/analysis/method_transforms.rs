@@ -7,6 +7,8 @@ use crate::ast::statement::{Parameter, StatementBlock, TypedStmt};
 use crate::ast::walking::visitor_mut::VisitorMut;
 use crate::error::context::Span;
 
+
+/// inserts 'this' parameter into methods
 pub struct TransformVisitor<'a> {
     registry: &'a mut TypeRegistry,
     symbol_table: &'a TypeSymTable,
@@ -52,7 +54,7 @@ impl <'a> VisitorMut<'a> for TransformVisitor<'a> {
         }
     }
 
-    fn visit_mut_struct(&mut self, name: &mut String, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
+    fn visit_mut_struct(&mut self, name: &mut String, pc: &mut bool, fields: &mut Vec<Parameter>, body: &mut StatementBlock<TypeEntry>, generics: &mut Vec<String>, span: Span) {
         self.with_inside(Some(self.symbol_table.get(&name).unwrap()), |visitor| {
             for s in body {
                 s.walk_visit_mut(visitor);

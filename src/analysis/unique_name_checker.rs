@@ -41,7 +41,7 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.registry
     }
 
-    fn visit_struct(&mut self, name: &String, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
+    fn visit_struct(&mut self, name: &String, pc: &bool, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
         self.owners.push(name.clone());
 
         self.visit_block(body);
@@ -113,7 +113,7 @@ impl <'a> Visitor<'a> for ClassLikeCollector<'a> {
     fn visit_type(&mut self, typ: &TypeEntry) {
     }
 
-    fn visit_struct(&mut self, name: &String, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
+    fn visit_struct(&mut self, name: &String, pc: &bool, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
         // FIXME this is the span of the whole struct, not of the name
         self.update(name, span);
     }

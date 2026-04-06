@@ -1,5 +1,5 @@
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType::{Float, FunctionType, FunctionsType, GenericType, Int, StringType, StructType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ConstructorType, Float, FunctionType, FunctionsType, GenericType, Int, StringType, StructType, UnknownType, Void};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use ordermap::OrderMap;
 use std::collections::HashMap;
@@ -157,9 +157,19 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
             2
         ));
     }
+    
+    let constructor = ConstructorType {
+        modifier: Modifier::new().public().unwrap(),
+        params: vec![],
+        owner: registry.register(AstType::SymbolType {
+            name: "address".to_string(),
+            generics: vec![]
+        })  
+    };
 
     StructType {
         name: "address".to_string(),
+        constructors: vec![registry.register(constructor)],
         generics: OrderMap::new(),
         fields: vec![],
         children

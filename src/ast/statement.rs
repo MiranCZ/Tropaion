@@ -42,8 +42,14 @@ pub enum Statement<T> {
         return_type: TypeEntry,
         body: StatementBlock<T>
     },
+    ConstructorStmt {
+        modifier: Modifier,
+        params: Vec<Parameter>,
+        body: StatementBlock<T>
+    },
     StructStmt {
         name: String,
+        public_constructor: bool,
         fields: Vec<Parameter>,
         body: StatementBlock<T>,
         generics: Vec<String>
