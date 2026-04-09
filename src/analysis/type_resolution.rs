@@ -761,6 +761,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 let mut typ = info.typ;
 
                 if !allow_private {
+                    if !info.public {
+                        continue;
+                    }
+
                     if let FunctionsType { overloads, name: funcs_name } = info.typ.get(self.registry) {
                         let mut public_funcs = vec![];
 
@@ -1026,7 +1030,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             'constructorLoop:
             for cnst in constructors.iter() {
-                if let AstType::ConstructorType { params, .. } = cnst.get(self.registry) {
+                if let AstType::ConstructorType { params, modifier, .. } = cnst.get(self.registry) {
                     if params.len() != resolved_args.len() {
                         continue;
                     }
@@ -1140,8 +1144,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             let folded_children: HashMap<String, MemberInfo> = children
                 .into_iter()
                 .map(|
-                    (k, MemberInfo{typ, name, index})| 
-                        (k, MemberInfo::new(self.fold_type_entry(typ), name, index)))
+                    (k, MemberInfo{typ, public, name, index})|
+                        (k, MemberInfo::new(self.fold_type_entry(typ), public, name, index)))
                 .collect();
 
 

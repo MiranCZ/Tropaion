@@ -118,6 +118,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
 
         children.insert("__load_at".to_string(), MemberInfo::new(
             registry.register(funcs),
+            true,
             "__load_at".to_string(),
             1
         ));
@@ -153,6 +154,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
 
         children.insert("__store_at".to_string(), MemberInfo::new(
             registry.register(funcs),
+            true,
             "__store_at".to_string(),
             2
         ));

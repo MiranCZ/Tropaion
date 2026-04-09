@@ -68,13 +68,14 @@ pub enum AstType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MemberInfo{
     pub typ: TypeEntry,
+    pub public: bool,
     pub name: String,
     pub index: u16
 }
 
 impl MemberInfo {
-    pub fn new(typ: TypeEntry, name: String, index: u16) -> MemberInfo {
-        MemberInfo{typ, name, index }
+    pub fn new(typ: TypeEntry, public: bool, name: String, index: u16) -> MemberInfo {
+        MemberInfo{typ, public, name, index }
     }
 
 }

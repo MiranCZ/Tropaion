@@ -236,7 +236,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         for f in fields {
             let resolved_param = self.resolver.fold_type_entry(f.param_type);
 
-            let info = MemberInfo::new(resolved_param, f.name.clone(), i);
+            let info = MemberInfo::new(resolved_param, *public_constructor, f.name.clone(), i);
             children.insert(f.name.clone(), info.clone());
 
             field_infos.push(info);
@@ -307,8 +307,8 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             let t = e.1;
             let name = e.0;
 
-            // functions don't have order
-            let info = MemberInfo::new(t.0.clone(), name.clone(), u16::MAX);
+            // functions don't have order and FunctionsType (which is collection of diff funcs) is always public
+            let info = MemberInfo::new(t.0.clone(), true, name.clone(), u16::MAX);
 
             children.insert(name.clone(), info);
         }

@@ -501,8 +501,8 @@ where
         let folded_children: HashMap<String, MemberInfo> = children
             .into_iter()
             .map(
-                |(k, MemberInfo{typ, name, index})|
-                    (k, MemberInfo::new(self.fold_type_entry(typ), name, index)))
+                |(k, MemberInfo{typ, public, name, index})|
+                    (k, MemberInfo::new(self.fold_type_entry(typ), public, name, index)))
             .collect();
 
 
