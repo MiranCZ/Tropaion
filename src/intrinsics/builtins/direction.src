@@ -1,6 +1,6 @@
 enum Direction(UP, DOWN, LEFT, RIGHT) {
     
-    fn opposite() -> Direction {
+    pub fn opposite() -> Direction {
         if this == UP {
             return DOWN;    
         } else if this == DOWN {
@@ -12,7 +12,7 @@ enum Direction(UP, DOWN, LEFT, RIGHT) {
         }
     }
 
-    fn rot_clockwise() -> Direction {
+    pub fn rot_clockwise() -> Direction {
         if this == UP {
             return RIGHT; 
         } else if this == DOWN {
@@ -24,7 +24,7 @@ enum Direction(UP, DOWN, LEFT, RIGHT) {
         }
     }
 
-    fn rot_anti_clockwise() -> Direction {
+    pub fn rot_anti_clockwise() -> Direction {
         if this == UP {
             return LEFT; 
         } else if this == DOWN {
@@ -36,7 +36,7 @@ enum Direction(UP, DOWN, LEFT, RIGHT) {
         }
     }
 
-    fn to_string() -> string {
+    pub fn to_string() -> string {
         if this == UP {
             return "UP"; 
         } else if this == DOWN {
