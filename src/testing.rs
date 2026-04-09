@@ -21,9 +21,7 @@ pub fn main() {
     }
 
     fn main() -> int {
-        let b = Box();
-        // b.test();
-        let y = b.v;
+        let b = Box(10);
 
         return 0;
     }

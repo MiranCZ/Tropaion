@@ -1028,9 +1028,20 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             let mut constructor = self.registry.register(UnknownType);
 
+            let mut this_call = false;
+            if let IdentifierExpr(_, str) = &resolved_func.node {
+                if *str == "this" {
+                    this_call = true;
+                }
+            }
+
             'constructorLoop:
             for cnst in constructors.iter() {
                 if let AstType::ConstructorType { params, modifier, .. } = cnst.get(self.registry) {
+                    if !modifier.is_public() && !this_call {
+                        continue;
+                    }
+
                     if params.len() != resolved_args.len() {
                         continue;
                     }
