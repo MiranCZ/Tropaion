@@ -3,31 +3,36 @@ use crate::{compile, compile_typed, lex_code, parse_tokens, resolve_types, run_c
 use std::time::Instant;
 use crate::interpreter::interpreter::Interpreter;
 use crate::util::arg_convertor::{into_arg, struct_convertor, ValueConvertable, ValueLike};
+use crate::util::ast_printer::AstPrinter;
 
 #[test]
 pub fn main() {
-    unsafe {backtrace_on_stack_overflow::enable()}
-
     let text = r#"
-    struct Box<T>(v: T?) {
+    struct Box(v: int) {
 
         pub init(v: int) {
-            print("THIS CALLED");
-            this(v * 100);
+            // print("THIS CALLED");
+            this(5);
+
+            // this.v = 50;
+        }
+
+        init(v: string) {
+            this(1000);
         }
 
     }
 
-    fn creator(v: int) -> Box<int> {
-        print("CALLED WITH" +str(v));
+    fn creator(v: int) -> Box {
+        // print("CALLED WITH" +str(v));
 
-        return Box(v);
+        return Box(1);
     }
 
-    fn main() -> int? {
+    fn main() -> Box {
         let b = creator(5);
 
-        return b.v;
+        return b;
     }
     "#;
 
@@ -88,6 +93,8 @@ fn interpret(mut text: String) {
     // println!("{:#?}", registry);
     // println!("-------------------");
     // println!();
+
+    println!("{}", AstPrinter::new(Some(&registry)).print_statement(&resolved_root));
 
     let res = compile_typed(resolved_root, &mut registry, &text);
 

@@ -12,3 +12,4 @@ mod generic_fixer;
 mod top_level_collector;
 mod unique_name_checker;
 mod contructor_lifter;
+mod this_validator;

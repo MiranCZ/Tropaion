@@ -1,16 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use ordermap::OrderMap;
+use crate::analysis::mangling;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable, TypeSymTableInfo};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{FunctionType, FunctionsType};
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, StructType};
 use crate::ast::expression::Expression;
 use crate::ast::expression::Expression::{CallExpr, IdentifierExpr};
 use crate::ast::modifier::Modifier;
-use crate::ast::statement::{Parameter, Statement, StatementBlock};
-use crate::ast::statement::Statement::FunctionStmt;
+use crate::ast::statement::{Parameter, Statement, StatementBlock, TypedStmt};
+use crate::ast::statement::Statement::{FunctionStmt, ReturnStmt, VarDeclarationStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
 use crate::error::analysis_error::AnalysisError;
+use crate::error::analysis_error::AnalysisError::DanglingConstructor;
 use crate::error::context::{ErrorContext, Span};
 use crate::util::spanned::Spanned;
 
@@ -50,28 +52,60 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
         t
     }
 
-    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<TypeEntry>) -> FoldedStmt<TypeEntry> {
+    fn fold_constructor(&mut self, mut modifier: Modifier, params: Vec<Parameter>, mut body: StatementBlock<TypeEntry>, span: Span) -> FoldedStmt<TypeEntry> {
         if let Some(owner) = self.owner.last() {
             let name = "<init>".to_string();
+
+            let owner_name;
+
+            match owner.get(self.registry) {
+                StructType {name, ..} |
+                AstType::EnumType {name, ..} => {
+                    owner_name = name;
+                }
+
+                _ => {
+                    panic!("No owner for constructor?");
+                }
+            }
 
             let mut type_params = vec![];
 
             for p in params.iter() {
                 type_params.push(p.param_type);
             }
+            modifier = modifier.with_static();
+
+            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), owner_name.clone(), &type_params);
 
             let fn_type = self.registry.register(FunctionType {
-                name: name.clone(),
+                name: format!("{owner_name}${name}"),
                 modifier,
                 generics: OrderMap::new(),
                 params: type_params,
                 return_type: *owner
             });
 
-            self.constructors.insert(name.clone(), fn_type);
+            self.constructors.insert(mangled, fn_type);
 
-            println!("RECORDED {name}");
             self.symbol_table.record(name.clone(), fn_type);
+
+            for b in body.iter_mut() {
+                if let Statement::ExpressionStmt(e) = b.node.clone() {
+                    if let CallExpr {func, args, ..} = &e.node {
+
+                        b.node = VarDeclarationStmt {
+                            name: "this".to_string(),
+                            is_const: false,
+                            value: e,
+                            explicit_type: Some(*owner)
+                        }
+                    }
+                }
+
+            }
+
+            body.push(Spanned::new(ReturnStmt(Spanned::new(IdentifierExpr(*owner, "this".to_string()), 0, 0)), 0, 0));
 
             FunctionStmt {
                 name,
@@ -82,31 +116,33 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
                 return_type: *owner
             }
         } else {
-            panic!("No owner for constructor?")
+            self.errors.push(ErrorContext::of(DanglingConstructor, span));
+
+            TypedStmt::err(self.registry, span)
         }
     }
 
     fn fold_call(&mut self, t: TypeEntry, func: Box<Spanned<Expression<TypeEntry>>>, args: Vec<Spanned<Expression<TypeEntry>>>, span: Span) -> FoldedExpr<TypeEntry> {
-        println!("CALLING {func:?} {:?}", func.get_type().get(self.registry));
-
-        if let IdentifierExpr(t, ..) = func.node {
-            println!("\t{:?}",t.get(self.registry));
-        }
         if let AstType::StructType {name, ..} = func.get_type().get(self.registry) {
-            let mangled = "<init>".to_string();
+            let mut typed_args = vec![];
 
-            println!("CALLING CONSTRUCTOR {}", mangled);
+            for a in args.iter() {
+                typed_args.push(a.get_type());
+            }
 
-            let constructor = self.constructors.get(&mangled).unwrap();
+            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), name.clone(), &typed_args);
 
-            let mangled = format!("{name}$<init>");
+            // we are calling an explicit constructor
+            if let Some(constructor) = self.constructors.get(&mangled) {
+                let mangled = format!("{name}$<init>");
 
-            return CallExpr {
-                t: *constructor,
-                func: Box::new(Spanned::of(IdentifierExpr(*constructor, mangled), func.span)),
-                args
-            };
-        } else {
+                return CallExpr {
+                    t: func.get_type(),
+                    func: Box::new(Spanned::of(IdentifierExpr(*constructor, mangled), func.span)),
+                    args
+                };
+            }
+
         }
 
         CallExpr { t, func, args }

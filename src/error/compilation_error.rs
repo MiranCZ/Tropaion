@@ -59,7 +59,8 @@ impl CompilationError {
 
     pub fn unsupported_type(typ: AstType, registry: &TypeRegistry) -> CompilationError {
         panic!();
-        CompilationError::UnsupportedType(typ.format(registry))
+        // CompilationError::UnsupportedType(typ.format(registry))
+        // CompilationError::UnsupportedType(format!("{typ:?}"))
     }
 
     pub fn type_mismatch(expected: ValueTypeVariant,typ: AstType, registry: &TypeRegistry) -> CompilationError {
@@ -71,7 +72,7 @@ impl CompilationError {
     }
     
     pub fn illegal_member_access(typ: AstType, registry: &TypeRegistry) -> CompilationError {
-        panic!();
+        // panic!();
         IllegalMemberAccess(typ.format(registry))
     }
     

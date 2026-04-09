@@ -409,7 +409,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         FunctionStmt {name, modifier, generics, params: typed_params, return_type, body: typed_body}
     }
 
-    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
+    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<()>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut typed_params = vec![];
 
         for p in params.iter() {
@@ -1026,7 +1026,6 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
             'constructorLoop:
             for cnst in constructors.iter() {
-                println!("COMPARING {}", cnst.format(self.registry));
                 if let AstType::ConstructorType { params, .. } = cnst.get(self.registry) {
                     if params.len() != resolved_args.len() {
                         continue;

@@ -1070,3 +1070,27 @@ fn test_visibility() {
 
     test_simple_code("main", code, 500);
 }
+
+#[test]
+fn test_constructor() {
+    let code = r#"
+    struct Box(value: int) {
+    
+        pub init() {
+            let x = 0;
+            x += 10;
+            
+            this(x);
+            
+            this.value = 1;
+        }
+
+    }
+
+    fn main() -> int {
+        return Box().value + Box(100).value;
+    }
+    "#;
+
+    test_simple_code("main", code, 101);
+}

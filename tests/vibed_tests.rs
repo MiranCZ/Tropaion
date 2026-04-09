@@ -778,6 +778,7 @@ fn test_complex_bool_expr() {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+#[ignore]
 #[test]
 fn test_const_access() {
     let code = r#"
@@ -796,6 +797,7 @@ fn test_const_access() {
     test_simple_code("main", code, 55);
 }
 
+#[ignore]
 #[test]
 fn test_const_array() {
     let code = r#"

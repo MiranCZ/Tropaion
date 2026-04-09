@@ -105,7 +105,19 @@ pub enum AnalysisError {
     FunctionAlreadyDefined(String),
 
     #[error("Cannot access private member '{0}'")]
-    IllegalAccess(String)
+    IllegalAccess(String),
+
+    #[error("Cannot use 'this()' here")]
+    IllegalThis,
+
+    #[error("Constructors must contain a 'this()' call")]
+    ThisCallExpected,
+
+    #[error("'this()' cannot be called more than once")]
+    MultipleThisCall,
+
+    #[error("Constructors must be inside a struct")]
+    DanglingConstructor
    
 
 }

@@ -137,7 +137,7 @@ where
         }
     }
 
-    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<I>) -> FoldedStmt<O> {
+    fn fold_constructor(&mut self, modifier: Modifier, params: Vec<Parameter>, body: StatementBlock<I>, span: Span) -> FoldedStmt<O> {
         let folded_params = params
             .into_iter()
             .map(|p| Parameter {
@@ -582,7 +582,7 @@ impl<I: Clone> Spanned<Statement<I>> {
                     body,
                 } => folder.fold_function(name, modifier, generics, params, return_type, body, span),
                 Statement::ConstructorStmt {modifier, params, body} => {
-                    folder.fold_constructor(modifier, params, body)
+                    folder.fold_constructor(modifier, params, body, span)
                 }
                 Statement::StructStmt { name, public_constructor, fields, body, generics } => {
                     folder.fold_struct(name, public_constructor, fields, body, generics, span)

@@ -16,6 +16,7 @@ use crate::analysis::contructor_lifter::ConstructorLifter;
 use crate::analysis::generic_fixer::GenericFixer;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
+use crate::analysis::this_validator::ThisValidator;
 use crate::analysis::top_level_collector::TopLevelCollector;
 use crate::analysis::type_resolution::TypeResolver;
 use crate::analysis::unique_name_checker::UniqueNameChecker;
@@ -63,8 +64,13 @@ impl Analyzer {
         }
 
         // TODO semantic analysis would probs be nice xd
-        
-        resolved_root = resolved_root.walk_fold(&mut ConstructorLifter::new(registry, &mut self.symbol_table));
+
+        self.errors.append(&mut ThisValidator::collect_errors(&resolved_root, registry));
+
+        let mut lifter = ConstructorLifter::new(registry, &mut self.symbol_table);
+        resolved_root = resolved_root.walk_fold(&mut lifter);
+        self.errors.append(&mut lifter.errors);
+
         self.errors.append(&mut UniqueNameChecker::check(registry, &resolved_root));
         
         let mut mangler = ManglingVisitor::new(registry);

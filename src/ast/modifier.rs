@@ -3,15 +3,17 @@ use crate::error::parser_error::ParserError::ClashingModifier;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Modifier {
-    public: Option<bool>
+    public: Option<bool>,
+    is_static: Option<bool>
 }
 
 impl Modifier {
 
     pub fn new() -> Modifier {
-        Modifier {public: None}
+        Modifier {public: None, is_static: None}
     }
 
+    // FIXME rewrite
     pub fn public(mut self) -> Result<Modifier, ParserError> {
         if self.has_visibility() {
             return Err(ClashingModifier);
@@ -19,6 +21,13 @@ impl Modifier {
 
         self.public = Some(true);
         Ok(self)
+    }
+    
+    pub fn with_static(&self) -> Modifier {
+        let mut new = *self;
+        
+        new.is_static = Some(true);
+        new
     }
 
     pub fn is_public(&self) -> bool {
@@ -35,6 +44,13 @@ impl Modifier {
         }
 
         true
+    }
+    
+    pub fn is_static(&self) -> bool {
+        if let Some(s) = self.is_static {
+            return s;
+        }
+        false
     }
 
     pub fn has_visibility(&self) -> bool {

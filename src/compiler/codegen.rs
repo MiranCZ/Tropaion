@@ -641,7 +641,6 @@ impl BytecodeGen {
     }
 
     pub fn i_load(&mut self, name: String) {
-        println!("LOADING {name}");
         let ind = self.symbol_table.get(&name).unwrap();
 
         self.push_insn(Load(ind));
@@ -660,7 +659,6 @@ impl BytecodeGen {
     }
 
     pub fn call(&mut self, name: &String) {
-        println!("TRYING TO CALL {name}");
         let info = self.functions.get(name).unwrap();
 
         self.push_insn(Call(info.index));

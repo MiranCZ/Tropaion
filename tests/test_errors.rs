@@ -175,3 +175,63 @@ fn test_illegal_access2() {
 
     test_analysis_error(code, AnalysisError::IllegalFuncArgs {func_name: "larger".to_string(), args: "int".to_string()})
 }
+
+// FIXME these snippets throw multiple errors, rewrite test suite to support that
+// #[test]
+// fn test_constructor_error1() {
+//     let code = r#"
+//
+//     pub init() {
+//         this(0);
+//     }
+//
+//     struct Box(v: int) {
+//     }
+//
+//     fn main() -> int {
+//         return 0;
+//     }
+//     "#;
+//
+//     test_analysis_error(code, AnalysisError::DanglingConstructor);
+// }
+//
+// #[test]
+// fn test_constructor_error2() {
+//     let code = r#"
+//     struct Box(v: int) {
+//         pub init() {
+//             this(0);
+//             this(5);
+//         }
+//
+//     }
+//
+//     fn main() -> int {
+//         return 0;
+//     }
+//     "#;
+//
+//     test_analysis_error(code, AnalysisError::MultipleThisCall);
+// }
+
+#[test]
+fn test_constructor_error3() {
+    let code = r#"
+    struct Box(v: int) {
+        pub init() {
+            if false {
+                this(0);
+            }
+            this(1);
+        }
+
+    }
+
+    fn main() -> int {
+        return 0;
+    }
+    "#;
+
+    test_analysis_error(code, AnalysisError::IllegalThis);
+}
