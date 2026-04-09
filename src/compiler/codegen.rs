@@ -344,7 +344,7 @@ impl BytecodeGen {
         let t = t.get(registry);
 
         match t {
-            AstType::Bool | AstType::Int => generator(ValueType::Int)?,
+            AstType::Bool | AstType::Int | AstType::EnumType {..} => generator(ValueType::Int)?,
             AstType::Float => generator(ValueType::Float)?,
             AstType::NullableType { .. } |
             AstType::ArrayType {..} |
