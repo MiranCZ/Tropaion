@@ -1,4 +1,8 @@
-struct Vec<T>(capacity: int, len: int, array: address) {
+struct Vec<T> priv(capacity: int, len: int, array: address) {
+
+    pub init() {
+        this(2, 0, __heap_alloc(2));
+    }
 
     pub fn push(element: T) {
         ensure_size();
@@ -10,6 +14,14 @@ struct Vec<T>(capacity: int, len: int, array: address) {
     pub fn pop() -> T {
         len--;
         return array.__load_at(len);
+    }
+
+    pub fn get(index: int) -> T {
+        return array.__load_at(index);
+    }
+
+    pub fn size() -> int {
+        return len;
     }
 
     fn ensure_size() {

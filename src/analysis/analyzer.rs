@@ -67,9 +67,7 @@ impl Analyzer {
 
         self.errors.append(&mut ThisValidator::collect_errors(&resolved_root, registry));
 
-        let mut lifter = ConstructorLifter::new(registry, &mut self.symbol_table);
-        resolved_root = resolved_root.walk_fold(&mut lifter);
-        self.errors.append(&mut lifter.errors);
+        let mut resolved_root = ConstructorLifter::new(resolved_root, &mut self.errors, registry, &mut self.symbol_table);
 
         self.errors.append(&mut UniqueNameChecker::check(registry, &resolved_root));
         

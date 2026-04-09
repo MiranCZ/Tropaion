@@ -991,7 +991,7 @@ fn test_weird_order_bug() {
 fn test_vec() {
     let code = r#"
     fn main() -> int {
-        let v = Vec(2, 0, __heap_alloc(2));
+        let v = Vec();
 
         v.push(77);
         v.push(20);
@@ -1075,13 +1075,13 @@ fn test_visibility() {
 fn test_constructor() {
     let code = r#"
     struct Box(value: int) {
-    
+
         pub init() {
             let x = 0;
             x += 10;
-            
+
             this(x);
-            
+
             this.value = 1;
         }
 

@@ -14,20 +14,35 @@ pub fn main() {
             this(10);
         }
 
-        fn test() {
+        pub fn get() -> int {
+            return v;
         }
 
 
     }
 
     fn main() -> int {
-        let b = Box(10);
+        let b = Box();
 
-        return 0;
+        return b.get();
     }
     "#;
 
-    interpret(text.to_string());
+    let code = r#"
+    fn main() -> int {
+        // let v = Vec(2,0,__heap_alloc(2));
+        let v = Vec();
+        v.push(107);
+
+        10000;
+        // print("GOT VEC" + str(v.capacity) + " : "+str(v.len));
+        // v.push(3);
+
+        return v.get(0);
+    }
+    "#;
+
+    interpret(code.to_string());
 }
 
 fn interpret(mut text: String) {

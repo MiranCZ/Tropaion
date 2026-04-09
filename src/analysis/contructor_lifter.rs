@@ -18,28 +18,50 @@ use crate::util::spanned::Spanned;
 
 pub struct ConstructorLifter<'a> {
     registry: &'a mut TypeRegistry,
-    owner: Vec<TypeEntry>,
-    symbol_table: &'a mut TypeSymTable,
     constructors: HashMap<String, TypeEntry>,
-    pub errors: Vec<ErrorContext<AnalysisError>>
+    errors: &'a mut Vec<ErrorContext<AnalysisError>>
 }
 
 
 impl<'a> ConstructorLifter<'a> {
-    pub fn new(registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable) -> Self {
-        Self {
+    pub fn new(stmt: TypedStmt,errors: &'a mut Vec<ErrorContext<AnalysisError>> ,registry: &'a mut TypeRegistry, symbol_table: &'a mut TypeSymTable) -> TypedStmt{
+        let mut constructors = HashMap::new();
+
+        let stmt = ConstructorCollector::collect(stmt, &mut constructors, errors, symbol_table, registry);
+
+        let mut new = Self {
             registry,
-            symbol_table,
-            constructors: HashMap::new(),
-            owner: vec![],
-            errors: vec![]
-        }
+            constructors,
+            errors
+        };
+
+
+        stmt.walk_fold(&mut new)
     }
 
 }
 
 
-impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
+struct ConstructorCollector<'a> {
+    registry: &'a mut TypeRegistry,
+    constructors: &'a mut HashMap<String, TypeEntry>,
+    symbol_table: &'a mut TypeSymTable,
+    owner: Vec<TypeEntry>,
+    errors: &'a mut Vec<ErrorContext<AnalysisError>>
+}
+
+impl <'a> ConstructorCollector<'a> {
+
+    fn collect(stmt: TypedStmt, constructors: &'a mut HashMap<String, TypeEntry>, errors: &'a mut Vec<ErrorContext<AnalysisError>>, symbol_table: &'a mut TypeSymTable, registry: &'a mut TypeRegistry) -> TypedStmt {
+        let mut new = Self{registry, constructors, symbol_table, errors, owner: vec![]};
+
+        stmt.walk_fold(&mut new)
+    }
+
+}
+
+
+impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorCollector<'a> {
     fn get_registry(&self) -> &TypeRegistry {
         self.registry
     }
@@ -122,31 +144,6 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
         }
     }
 
-    fn fold_call(&mut self, t: TypeEntry, func: Box<Spanned<Expression<TypeEntry>>>, args: Vec<Spanned<Expression<TypeEntry>>>, span: Span) -> FoldedExpr<TypeEntry> {
-        if let AstType::StructType {name, ..} = func.get_type().get(self.registry) {
-            let mut typed_args = vec![];
-
-            for a in args.iter() {
-                typed_args.push(a.get_type());
-            }
-
-            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), name.clone(), &typed_args);
-
-            // we are calling an explicit constructor
-            if let Some(constructor) = self.constructors.get(&mangled) {
-                let mangled = format!("{name}$<init>");
-
-                return CallExpr {
-                    t: func.get_type(),
-                    func: Box::new(Spanned::of(IdentifierExpr(*constructor, mangled), func.span)),
-                    args
-                };
-            }
-
-        }
-
-        CallExpr { t, func, args }
-    }
 
     fn fold_struct(&mut self, name: String, public_constructor: bool, fields: Vec<Parameter>, body: StatementBlock<TypeEntry>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
         self.owner.push(self.symbol_table.get(&name).unwrap());
@@ -172,4 +169,63 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
             generics
         }
     }
+
+}
+
+impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
+    fn get_registry(&self) -> &TypeRegistry {
+        self.registry
+    }
+
+    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
+        self.registry
+    }
+
+    fn fold_annotation(&mut self, t: TypeEntry) -> TypeEntry {
+        t
+    }
+
+
+
+    fn fold_call(&mut self, t: TypeEntry, func: Box<Spanned<Expression<TypeEntry>>>, args: Vec<Spanned<Expression<TypeEntry>>>, span: Span) -> FoldedExpr<TypeEntry> {
+        if let AstType::StructType {name, fields, ..} = func.get_type().get(self.registry) {
+            let mut typed_args = vec![];
+
+            for a in args.iter() {
+                typed_args.push(a.get_type());
+            }
+
+            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), name.clone(), &typed_args);
+
+            // we are calling an explicit constructor
+            if let Some(constructor) = self.constructors.get(&mangled) {
+                let mangled = format!("{name}$<init>");
+
+                return CallExpr {
+                    t: func.get_type(),
+                    func: Box::new(Spanned::of(IdentifierExpr(*constructor, mangled), func.span)),
+                    args
+                };
+            } else {
+                if args.len() != fields.len() {
+                    self.errors.push(ErrorContext::of(AnalysisError::illegal_func_args(name, args.clone(), self.registry), span));
+                } else {
+                    let mut i1 = fields.iter();
+                    let mut i2 = args.iter();
+
+                    while let Some(v1) = i1.next() && let Some(v2) = i2.next() {
+                        if !v1.typ.get(self.registry).loose_equals(&v2.get_type().get(self.registry), self.registry) {
+                            self.errors.push(ErrorContext::of(AnalysisError::illegal_func_args(name, args.clone(), self.registry), span));
+                            break;
+                        }
+                    }
+                }
+            }
+
+        }
+
+        CallExpr { t, func, args }
+    }
+
+
 }
