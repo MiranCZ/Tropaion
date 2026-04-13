@@ -13,14 +13,11 @@ impl Modifier {
         Modifier {public: None, is_static: None}
     }
 
-    // FIXME rewrite
-    pub fn public(mut self) -> Result<Modifier, ParserError> {
-        if self.has_visibility() {
-            return Err(ClashingModifier);
-        }
-
-        self.public = Some(true);
-        Ok(self)
+    pub fn with_public(&self) -> Modifier {
+        let mut new = *self;
+        
+        new.public = Some(true);
+        new
     }
     
     pub fn with_static(&self) -> Modifier {

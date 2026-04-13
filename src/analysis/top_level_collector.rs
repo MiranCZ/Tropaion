@@ -318,7 +318,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             let mut modifier = Modifier::new();
 
             if *public_constructor {
-                modifier = modifier.public().unwrap();
+                modifier = modifier.with_public();
             }
 
             constructors.push(self.resolver.registry.register(

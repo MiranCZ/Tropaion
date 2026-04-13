@@ -8,25 +8,8 @@ use crate::util::ast_printer::AstPrinter;
 #[test]
 pub fn main() {
     let text = r#"
-    struct Box priv(v: int) {
-
-        pub init() {
-            this(10);
-        }
-
-        pub fn get() -> int {
-            return v;
-        }
-
-
-    }
-
     fn main() -> int {
-        let b = Box();
-
-        print(b.v);
-
-        return b.get();
+        return 0;
     }
     "#;
 

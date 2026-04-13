@@ -57,7 +57,7 @@ fn heap_alloc_func(registry: &mut TypeRegistry) -> AstType {
 fn int_func(registry: &mut TypeRegistry) -> AstType {
     FunctionType {
         name: "int".to_string(),
-        modifier: Modifier::new().public().unwrap(),
+        modifier: Modifier::new().with_public(),
         generics: OrderMap::new(),
         params: vec![registry.register(Float)],
         return_type: registry.register(Int)
@@ -67,7 +67,7 @@ fn int_func(registry: &mut TypeRegistry) -> AstType {
 fn float_func(registry: &mut TypeRegistry) -> AstType {
     FunctionType {
         name: "float".to_string(),
-        modifier: Modifier::new().public().unwrap(),
+        modifier: Modifier::new().with_public(),
         generics: OrderMap::new(),
         params: vec![registry.register(Int)],
         return_type: registry.register(Float)
@@ -77,7 +77,7 @@ fn float_func(registry: &mut TypeRegistry) -> AstType {
 fn str_convert_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
     FunctionType {
         name: "str".to_string(),
-        modifier: Modifier::new().public().unwrap(),
+        modifier: Modifier::new().with_public(),
         generics: OrderMap::new(),
         params: vec![registry.register(input)],
         return_type: registry.register(StringType)
@@ -87,7 +87,7 @@ fn str_convert_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
 fn print_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
     FunctionType {
         name: "print".to_string(),
-        modifier: Modifier::new().public().unwrap(),
+        modifier: Modifier::new().with_public(),
         generics: OrderMap::new(),
         params: vec![registry.register(input)],
         return_type: registry.register(Void)
@@ -105,7 +105,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
     {
         let load_at = FunctionType {
             name: "__load_at".to_string(),
-            modifier: Modifier::new().public().unwrap(),
+            modifier: Modifier::new().with_public(),
             generics: OrderMap::new(),
             params: vec![registry.register(Int)],
             return_type: registry.register(UnknownType)
@@ -139,7 +139,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
         // };
         let store_at = FunctionType {
             name: "__store_at".to_string(),
-            modifier: Modifier::new().public().unwrap(),
+            modifier: Modifier::new().with_public(),
             generics: OrderMap::new(),
             params: vec![registry.register(Int), registry.register(UnknownType)],
             return_type: registry.register(Void)
@@ -161,7 +161,7 @@ fn address_struct(registry: &mut TypeRegistry) -> AstType {
     }
     
     let constructor = ConstructorType {
-        modifier: Modifier::new().public().unwrap(),
+        modifier: Modifier::new().with_public(),
         params: vec![],
         owner: registry.register(AstType::SymbolType {
             name: "address".to_string(),

@@ -8,6 +8,7 @@ use crate::ast::statement::Statement::*;
 use crate::ast::statement::{Parameter, StatementBlock, UntypedStmt};
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
+use crate::error::parser_error::ParserError::ClashingModifier;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Priv, Pub, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
@@ -143,12 +144,11 @@ pub fn parse_public_modifier(registry: &mut TypeRegistry, parser: &mut Parser) -
         match &mut underlying {
             ConstructorStmt {modifier, ..} |
             FunctionStmt {modifier,..} => {
-                let res = modifier.public();
-                if let Ok(m) = res {
-                    *modifier = m;
-                } else if let Err(e) = res {
+                if !modifier.has_visibility() {
+                    *modifier = modifier.with_public();
+                } else {
                     // just note the error, we can keep on parsing
-                    parser.errors.push(ErrorContext::new(e, from, to));
+                    parser.errors.push(ErrorContext::new(ClashingModifier, from, to));
                 }
             }
             _ => {
