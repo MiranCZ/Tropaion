@@ -136,7 +136,7 @@ impl Lexer {
 
     fn next_string(&mut self) -> Result<String, LexerError> {
         if !self.next_char_if('"') {
-            panic!("Invalid `next_string` call");
+            return Err(LexerError::InternalError("Illegal `next_string` call".to_string()));
         }
 
         let mut res = String::new();

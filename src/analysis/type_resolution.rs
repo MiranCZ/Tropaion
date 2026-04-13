@@ -104,7 +104,6 @@ impl <'a> TypeResolver<'a> {
             }
         } else {
             return String::new();
-            // panic!("Could not find {name}")
         }
     }
 
@@ -132,7 +131,8 @@ impl <'a> TypeResolver<'a> {
         // arg is '(<unknown>)?'
         if let NullableType {underlying} = arg.get_type().get(self.registry) && matches!(underlying.get(self.registry), UnknownType) {
             if !matches!(desired.get(self.registry), NullableType {..}) {
-                panic!("AAAA WTF");
+                self.errors.push(ErrorContext::of(AnalysisError::InternalError("Illegal nullable state".to_string()), Span::new(0,0)));
+                return;
             }
 
             arg.set_type(self.registry, desired.get(self.registry));

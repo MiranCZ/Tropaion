@@ -296,7 +296,7 @@ impl TypedExpr {
                     if let NullableType {underlying} = member.get_type().get(registry) {
                         generator.load_offset_value(registry, 0, underlying)?;
                     } else if *null_safe {
-                        panic!("Null-safe call on not-null type?? {}", member.get_type().get(registry).format(registry));
+                        return Err(CompilationError::InternalError(format!("Null-safe call on not-null type?? {}", member.get_type().get(registry).format(registry))));
                     }
 
 
@@ -343,7 +343,7 @@ impl TypedExpr {
 
                         Self::generate_call_expr_load(registry, generator, func, args)?;
                     } else {
-                        panic!("Cannot call LOAD_FIELD on {:?}", property.node);
+                        return Err(CompilationError::InternalError(format!("Cannot call LOAD_FIELD on {:?}", property.node)))
                     }
                 } else if let TupleType(..) = member.get_type().get(registry) {
                     member.generate_bytecode(registry, generator, LoadRefOffset(*property.clone()))?;
@@ -358,7 +358,7 @@ impl TypedExpr {
                 Self::generate_call_expr_load(registry, generator, func, args)?;
             },
 
-            _ => panic!("Invalid LOAD for {self:?}")
+            _ => return Err(CompilationError::InternalError(format!("Invalid LOAD for {self:?}")))
         };
 
         ok()
@@ -422,7 +422,7 @@ impl TypedExpr {
                 todo!()
             }
             Expression::TupleExpr { values, .. } => {
-                panic!("Tuples are immutable!");
+                return Err(CompilationError::InternalError("Tuples are immutable!".to_string()))
             }
             Expression::MemberExpr { member, property, .. } => {
                 if let AstType::StructType {fields, ..} = member.get_type().get(registry) {
@@ -438,7 +438,7 @@ impl TypedExpr {
             Expression::ArrayAccessExpr {property, index, ..} => {
                 property.generate_bytecode(registry, generator, Operation::StoreRefOffset(*index.clone()))?;
             }
-            _ => panic!("Invalid STORE for {self:?}")
+            _ => return Err(CompilationError::InternalError(format!("Invalid STORE for {self:?}")))
         };
 
         ok()
@@ -467,7 +467,7 @@ impl TypedExpr {
                 Self::generate_call_expr_load(registry, generator, func, args)?;
             }
 
-            _ => panic!("Cannot call LOAD_FIELD on {self:?}")
+            _ => return Err(CompilationError::InternalError(format!("Cannot call LOAD_FIELD on {self:?}")))
         };
 
         ok()
@@ -484,10 +484,10 @@ impl TypedExpr {
                     }
                 }
 
-                panic!("Invalid STORE_FIELD {name} for {self:?}");
+                Err(CompilationError::InternalError(format!("Invalid STORE_FIELD {name} for {self:?}")))
             }
 
-            _ => panic!("Cannot call STORE_FIELD on {self:?}")
+            _ => Err(CompilationError::InternalError(format!("Cannot call STORE_FIELD on {self:?}")))
         }
     }
 
@@ -540,7 +540,7 @@ impl TypedExpr {
 
             }
 
-            _ => panic!("Cannot call LOAD_REF on {self:?}")
+            _ => return Err(CompilationError::InternalError(format!("Cannot call LOAD_REF on {self:?}")))
         }
 
         ok()
@@ -585,7 +585,7 @@ impl TypedExpr {
                 }
             }
 
-            _ => panic!("Cannot call LOAD_REF on {self:?} {}", self.get_type().get(registry).format(registry))
+            _ => return Err(CompilationError::InternalError(format!("Cannot call LOAD_REF on {self:?} {}", self.get_type().get(registry).format(registry))))
         }
 
         ok()

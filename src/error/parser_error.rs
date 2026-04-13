@@ -22,5 +22,8 @@ pub enum ParserError {
     ClashingModifier,
     
     #[error("Modifier '{0}' cannot be used here")]
-    InvalidModifier(String)
+    InvalidModifier(String),
+
+    #[error("Internal error: {0}")]
+    InternalError(String)
 }

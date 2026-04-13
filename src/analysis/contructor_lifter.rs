@@ -87,7 +87,8 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorCollector<'a> {
                 }
 
                 _ => {
-                    panic!("No owner for constructor?");
+                    self.errors.push(ErrorContext::of(AnalysisError::InternalError("No owner for constructor!".to_string()), span));
+                    return TypedStmt::err(self.registry, span);
                 }
             }
 

@@ -117,7 +117,10 @@ pub enum AnalysisError {
     MultipleThisCall,
 
     #[error("Constructors must be inside a struct")]
-    DanglingConstructor
+    DanglingConstructor,
+    
+    #[error("Internal error: {0}")]
+    InternalError(String)
    
 
 }

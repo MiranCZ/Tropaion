@@ -52,15 +52,16 @@ pub enum CompilationError {
     DuplicateFunction(String),
 
     #[error("Int constant of '{0}' does not fit integer bounds ({min} < n < {max})", min=i32::MIN, max=i32::MAX)]
-    IntOutOfBounds(i64)
+    IntOutOfBounds(i64),
+
+    #[error("Internal error: {0}")]
+    InternalError(String)
 }
 
 impl CompilationError {
 
     pub fn unsupported_type(typ: AstType, registry: &TypeRegistry) -> CompilationError {
-        panic!();
-        // CompilationError::UnsupportedType(typ.format(registry))
-        // CompilationError::UnsupportedType(format!("{typ:?}"))
+        CompilationError::UnsupportedType(typ.format(registry))
     }
 
     pub fn type_mismatch(expected: ValueTypeVariant,typ: AstType, registry: &TypeRegistry) -> CompilationError {
@@ -72,7 +73,6 @@ impl CompilationError {
     }
     
     pub fn illegal_member_access(typ: AstType, registry: &TypeRegistry) -> CompilationError {
-        // panic!();
         IllegalMemberAccess(typ.format(registry))
     }
     

@@ -24,6 +24,8 @@ pub fn main() {
     fn main() -> int {
         let b = Box();
 
+        print(b.v);
+
         return b.get();
     }
     "#;

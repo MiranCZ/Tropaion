@@ -59,8 +59,8 @@ impl OperatorTable {
 
         let result = self.table.get(&(right, op, left));
 
-        if let Some(res) = result {
-            return Ok(to_ast_type(*res));
+        if let Some(res) = result && let Some(ast_type) = to_ast_type(*res) {
+            return Ok(ast_type);
         }
 
         Err(AnalysisError::illegal_binary_expression(left_type, op, right_type, registry))
@@ -132,19 +132,19 @@ fn from_ast_type(t: AstType, registry: &TypeRegistry) -> Option<SimpleType> {
     }
 }
 
-fn to_ast_type(t: SimpleType) -> AstType {
+fn to_ast_type(t: SimpleType) -> Option<AstType> {
     if t == Bool {
-        return AstType::Bool;
+        return Some(AstType::Bool);
     }
     if t == Int {
-        return AstType::Int;
+        return Some(AstType::Int);
     }
     if t == Float {
-        return AstType::Float;
+        return Some(AstType::Float);
     }
     if t == StringT {
-        return AstType::StringType;
+        return Some(AstType::StringType);
     }
 
-    panic!("Invalid simple type! {t:?}")
+    None
 }

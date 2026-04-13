@@ -2,7 +2,7 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::{Statement, TypedStmt};
 use crate::compiler::codegen::BytecodeGen;
 use crate::compiler::expr_gen::Operation::Load;
-use crate::error::compilation_error::EmptyRes;
+use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::ok;
 
 impl TypedStmt {
@@ -99,7 +99,7 @@ impl TypedStmt {
                 generator.comment(format!("return of {name} -- END"));
             }
             Statement::ConstructorStmt {..} => {
-                panic!("Constructors are syntactic sugar!")
+                return Err(CompilationError::InternalError("Constructors are syntactic sugar!".to_string()));
             }
             Statement::StructStmt { body, .. } => {
                 for b in body {

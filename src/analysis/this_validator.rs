@@ -9,14 +9,14 @@ use crate::error::context::{ErrorContext, Span};
 use crate::util::spanned::Spanned;
 
 pub struct ThisValidator<'a> {
-    registry: &'a TypeRegistry,
+    registry: &'a mut TypeRegistry,
     errors: Vec<ErrorContext<AnalysisError>>
 }
 
 impl <'a> ThisValidator<'a> {
 
 
-    pub fn collect_errors(stmt: &TypedStmt, registry: &'a TypeRegistry) -> Vec<ErrorContext<AnalysisError>>{
+    pub fn collect_errors(stmt: &TypedStmt, registry: &'a mut TypeRegistry) -> Vec<ErrorContext<AnalysisError>>{
         let mut new = ThisValidator{registry, errors: vec![]};
 
         stmt.walk_visit(&mut new);
@@ -33,7 +33,7 @@ impl <'a> Visitor<'a> for ThisValidator<'a> {
     }
 
     fn get_registry_mut(&mut self) -> &mut TypeRegistry {
-        panic!("immutable")
+        self.registry
     }
 
 

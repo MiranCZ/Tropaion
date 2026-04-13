@@ -138,7 +138,7 @@ impl Analyzer {
                     overloads.push(func);
                     t.mutate(registry, FunctionsType {name, overloads});
                 } else {
-                    panic!("Invalid overload {name} {:?}", t.get(registry).format(registry))
+                    return Err(ErrorContext::of(AnalysisError::InternalError(format!("Invalid overload {name} {:?}", t.get(registry).format(registry))), Span::new(0,0)));
                 }
             }
         } else {
