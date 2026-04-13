@@ -17,7 +17,7 @@ use crate::error::runtime_error::ValueTypeVariant;
 use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
 use ordermap::OrderMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::analysis::generic_fixer::GenericChecker;
 use crate::ast::modifier::Modifier;
 
@@ -27,6 +27,7 @@ pub struct TypeResolver<'a> {
     pub type_table: &'a mut TypeSymTable,
     scopes: Vec<TypeEntry>,
     pub generic_helper: GenericHelper,
+    resolved_types: HashSet<TypeEntry>,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
 
@@ -37,6 +38,7 @@ impl <'a> TypeResolver<'a> {
         Self {
             registry, symbol_table, type_table,
             scopes: vec![],
+            resolved_types: HashSet::new(),
             generic_helper: GenericHelper::new(),
             errors: vec![]
         }
@@ -320,6 +322,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     }
 
     fn fold_type_entry(&mut self, t: TypeEntry) -> TypeEntry {
+        if !self.resolved_types.insert(t) {
+            return t;
+        }
+
         let ast_type = t.get(self.registry);
 
         let result = ast_type.walk_fold(self);
@@ -1126,6 +1132,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         self.type_table.record(x.0.clone(), *x.1);
                     }
 
+                    let res = TypeDuplicator::new(self.registry).fold_ast_type(res);
                     let resolved = res.walk_fold(self);
 
                     self.type_table.pop();
@@ -1149,43 +1156,37 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         fields: Vec<MemberInfo>,
         children: HashMap<String, MemberInfo>,
     ) -> AstType {
-        let new = TypeDuplicator::new(self.registry).fold_struct_type(name, constructors, generics, fields, children);
-
-        if let StructType {name, constructors, generics, fields, children} = new {
-            let folded_children: HashMap<String, MemberInfo> = children
-                .into_iter()
-                .map(|
-                    (k, MemberInfo{typ, public, name, index})|
-                        (k, MemberInfo::new(self.fold_type_entry(typ), public, name, index)))
-                .collect();
+        let folded_children: HashMap<String, MemberInfo> = children
+            .into_iter()
+            .map(|
+                (k, MemberInfo{typ, public, name, index})|
+                    (k, MemberInfo::new(self.fold_type_entry(typ), public, name, index)))
+            .collect();
 
 
-            let folded_fields = fields
-                .into_iter()
-                .map(|MemberInfo{name, ..}| (folded_children.get(&name).unwrap().clone()))
-                .collect();
+        let folded_fields = fields
+            .into_iter()
+            .map(|MemberInfo{name, ..}| (folded_children.get(&name).unwrap().clone()))
+            .collect();
 
-            let folded_constructors = constructors
-                .into_iter()
-                .map(|typ| self.fold_type_entry(typ))
-                .collect();
+        let folded_constructors = constructors
+            .into_iter()
+            .map(|typ| self.fold_type_entry(typ))
+            .collect();
 
-            let folded_generics = generics
-                .into_iter()
-                .into_iter()
-                .map(|(k, typ)| (k, self.fold_type_entry(typ)))
-                .collect();
+        let folded_generics = generics
+            .into_iter()
+            .into_iter()
+            .map(|(k, typ)| (k, self.fold_type_entry(typ)))
+            .collect();
 
 
-            AstType::StructType {
-                name,
-                constructors: folded_constructors,
-                fields: folded_fields,
-                children: folded_children,
-                generics: folded_generics
-            }
-        } else {
-            unreachable!()
+        AstType::StructType {
+            name,
+            constructors: folded_constructors,
+            fields: folded_fields,
+            children: folded_children,
+            generics: folded_generics
         }
     }
 

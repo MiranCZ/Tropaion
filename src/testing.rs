@@ -28,21 +28,7 @@ pub fn main() {
     }
     "#;
 
-    let code = r#"
-    fn main() -> int {
-        // let v = Vec(2,0,__heap_alloc(2));
-        let v = Vec();
-        v.push(107);
-
-        10000;
-        // print("GOT VEC" + str(v.capacity) + " : "+str(v.len));
-        // v.push(3);
-
-        return v.get(0);
-    }
-    "#;
-
-    interpret(code.to_string());
+    interpret(text.to_string());
 }
 
 fn interpret(mut text: String) {

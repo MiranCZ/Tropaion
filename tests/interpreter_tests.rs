@@ -1094,3 +1094,20 @@ fn test_constructor() {
 
     test_simple_code("main", code, 101);
 }
+
+#[test]
+fn test_field_resolution() {
+    let code = r#"
+    struct B(a: A);
+    struct A();
+
+    fn main() -> int {
+        let b: B? = null;
+        let x = b?.a;
+
+        return 0;
+    }
+    "#;
+
+    test_simple_code("main", code, 0);
+}

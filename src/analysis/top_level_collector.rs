@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use ordermap::OrderMap;
-use Statement::EnumStmt;
 use crate::analysis::generic_fixer::GenericChecker;
 use crate::analysis::mangling;
 use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
@@ -10,26 +7,35 @@ use crate::ast::ast_type::AstType::{ConstructorType, EnumType, FunctionType, Fun
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression;
 use crate::ast::modifier::Modifier;
+use crate::ast::statement::Statement::{BlockStmt, StructStmt};
 use crate::ast::statement::{Parameter, Statement, StatementBlock, UntypedStmt};
-use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
 use crate::ast::walking::folder::{FoldedExpr, FoldedStmt, Folder};
-use crate::ast::walking::visitor::Visitor;
 use crate::error::analysis_error::AnalysisError;
-use crate::error::analysis_error::AnalysisError::IllegalStatementInStruct;
 use crate::error::context::{ErrorContext, Span};
 use crate::error::ok;
 use crate::error::runtime_error::ValueTypeVariant;
 use crate::intrinsics::type_injector::{get_injected_functions, get_injected_structs};
 use crate::util::spanned::Spanned;
+use ordermap::OrderMap;
+use std::collections::HashMap;
+use Statement::EnumStmt;
 
 pub struct TopLevelCollector<'a, 'b> {
-    resolver: &'a mut TypeResolver<'b>
+    resolver: &'a mut TypeResolver<'b>,
+    fields_pass: Vec<FieldPassInfo>
+
+}
+
+
+struct FieldPassInfo {
+    generics: Vec<String>,
+    fields: Vec<TypeEntry>
 }
 
 impl <'a, 'b> TopLevelCollector<'a, 'b> {
     pub fn new(resolver: &'a mut TypeResolver<'b>) -> Self {
         Self {
-            resolver
+            resolver, fields_pass: vec![]
         }
     }
 
@@ -77,6 +83,22 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         }
 
         stmt.walk_fold(&mut new);
+
+        for pass in new.fields_pass {
+            let generics = pass.generics;
+
+            new.resolver.type_table.push();
+            for g in generics {
+                new.resolver.type_table.record(g.clone(), new.resolver.registry.register(GenericType {name: g.clone()}));
+            }
+
+            for f in pass.fields {
+                new.resolver.fold_type_entry(f);
+            }
+
+            new.resolver.type_table.pop();
+
+        }
     }
 
 
@@ -233,16 +255,21 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
         }
 
         let mut i = 0;
-        for f in fields {
-            let resolved_param = self.resolver.fold_type_entry(f.param_type);
 
-            let info = MemberInfo::new(resolved_param, *public_constructor, f.name.clone(), i);
+        let mut second_pass = vec![];
+        for f in fields {
+            let param = f.param_type;
+            second_pass.push(param);
+
+
+            let info = MemberInfo::new(param, *public_constructor, f.name.clone(), i);
             children.insert(f.name.clone(), info.clone());
 
             field_infos.push(info);
 
             i += 1;
         }
+        self.fields_pass.push(FieldPassInfo{generics: generics.clone(), fields: second_pass});
 
 
         let mut constructors = vec![];
