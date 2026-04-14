@@ -5,6 +5,7 @@ use crate::interpreter::value::Value;
 use crate::interpreter::value::Value::{FloatValue, IntValue, RefValue};
 use crate::util::arg_convertor::ValueConvertable::{FloatValueConv, IntValueConv, StructValueConv, TupleValueConv, VecValueConv};
 
+#[derive(Debug)]
 pub enum ValueConvertable {
     IntValueConv(i32),
     FloatValueConv(f32),
@@ -43,19 +44,17 @@ impl ValueConvertable {
             FloatValueConv(f) => vec![FloatValue(f)],
             StructValueConv(_, values) |
             TupleValueConv(values) => {
-                let ptr = interpreter.stack_top();
-
-                let rf = RefValue {ptr, len: values.len() as u32};
+                let len = values.len() as u32;
 
                 for x in values {
                     let value = x.into_value(interpreter);
 
                     for v in value {
-                        // result.push(v);
                         unsafe{interpreter.push_to_stack(v).unwrap();}
                     }
                 }
 
+                let rf = RefValue {ptr: interpreter.stack_top()-1, len};
                 vec![rf]
             }
             VecValueConv(values) => {
