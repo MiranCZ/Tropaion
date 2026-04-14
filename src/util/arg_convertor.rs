@@ -46,15 +46,22 @@ impl ValueConvertable {
             TupleValueConv(values) => {
                 let len = values.len() as u32;
 
+                let mut ptr = interpreter.stack_top() as usize;
+                for _ in 0..values.len() {
+                    unsafe{interpreter.push_to_stack(Value::Null).unwrap();}
+                }
+
+                let rf = RefValue {ptr: interpreter.stack_top()-(values.len() as u32), len};
+
                 for x in values {
                     let value = x.into_value(interpreter);
 
                     for v in value {
-                        unsafe{interpreter.push_to_stack(v).unwrap();}
+                        unsafe {interpreter.write_stack_at(v, ptr).unwrap()};
+                        ptr += 1;
                     }
                 }
 
-                let rf = RefValue {ptr: interpreter.stack_top()-1, len};
                 vec![rf]
             }
             VecValueConv(values) => {
