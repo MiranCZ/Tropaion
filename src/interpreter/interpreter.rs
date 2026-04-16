@@ -129,10 +129,15 @@ impl Interpreter {
     }
 
     fn _run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, RuntimeError> {
+        let mut converted_args = vec![];
+
         for a in arguments {
             for value in a.into_value(self) {
-                self.push(value)?;
+                converted_args.push(value);
             }
+        }
+        for arg in converted_args {
+            self.push(arg)?;
         }
 
         let fun = self.function_mapping.get(&function);
