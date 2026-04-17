@@ -182,6 +182,10 @@ pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, pa
     let mut name = from_owner(name, owner) + "_";
 
     for p in params {
+        if p.is_err(registry) {
+            return format!("{name}_<err>");
+        }
+
         name += p.get(registry).get_type_name(registry).as_str();
     }
 
