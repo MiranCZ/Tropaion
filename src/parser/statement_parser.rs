@@ -10,13 +10,14 @@ use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::error::parser_error::ParserError::ClashingModifier;
 use crate::lexer::token::SimpleToken;
-use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, Greater, If, Less, OpenBracket, OpenCurly, Priv, Pub, Return, Semicolon, Struct, While};
+use crate::lexer::token::SimpleToken::{Arrow, Break, CloseBracket, Colon, Comma, Continue, Else, Enum, For, Greater, If, Less, OpenBracket, OpenCurly, Priv, Pub, Return, Semicolon, Struct, While};
 use crate::parser::binding_power::{ASSIGNMENT, DEFAULT};
 use crate::parser::expression_parser::parse_expression;
 use crate::parser::handlers::ReturnedStatement;
 use crate::parser::type_parser::parse_type;
 use crate::parser::Parser;
 use crate::spanned;
+use crate::util::spanned::Spanned;
 
 pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
@@ -309,6 +310,33 @@ pub fn parse_while_statement(registry: &mut TypeRegistry,parser: &mut Parser) ->
     })
 }
 
+pub fn parse_for_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
+    spanned!(parser, {
+        parser.expect_next(For)?;
+
+        let first = parse_statement(registry, parser)?;
+
+        let compare = parse_expression(registry, parser, DEFAULT.rbp)?;
+
+        parser.expect_next(Semicolon)?;
+
+        let end = parse_expression(registry, parser, DEFAULT.rbp)?;
+        let end_span = end.span;
+
+        let body = parse_block_stmt(registry, parser)?;
+        let body_span = body.span;
+
+        BlockStmt {
+            body: vec![
+                first,
+                Spanned::of(WhileStmt {
+                    condition: compare,
+                    body: vec![body, Spanned::of(ExpressionStmt(end), end_span)]
+                }, body_span),
+            ]
+        }
+    })
+}
 
 pub fn parse_continue_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
