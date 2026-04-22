@@ -314,6 +314,7 @@ pub fn parse_for_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> R
     spanned!(parser, {
         parser.expect_next(For)?;
 
+        let has_parantheses = parser.consume_if_next(OpenBracket)?;
         let first = parse_statement(registry, parser)?;
 
         let compare = parse_expression(registry, parser, DEFAULT.rbp)?;
@@ -322,6 +323,10 @@ pub fn parse_for_statement(registry: &mut TypeRegistry,parser: &mut Parser) -> R
 
         let end = parse_expression(registry, parser, DEFAULT.rbp)?;
         let end_span = end.span;
+
+        if has_parantheses {
+            parser.expect_next(CloseBracket)?;
+        }
 
         let body = parse_block_stmt(registry, parser)?;
         let body_span = body.span;
