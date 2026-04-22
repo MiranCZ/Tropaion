@@ -13,10 +13,10 @@ pub enum Direction {
 impl ValueLike for Direction {
     fn into_convertable(self) -> ValueConvertable {
         match self {
-            Self::Up => 99.into_convertable(),
-            Self::Down => 88.into_convertable(),
-            Self::Left => 77.into_convertable(),
-            Self::Right => 66.into_convertable(),
+            Self::Up => 0.into_convertable(),
+            Self::Down => 1.into_convertable(),
+            Self::Left => 2.into_convertable(),
+            Self::Right => 3.into_convertable(),
         }
     }
 }
