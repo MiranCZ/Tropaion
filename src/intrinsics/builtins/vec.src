@@ -29,10 +29,8 @@ struct Vec<T> priv(capacity: int, len: int, array: address) {
             capacity *= 2;
             let new_alloc = __heap_alloc(capacity);
 
-            let i = 0;
-            while i < len {
+            for let i = 0; i < len; i++ {
                 new_alloc.__store_at(i, array.__load_at(i));
-                i++;
             }
 
             this.array = new_alloc;
