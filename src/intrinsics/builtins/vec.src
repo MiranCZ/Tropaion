@@ -12,11 +12,19 @@ struct Vec<T> priv(capacity: int, len: int, array: address) {
     }
 
     pub fn pop() -> T {
+        if len == 0 {
+            panic("Popping empty vector");
+        }
+
         len--;
         return array.__load_at(len);
     }
 
     pub fn get(index: int) -> T {
+        if index < 0 || index >= len {
+            panic("Index out of bounds (len: " + str(len) + ", index: "+str(index)+")");
+        }
+
         return array.__load_at(index);
     }
 

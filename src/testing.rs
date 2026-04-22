@@ -9,10 +9,8 @@ use crate::util::ast_printer::AstPrinter;
 pub fn main() {
     let text = r#"
     fn main() -> int {
-        print("START");
-        for (let i = 0; i < 10; i++) {
-            print(i);
-        }
+        let v = Vec();
+        v.get(1);
 
         return 0;
     }
