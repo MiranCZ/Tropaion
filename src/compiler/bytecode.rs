@@ -6,6 +6,8 @@ pub enum ByteCode {
 
     NullPtr,
     
+    Panic,
+    
     IConst(i32),
     FConst(f32),
     StrConst(String),

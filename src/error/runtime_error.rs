@@ -24,6 +24,9 @@ impl ValueTypeVariant {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum RuntimeError {
+    #[error("{0}")]
+    ExplicitPanic(String),
+    
     #[error("Stack underflow! {0}")]
     StackUnderflow(&'static str),
     

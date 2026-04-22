@@ -15,6 +15,9 @@ pub fn get_injected_function_identifiers() -> Vec<(&'static str, u32)> {
         ("print_s", 1),
         ("print_i", 1),
         ("print_f", 1),
+        ("panic_s", 1),
+        ("panic_i", 1),
+        ("panic_f", 1),
         ("__heap_alloc_i", 1),
         ("address$__load_at_i", 2),
         ("address$__store_at_i?", 3)
@@ -30,7 +33,10 @@ pub fn get_injected_functions(registry: &mut TypeRegistry) -> Vec<AstType> {
         str_convert_func(registry, Float),
         print_func(registry, StringType),
         print_func(registry, Int),
-        print_func(registry, Float)
+        print_func(registry, Float),
+        panic_func(registry, StringType),
+        panic_func(registry, Int),
+        panic_func(registry, Float),
     ]
 }
 
@@ -87,6 +93,16 @@ fn str_convert_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
 fn print_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
     FunctionType {
         name: "print".to_string(),
+        modifier: Modifier::new().with_public(),
+        generics: OrderMap::new(),
+        params: vec![registry.register(input)],
+        return_type: registry.register(Void)
+    }
+}
+
+fn panic_func(registry: &mut TypeRegistry, input: AstType) -> AstType {
+    FunctionType {
+        name: "panic".to_string(),
         modifier: Modifier::new().with_public(),
         generics: OrderMap::new(),
         params: vec![registry.register(input)],

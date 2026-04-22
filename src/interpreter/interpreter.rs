@@ -194,6 +194,8 @@ impl Interpreter {
             ByteCode::Nop => {ok()}
 
             ByteCode::NullPtr => self.push(RefValue {ptr: 0, len: 1}),
+            
+            ByteCode::Panic => self.panic(),
 
             ByteCode::IConst(i) => self.push_int(i),
             ByteCode::FConst(f) => self.push_float(f),
@@ -303,7 +305,28 @@ impl Interpreter {
 
         ok()
     }
+    
+    fn panic(&mut self) -> Res {
+        let mut result = String::new();
+        
+        let v = self.pop()?;
 
+        if let RefValue {ptr, len} = v {
+            for i in 0..len {
+                let v = self._load_at_ptr((ptr + i) as usize);
+
+                if let CharValue(ch) = v {
+                    result.push(ch);
+                } else {
+                    return Err(TypeMismatch {expected: ValueTypeVariant::Char, got: v})
+                }
+            }
+        } else {
+            return Err(TypeMismatch {expected: ValueTypeVariant::String, got: v})
+        }
+        
+        Err(RuntimeError::ExplicitPanic(result))
+    }
 
     fn pop(&mut self) -> ValueRes {
         if self.pointer == 0 {

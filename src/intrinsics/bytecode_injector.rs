@@ -12,6 +12,7 @@ pub fn implement_functions(registry: &TypeRegistry, bytecode_gen: &mut BytecodeG
     implement_float(registry, bytecode_gen).unwrap();
     implement_str(registry, bytecode_gen).unwrap();
     implement_print(registry, bytecode_gen).unwrap();
+    implement_panic(registry, bytecode_gen).unwrap();
 }
 
 fn implement_int(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
@@ -63,6 +64,24 @@ fn implement_print(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Empt
     generator.print();
     generator.ret(0);
     generator.fn_end("print_f".to_string(), registry)?;
+
+    ok()
+}
+
+fn implement_panic(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
+    generator.fn_start("panic_s".to_string());
+    generator.panic();
+    generator.fn_end("panic_s".to_string(), registry)?;
+
+    generator.fn_start("panic_i".to_string());
+    generator.i2str();
+    generator.panic();
+    generator.fn_end("panic_i".to_string(), registry)?;
+
+    generator.fn_start("panic_f".to_string());
+    generator.f2str();
+    generator.panic();
+    generator.fn_end("panic_f".to_string(), registry)?;
 
     ok()
 }
