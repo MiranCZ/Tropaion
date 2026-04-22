@@ -1111,3 +1111,67 @@ fn test_field_resolution() {
 
     test_simple_code("main", code, 0);
 }
+
+#[test]
+fn test_for_loops() {
+    let code = r#"
+    fn main() -> int {
+        let x = 0;
+        for let i = 0; i < 10; i++ {
+            x += i;
+        }
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 45);
+
+    // with parentheses
+    let code = r#"
+    fn main() -> int {
+        let x = 0;
+        for (let i = 0; i < 10; i++) {
+            x += i;
+        }
+
+        return x;
+    }
+    "#;
+
+    test_simple_code("main", code, 45);
+}
+
+#[test]
+fn test_for_loops2() {
+    let code = r#"
+    fn main() -> int {
+        for let i = 0; i < 10; i++ {
+            let i = 0;
+        }
+
+        return 37;
+    }
+    "#;
+
+    test_simple_code("main", code, 37);
+}
+
+#[test]
+fn test_for_loops3() {
+    let code = r#"
+    fn main() -> int {
+        let x = 0;
+
+        for let i = 0; i < 10; i++ {
+            x += i;
+            i = 9;
+        }
+
+        return x+3;
+    }
+    "#;
+
+    test_simple_code("main", code, 3);
+}
+
