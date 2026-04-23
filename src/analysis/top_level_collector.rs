@@ -128,12 +128,12 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
                     t.mutate(registry, FunctionsType {name, overloads});
                 } else {
                     // FIXME add span
-                    return Err(ErrorContext::of(AnalysisError::NameAlreadyUsed(name), Span::new(0,0)));
+                    return Err(ErrorContext::unknown(AnalysisError::NameAlreadyUsed(name)));
                 }
             }
         } else {
             // FIXME add span
-            return Err(ErrorContext::of(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry), Span::new(0, 0)));
+            return Err(ErrorContext::unknown(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry)));
         }
 
         ok()

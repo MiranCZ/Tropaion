@@ -46,7 +46,7 @@ impl <'a> TypeResolver<'a> {
 
     fn error_type(&mut self, err: AnalysisError) -> AstType {
         // FIXME bad span
-        self.errors.push(ErrorContext::of(err, Span::new(0, 0)));
+        self.errors.push(ErrorContext::unknown(err));
 
         ErroredType
     }
@@ -131,7 +131,7 @@ impl <'a> TypeResolver<'a> {
         // arg is '(<unknown>)?'
         if let NullableType {underlying} = arg.get_type().get(self.registry) && matches!(underlying.get(self.registry), UnknownType) {
             if !matches!(desired.get(self.registry), NullableType {..}) {
-                self.errors.push(ErrorContext::of(AnalysisError::InternalError("Illegal nullable state".to_string()), Span::new(0,0)));
+                self.errors.push(ErrorContext::unknown(AnalysisError::InternalError("Illegal nullable state".to_string())));
                 return;
             }
 

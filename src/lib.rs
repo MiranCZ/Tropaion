@@ -74,15 +74,15 @@ pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Err
 
     // FIXME create a closure for this... idk how tho
     for err in lexer_errors {
-        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
+        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span_type: err.span_type, message: err.message };
         errors.push(ctx)
     }
     for err in parser_errors {
-        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
+        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span_type: err.span_type, message: err.message };
         errors.push(ctx)
     }
     for err in analysis_errors {
-        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
+        let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span_type: err.span_type, message: err.message };
         errors.push(ctx)
     }
 
@@ -129,7 +129,7 @@ pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueC
     match run_result {
         Ok(value) => Ok(value),
         Err(err) => {
-            let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span: err.span, message: err.message };
+            let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span_type: err.span_type, message: err.message };
             Err(vec![ctx])
         }
     }

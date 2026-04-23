@@ -138,12 +138,12 @@ impl Analyzer {
                     overloads.push(func);
                     t.mutate(registry, FunctionsType {name, overloads});
                 } else {
-                    return Err(ErrorContext::of(AnalysisError::InternalError(format!("Invalid overload {name} {:?}", t.get(registry).format(registry))), Span::new(0,0)));
+                    return Err(ErrorContext::unknown(AnalysisError::InternalError(format!("Invalid overload {name} {:?}", t.get(registry).format(registry)))));
                 }
             }
         } else {
             // FIXME add span
-            return Err(ErrorContext::of(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry), Span::new(0, 0)));
+            return Err(ErrorContext::unknown(AnalysisError::type_mismatch(ValueTypeVariant::Function, func, registry)));
         }
         
         ok()

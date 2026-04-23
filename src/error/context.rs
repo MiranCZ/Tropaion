@@ -8,8 +8,15 @@ pub type Errors<T> = Vec<ErrorContext<T>>;
 #[derive(Debug, Clone)]
 pub struct ErrorContext<T> {
     pub error: T,
-    pub span: Either<Span, usize>,
+    pub span_type: SpanType,
     pub message: Option<String>
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum SpanType {
+    SEGMENT(Span),
+    LINE(usize),
+    UNKNOWN
 }
 
 
@@ -40,7 +47,7 @@ impl <T> ErrorContext<T> {
     pub fn new(error: T, from: usize, to: usize) -> Self {
         Self {
             error,
-            span: Either::Left(Span::new(from, to)),
+            span_type: SpanType::SEGMENT(Span::new(from, to)),
             message: None
         }
     }
@@ -48,7 +55,15 @@ impl <T> ErrorContext<T> {
     pub fn line(error: T, line: usize) -> Self {
         Self {
             error,
-            span: Either::Right(line),
+            span_type: SpanType::LINE(line),
+            message: None
+        }
+    }
+    
+    pub fn unknown(error: T) -> Self {
+        Self {
+            error,
+            span_type: SpanType::UNKNOWN,
             message: None
         }
     }
@@ -56,7 +71,7 @@ impl <T> ErrorContext<T> {
     pub fn of(error: T, span: Span) -> Self {
         Self {
             error,
-            span: Either::Left(span),
+            span_type: SpanType::SEGMENT(span),
             message: None
         }
     }
@@ -71,11 +86,10 @@ impl <T> ErrorContext<T> {
 impl <T: Display> ErrorContext<T> {
 
     pub fn format(&self, str: Vec<char>) -> String {
-        match self.span {
-            Either::Left(l) => Self::format_span_err(l, &self.error, str),
-            Either::Right(r) => {
-                format!("{} on line {r}", self.error)
-            }
+        match self.span_type {
+            SpanType::SEGMENT(span) => Self::format_span_err(span, &self.error, str),
+            SpanType::LINE(line) => format!("{} on line {line}", self.error),
+            SpanType::UNKNOWN => format!("{}", self.error)
         }
     }
 
