@@ -51,7 +51,7 @@ impl TypedStmt {
                     generator.pop_insn();
 
                     generator.new_scope();
-                    generator.push_scope_exit_insn();
+                    generator.push_scope_exit_insn()?;
 
                     br.gen_bytecode(registry, generator)?;
                     generator.end_scope()?;
@@ -77,7 +77,7 @@ impl TypedStmt {
             }
             Statement::FunctionStmt { name, body, params, .. } => {
                 generator.comment(format!("fn {name} -- START"));
-                generator.fn_start(name.clone());
+                generator.fn_start(name.clone())?;
 
                 for param in params.iter().rev() {
                     let name = param.name.clone();

@@ -5,7 +5,7 @@ use crate::ast::ast_type::AstType;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::bytecode::ByteCode::{ALoadOffset, AStoreOffset, Add, And, BitNot, BoolNot, Call, CmpEq, CmpEqGreater, CmpEqLess, CmpGreater, CmpLess, CmpNotEq, Comment, CreateStackPtr, Div, Dup, DynHeapAlloc, F2Str, FConst, FLoadOffset, FStoreOffset, Goto, HeapAlloc, I2Str, IConst, ILoadOffset, IStoreOffset, IfEq, IfNe, Load, LoadVarOffset, Mod, Mul, Nop, NullPtr, Or, Panic, Pop, Print, Ret, RetLong, Shl, Shr, StackFrame, Store, StoreVarOffset, StrConcat, StrConst, Sub, Swap, Xor, F2I, I2F};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
-use crate::error::compilation_error::CompilationError::{MissingScope, MissingVariable, UnsupportedType};
+use crate::error::compilation_error::CompilationError::{MissingScope, MissingSymbolEntry, MissingVariable, UnsupportedType};
 use crate::error::context::Span;
 use crate::error::ok;
 use crate::interpreter::value::ValueType;
@@ -144,11 +144,19 @@ impl BytecodeGen {
         self.push_insn(IfNe(0));
     }
 
-    pub fn push_scope_exit_insn(&mut self) {
+    pub fn push_scope_exit_insn(&mut self) -> EmptyRes {
         let ind = self.index();
-        self.scopes.last_mut().unwrap().exit_points.push(ind);
+        
+        if let Some(last) = self.scopes.last_mut() {
+            last.exit_points.push(ind);
 
-        self.push_insn(Goto(0));
+            self.push_insn(Goto(0));
+            
+            ok()
+        } else {
+            Err(MissingScope)
+        }
+
     }
 
     pub fn push_loop_exit_insn(&mut self) {
@@ -166,9 +174,15 @@ impl BytecodeGen {
         panic!();
     }
 
-    pub fn push_goto_scope_start_insn(&mut self) {
-        let offset = self.scopes.last().unwrap().start_index - self.index() - 1;
-        self.push_insn(Goto(offset))
+    pub fn push_goto_scope_start_insn(&mut self) -> EmptyRes {
+        if let Some(last) = self.scopes.last() {
+            let offset = last.start_index - self.index() - 1;
+            self.push_insn(Goto(offset));
+            
+            ok()
+        } else {
+            Err(MissingScope)
+        }
     }
 
     pub fn push_goto_loop_start_insn(&mut self) {
@@ -191,7 +205,11 @@ impl BytecodeGen {
     }
 
     pub fn end_scope(&mut self) -> EmptyRes {
-        let scope = self.scopes.pop().unwrap();
+        let scope = if let Some(s) = self.scopes.pop() {
+            s
+        } else {
+            return Err(MissingScope);
+        };
 
         for i in scope.exit_points {
             let end_offset = self.index() - i - 1;
@@ -220,32 +238,40 @@ impl BytecodeGen {
     }
 
     pub fn get_scope_start_offset(&self) -> Result<i32, CompilationError> {
-        if self.scopes.is_empty() {
-            return Err(MissingScope);
+        if let Some(last) = self.scopes.last() {
+            Ok(last.start_index - self.index() - 1)
+        } else {
+            Err(MissingScope)
         }
-
-        let last = self.scopes.last().unwrap();
-
-        Ok(last.start_index - self.index() - 1)
     }
 
-    pub fn fn_start(&mut self, name: String) {
+    pub fn fn_start(&mut self, name: String) -> EmptyRes {
         assert!(self.to_box.is_empty());
+        
+        if let Some(fun) = self.functions.get(&name) { 
+            self.functions.insert(name, FunctionInfo {
+                index: fun.index,
+                params_len: fun.params_len,
+                start: self.instructions.len() as u32,
+                end: 0
+            });
 
-        let fun = self.functions.get(&name).unwrap();
-        self.functions.insert(name, FunctionInfo{
-            index: fun.index,
-            params_len: fun.params_len,
-            start: self.instructions.len() as u32,
-            end: 0
-        });
-
-        self.new_scope();
-        self.push_insn(StackFrame(0));
+            self.new_scope();
+            self.push_insn(StackFrame(0));
+            
+            ok()
+        } else {
+            Err(MissingSymbolEntry(name))
+        }
     }
 
     pub fn fn_end(&mut self, name: String, registry: &TypeRegistry) -> EmptyRes {
-        let fun = self.functions.get(&name).unwrap();
+        let fun = if let Some(f) = self.functions.get(&name) {
+            f
+        } else {
+            return Err(MissingSymbolEntry(name));
+        };
+        
         self.functions.insert(name, FunctionInfo{
             index: fun.index,
             params_len: fun.params_len,
@@ -253,7 +279,11 @@ impl BytecodeGen {
             end: self.instructions.len() as u32
         });
 
-        let scope = self.scopes.last().unwrap();
+        let scope = if let Some(s) =  self.scopes.last() {
+            s
+        } else {
+            return Err(MissingScope);
+        };
 
         let frame_ind = scope.start_index;
 
@@ -557,7 +587,11 @@ impl BytecodeGen {
 
     fn store(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) -> EmptyRes {
         if self.symbol_table.contains(&name) {
-            let ind = self.symbol_table.get(&name).unwrap();
+            let ind = if let Some(i) = self.symbol_table.get(&name) {
+                i
+            } else {
+                return Err(MissingSymbolEntry(name));
+            };
 
             self.push_insn(create_store(ind));
         } else {
@@ -576,7 +610,7 @@ impl BytecodeGen {
             AstType::EnumType { .. } |
             AstType::ArrayType { .. } |
             AstType::StringType |
-            AstType::TupleType(..) => self.store_new(name, |i| Store(i)),
+            AstType::TupleType(..) => self.store_new(name, |i| Store(i))?,
 
             _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
         };
@@ -586,13 +620,13 @@ impl BytecodeGen {
 
     pub fn store_new_var(&mut self, name: String, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
         match value.get(registry) {
-            AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i)),
-            AstType::Float => self.store_new(name, |i| Store(i)),
-            AstType::NullableType { .. } => self.store_new(name, |i| Store(i)),
-            AstType::StructType { .. } => self.store_new(name, |i| Store(i)),
-            AstType::EnumType { .. } => self.store_new(name, |i| Store(i)),
-            AstType::StringType => self.store_new(name, |i| Store(i)),
-            AstType::ArrayType { .. } => self.store_new(name, |i| Store(i)),
+            AstType::Bool | AstType::Int => self.store_new(name, |i| Store(i))?,
+            AstType::Float => self.store_new(name, |i| Store(i))?,
+            AstType::NullableType { .. } => self.store_new(name, |i| Store(i))?,
+            AstType::StructType { .. } => self.store_new(name, |i| Store(i))?,
+            AstType::EnumType { .. } => self.store_new(name, |i| Store(i))?,
+            AstType::StringType => self.store_new(name, |i| Store(i))?,
+            AstType::ArrayType { .. } => self.store_new(name, |i| Store(i))?,
             AstType::TupleType(arr) => {
                 self.scope_local_count += (arr.len() as u16) + 1;
 
@@ -604,7 +638,7 @@ impl BytecodeGen {
 
                 self.create_stack_ptr(arr.len() as u16);
 
-                self.store_new(name, |i| Store(i))
+                self.store_new(name, |i| Store(i))?
             },
 
             _ => return Err(CompilationError::unsupported_type(value.get(registry), registry))
@@ -613,12 +647,16 @@ impl BytecodeGen {
         ok()
     }
     
-    fn store_new(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) {
+    fn store_new(&mut self, name: String, create_store: impl Fn(u16) -> ByteCode) -> EmptyRes {
         if self.symbol_table.contains_in_current(&name) {
-            let ind = self.symbol_table.get(&name).unwrap();
+            let ind = if let Some(i) =  self.symbol_table.get(&name) {
+                i
+            } else {
+                return Err(MissingSymbolEntry(name));
+            };
 
             self.push_insn(create_store(ind));
-            return;
+            return ok();
         }
         
         self.push_insn(create_store(self.scope_local_count));
@@ -628,6 +666,8 @@ impl BytecodeGen {
         self.scope_local_count += 1;
 
         self.symbol_table.record(name, ind);
+        
+        ok()
     }
 
     pub fn store_internal(&mut self, create_store: impl Fn(u16) -> ByteCode) {
@@ -644,28 +684,24 @@ impl BytecodeGen {
         self.push_insn(CreateStackPtr {offset, consume_words});
     }
 
-    pub fn i_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(&name).unwrap();
+    pub fn load(&mut self, name: String) -> EmptyRes {
+        if let Some(ind) = self.symbol_table.get(&name) {
+            self.push_insn(Load(ind));
 
-        self.push_insn(Load(ind));
+            ok()
+        } else {
+            Err(MissingSymbolEntry(name))
+        }
     }
 
-    pub fn f_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(&name).unwrap();
-
-        self.push_insn(Load(ind));
-    }
-
-    pub fn a_load(&mut self, name: String) {
-        let ind = self.symbol_table.get(&name).unwrap();
-
-        self.push_insn(Load(ind));
-    }
-
-    pub fn call(&mut self, name: &String) {
-        let info = self.functions.get(name).unwrap();
-
-        self.push_insn(Call(info.index));
+    pub fn call(&mut self, name: &String) -> EmptyRes {
+        if let Some(info) = self.functions.get(name) {
+            self.push_insn(Call(info.index));
+            
+            ok()
+        } else {
+            Err(MissingSymbolEntry(name.clone()))
+        }
     }
 
     pub fn ret(&mut self, amount: u32) {

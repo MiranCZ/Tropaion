@@ -16,7 +16,7 @@ pub fn implement_functions(registry: &TypeRegistry, bytecode_gen: &mut BytecodeG
 }
 
 fn implement_int(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("int_f".to_string());
+    generator.fn_start("int_f".to_string())?;
     generator.f2i();
     generator.ret(1);
     generator.fn_end("int_f".to_string(), registry)?;
@@ -25,7 +25,7 @@ fn implement_int(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyR
 }
 
 fn implement_float(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("float_i".to_string());
+    generator.fn_start("float_i".to_string())?;
     generator.i2f();
     generator.ret(1);
     generator.fn_end("float_i".to_string(), registry)?;
@@ -34,12 +34,12 @@ fn implement_float(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Empt
 }
 
 fn implement_str(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("str_i".to_string());
+    generator.fn_start("str_i".to_string())?;
     generator.i2str();
     generator.ret(1);
     generator.fn_end("str_i".to_string(), registry)?;
 
-    generator.fn_start("str_f".to_string());
+    generator.fn_start("str_f".to_string())?;
     generator.f2str();
     generator.ret(1);
     generator.fn_end("str_f".to_string(), registry)?;
@@ -48,18 +48,18 @@ fn implement_str(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyR
 }
 
 fn implement_print(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("print_s".to_string());
+    generator.fn_start("print_s".to_string())?;
     generator.print();
     generator.ret(0);
     generator.fn_end("print_s".to_string(), registry)?;
 
-    generator.fn_start("print_i".to_string());
+    generator.fn_start("print_i".to_string())?;
     generator.i2str();
     generator.print();
     generator.ret(0);
     generator.fn_end("print_i".to_string(), registry)?;
 
-    generator.fn_start("print_f".to_string());
+    generator.fn_start("print_f".to_string())?;
     generator.f2str();
     generator.print();
     generator.ret(0);
@@ -69,16 +69,16 @@ fn implement_print(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Empt
 }
 
 fn implement_panic(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("panic_s".to_string());
+    generator.fn_start("panic_s".to_string())?;
     generator.panic();
     generator.fn_end("panic_s".to_string(), registry)?;
 
-    generator.fn_start("panic_i".to_string());
+    generator.fn_start("panic_i".to_string())?;
     generator.i2str();
     generator.panic();
     generator.fn_end("panic_i".to_string(), registry)?;
 
-    generator.fn_start("panic_f".to_string());
+    generator.fn_start("panic_f".to_string())?;
     generator.f2str();
     generator.panic();
     generator.fn_end("panic_f".to_string(), registry)?;
@@ -87,7 +87,7 @@ fn implement_panic(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Empt
 }
 
 fn implement_load_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("address$__load_at_i".to_string());
+    generator.fn_start("address$__load_at_i".to_string())?;
     generator.load_var_offset()?;
     generator.ret(1);
     generator.fn_end("address$__load_at_i".to_string(), registry)?;
@@ -96,7 +96,7 @@ fn implement_load_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Em
 }
 
 fn implement_store_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("address$__store_at_i?".to_string());
+    generator.fn_start("address$__store_at_i?".to_string())?;
 
     generator.swap();
     generator.store_internal(|i| { Store(i) });
@@ -110,7 +110,7 @@ fn implement_store_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> E
 }
 
 fn implement_heap_alloc(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("__heap_alloc_i".to_string());
+    generator.fn_start("__heap_alloc_i".to_string())?;
 
     generator.dyn_heap_alloc();
 

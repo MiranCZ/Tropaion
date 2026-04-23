@@ -107,14 +107,14 @@ impl TypedExpr {
                 match t.get(registry) {
                     AstType::Bool |
                     AstType::EnumType {..} |
-                    AstType::Int => generator.i_load(name.clone()),
-                    AstType::Float => generator.f_load(name.clone()),
+                    AstType::Int => generator.load(name.clone())?,
+                    AstType::Float => generator.load(name.clone())?,
                     AstType::StructType { .. } |
                     AstType::ArrayType { .. } |
                     AstType::StringType |
-                    AstType::TupleType { .. } => generator.a_load(name.clone()),
+                    AstType::TupleType { .. } => generator.load(name.clone())?,
                     AstType::NullableType {underlying: t} => {
-                        generator.a_load(name.clone());
+                        generator.load(name.clone())?;
 
 
 
@@ -217,7 +217,7 @@ impl TypedExpr {
                         generator.pop_insn();
 
                         generator.new_scope();
-                        generator.push_scope_exit_insn();
+                        generator.push_scope_exit_insn()?;
 
 
                         if let NullableType {underlying} = left.get_type().get(registry) {
@@ -315,7 +315,7 @@ impl TypedExpr {
                         generator.pop_insn();
                         generator.new_scope();
 
-                        generator.push_scope_exit_insn();
+                        generator.push_scope_exit_insn()?;
 
                         generator.pop(); // the address was duplicated for comparison, that was null, so the other is not needed
                         generator.null_ptr();
@@ -374,7 +374,7 @@ impl TypedExpr {
                     for a in args {
                         a.generate_bytecode(registry, generator, Load)?;
                     }
-                    generator.call(&name);
+                    generator.call(&name)?;
                 }
 
                 AstType::StructType {.. } => {
@@ -458,7 +458,7 @@ impl TypedExpr {
                 let value = children.get(name);
 
                 if let Some(member) = value {
-                    generator.call(&member.name);
+                    generator.call(&member.name)?;
                 } else {
                     return Err(MemberNotFound(name.clone()));
                 }
@@ -523,7 +523,7 @@ impl TypedExpr {
 
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
-                generator.a_load(name.clone());
+                generator.load(name.clone())?;
 
                 load_from_ref(registry, generator, &index, t)?;
             }
@@ -569,7 +569,7 @@ impl TypedExpr {
 
         match &self.node {
             Expression::IdentifierExpr(t, name) => {
-                generator.a_load(name.clone());
+                generator.load(name.clone())?;
 
                 store_from_ref(registry, generator,index, t)?;
             }

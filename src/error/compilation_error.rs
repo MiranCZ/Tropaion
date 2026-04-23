@@ -53,6 +53,9 @@ pub enum CompilationError {
 
     #[error("Int constant of '{0}' does not fit integer bounds ({min} < n < {max})", min=i32::MIN, max=i32::MAX)]
     IntOutOfBounds(i64),
+    
+    #[error("Entry '{0}' was not found in the symbol table")]
+    MissingSymbolEntry(String),
 
     #[error("Internal error: {0}")]
     InternalError(String)
