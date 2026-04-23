@@ -54,7 +54,6 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         let owner = self.owner_table.get_or(name, String::new());
 
         *name = mangle_name(self.registry, name.clone(), owner.clone(), params);
-        println!("MANGLED INTO {name}");
 
         for s in body {
             s.walk_visit_mut(self);
