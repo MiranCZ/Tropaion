@@ -15,6 +15,8 @@ use crate::memory_blob::MemoryBlob;
 use crate::parser::Parser;
 use crate::util::arg_convertor::ValueConvertable;
 use intrinsics::builtins::builtin_injector::inject_builtins;
+use crate::error::error_type::ErrorType;
+use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 
 pub mod lexer;
 pub mod parser;
@@ -29,6 +31,9 @@ mod intrinsics;
 #[cfg(test)]
 mod testing;
 pub mod memory_blob;
+
+pub type RunResult = Result<MemoryBlob, ErrorType<Errors<Box<dyn Error>>, RuntimeErrorContext>>;
+
 
 pub fn lex_code(code: &mut String) -> (Vec<TokenInfo>, Errors<LexerError>) {
     inject_builtins(code);
@@ -102,7 +107,7 @@ pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Err
     unreachable!()
 }
 
-pub fn run_compiled(interpreter: &mut Interpreter, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+pub fn run_compiled(interpreter: &mut Interpreter, entry_point: &str, args: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, RuntimeErrorContext> {
     let mut mangled = format!("{entry_point}_");
 
     for a in args.iter() {
@@ -113,25 +118,25 @@ pub fn run_compiled(interpreter: &mut Interpreter, entry_point: &str, args: Vec<
 }
 
 
-pub fn run_code(code: String, entry_point: &str) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+pub fn run_code(code: String, entry_point: &str) -> RunResult {
     run_code_with_out(code, entry_point, &mut stdout())
 }
 
-pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
+pub fn run_code_with_out(code: String, entry_point: &str, out: &mut impl Write) -> RunResult {
     run_code_with_args(code, entry_point, vec![], out)
 }
 
-pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, Errors<Box<dyn Error>>> {
-    let compilation_result = compile(code)?;
+pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> RunResult {
+    let compilation_result = match compile(code) {
+        Ok(v) => v,
+        Err(e) => return Err(ErrorType::COMPILETIME(e))
+    };
 
     let run_result =  run_compiled(&mut Interpreter::new(compilation_result), entry_point, arguments, out);
 
     match run_result {
         Ok(value) => Ok(value),
-        Err(err) => {
-            let ctx: ErrorContext<Box<dyn Error>> = ErrorContext { error: Box::new(err.error), span_type: err.span_type, message: err.message };
-            Err(vec![ctx])
-        }
+        Err(err) => Err(ErrorType::RUNTIME(err))
     }
 }
 

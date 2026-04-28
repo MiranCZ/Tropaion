@@ -6,6 +6,7 @@ pub mod runtime_error;
 pub mod compilation_error;
 pub mod analysis_error;
 pub mod context;
+pub mod error_type;
 
 pub fn ok<T>() -> Result<(), T>{
     Ok(())

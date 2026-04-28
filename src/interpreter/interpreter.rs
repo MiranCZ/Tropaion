@@ -7,12 +7,13 @@ use crate::ast::ast_type::AstType::Bool;
 use crate::compiler::bytecode::ByteCode;
 use crate::compiler::codegen::FunctionInfo;
 use crate::compiler::compiler::CompilationResult;
-use crate::error::context::ErrorContext;
+use crate::error::context::{ErrorContext, SpanType};
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
 use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, InternalError, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::heap::Heap;
+use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
 use crate::interpreter::value::Value::{CharValue, FloatValue, IntValue, Null, RefValue};
@@ -68,7 +69,7 @@ pub struct Interpreter {
     pointer: usize,
     stack: Vec<Value>,
     stack_frames: Vec<StackFrame>,
-    call_stack: Vec<usize>,
+    call_stack: Vec<(usize, u16)>,
     heap: Heap
 }
 
@@ -109,7 +110,7 @@ impl Interpreter {
     }
 
 
-    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, ErrorContext<RuntimeError>> {
+    pub fn run_function(&mut self, function: String, arguments: Vec<ValueConvertable>, out: &mut impl Write) -> Result<MemoryBlob, RuntimeErrorContext> {
         self.stack_frames.clear();
         self.call_stack.clear();
         self.pointer = 1;
@@ -121,8 +122,41 @@ impl Interpreter {
             return Ok(v);
         } else if let Err(e) = res {
             let line_num = self.line_maps[min(self.insn_addr, self.line_maps.len()-1)];
+            println!("CALLSTACK SIZE {}",self.call_stack.len());
+            println!("{} : {} : {}",self.insn_addr, self.instructions.len(), line_num);
 
-            return Err(ErrorContext::line(e, line_num));
+            let mut call_stack = vec![];
+            if !self.call_stack.is_empty() {
+                let iter = self.call_stack.iter();
+
+                let mut prev_name = "unknown".to_string();
+                for (line, fn_index) in iter {
+                    let line_num = self.line_maps[min(*line, self.line_maps.len() - 1)];
+
+                    println!("line: {}", line_num);
+
+                    let mut name = "unknown".to_string();
+
+                    for (fn_name, info) in &self.function_mapping {
+                        if info.index == *fn_index {
+                            name = fn_name.clone();
+                            break;
+                        }
+                    }
+
+                    call_stack.push((prev_name, line_num));
+                    prev_name = name;
+                }
+            }
+
+            call_stack.reverse();
+            call_stack.pop(); // pops the "unknown" start call
+
+            return Err(RuntimeErrorContext::new(
+                    ErrorContext::line(e, line_num),
+                    call_stack
+                )
+            );
         }
 
         panic!()
@@ -807,7 +841,7 @@ impl Interpreter {
     fn call(&mut self, fn_index: u16) -> Res {
         let info = self.functions[fn_index as usize];
 
-        self.call_stack.push(self.insn_addr);
+        self.call_stack.push((self.insn_addr, info.index));
 
         let size = info.params_len as usize;
 
@@ -865,7 +899,7 @@ impl Interpreter {
 
         let return_address = self.call_stack.pop();
 
-        if let Some(addr) = return_address {
+        if let Some((addr, _)) = return_address {
             self.insn_addr = addr;
         } else {
             return Err(EmptyCallstack);
