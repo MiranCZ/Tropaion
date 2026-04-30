@@ -8,13 +8,13 @@ use crate::util::ast_printer::AstPrinter;
 #[test]
 pub fn main() {
     let text = r#"
-    fn stuff() {
-        let v = Vec();
-        v.get(1);
-    }
-
     fn main() -> int {
-        stuff();
+        let i = 0;
+        while true {
+            print(i);
+            i++;
+        }
+
         return 0;
     }
     "#;

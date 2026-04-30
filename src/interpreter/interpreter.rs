@@ -10,8 +10,9 @@ use crate::compiler::compiler::CompilationResult;
 use crate::error::context::{ErrorContext, SpanType};
 use crate::error::ok;
 use crate::error::runtime_error::{RuntimeError, ValueTypeVariant};
-use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionPtrOverflow, InstructionPtrUnderflow, InternalError, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
+use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound, IllegalAllocSize, IllegalAssignment, InstructionCostExceeded, InstructionPtrOverflow, InstructionPtrUnderflow, InternalError, NullPtrDeref, StackFrameExpected, StackFrameMissing, StackOverflow, StackUnderflow, TypeMismatch, UnexpectedStackFrame};
 use crate::error::runtime_error::ValueTypeVariant::Number;
+use crate::interpreter::bytecode_counter;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 use crate::interpreter::value::Value;
@@ -53,6 +54,7 @@ macro_rules! cmp_op {
 
 
 const STACK_SIZE: usize = 1_000_000;
+const MAX_INSTRUCTION_COST: usize = 1_000_000;
 
 struct StackFrame {
     start: usize,
@@ -185,11 +187,18 @@ impl Interpreter {
         self.call(fun.index)?;
         self.insn_addr += 1;
 
+        let mut cost = 0;
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
             // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
             // println!("\t{insn:?}\n");
+
+            cost += bytecode_counter::get_count(&insn, &self);
+
+            if (cost as usize) > MAX_INSTRUCTION_COST {
+                return Err(InstructionCostExceeded(MAX_INSTRUCTION_COST));
+            }
 
             self.execute(insn, out)?;
             self.insn_addr += 1;

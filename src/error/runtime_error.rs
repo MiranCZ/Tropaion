@@ -79,6 +79,9 @@ pub enum RuntimeError {
     #[error("Expected stack to be empty but found a dangling value")]
     DanglingValue,
     
+    #[error("Instruction cost was exceeded (maximum: {0})")]
+    InstructionCostExceeded(usize),
+    
     #[error("Internal error: {0}")]
     InternalError(String)
 }
