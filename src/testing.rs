@@ -12,6 +12,7 @@ pub fn main() {
     fn main() -> int {
         let i = 0;
         while true {
+            let vec = Vec();
             print(i);
             i++;
         }
@@ -106,7 +107,7 @@ fn interpret(mut text: String) {
 
     let points = vec![Point{x: 10, y: 66}, Point{x: 0, y:1}, Point{x: 100, y: 200}];
 
-    let mut interpret = InterpreterBuilder::new(compilation_res).build();
+    let mut interpret = InterpreterBuilder::new(compilation_res).heap_size(100).max_instruction_cost(10_000_000).build();
     let result = run_compiled(&mut interpret, "main", vec![], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {

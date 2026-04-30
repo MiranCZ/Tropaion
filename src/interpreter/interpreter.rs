@@ -62,7 +62,7 @@ pub struct Interpreter {
     stack_size: usize,
     heap_size: usize,
     max_instruction_cost: usize,
-    
+
     instructions: Vec<ByteCode>,
     line_maps: Vec<usize>,
     functions: Vec<FunctionInfo>,
@@ -99,7 +99,7 @@ impl Interpreter {
 
         Self {
             stack_size, heap_size, max_instruction_cost,
-            
+
             instructions: compilation_result.instructions,
             line_maps: compilation_result.lines,
             function_mapping: compilation_result.functions,
@@ -339,7 +339,7 @@ impl Interpreter {
     fn push_string(&mut self, value: String) -> Res {
         let chars = value.chars().collect::<Vec<char>>();
 
-        let ptr =self.heap.alloc(chars.len() as u32)?;
+        let ptr =self.heap.gc_alloc(chars.len() as u32, &self.stack[0..self.pointer])?;
 
         self.push(RefValue {ptr, len: chars.len() as u32})?;
 
@@ -708,7 +708,7 @@ impl Interpreter {
 
         let new_length = len_a + len_b;
 
-        let heap_ptr = self.heap.alloc(new_length)?;
+        let heap_ptr = self.heap.gc_alloc(new_length, &self.stack[0..self.pointer])?;
         let mut total_offset = 0;
 
         // copy over chars
@@ -931,7 +931,8 @@ impl Interpreter {
             return Ok(RefValue {ptr: *p, len});
         }
 
-        let promoted_ptr = heap.alloc(len)?;
+        println!("PROMOTING");
+        let promoted_ptr = heap.gc_alloc(len, &stack[0..(new_ptr as usize)])?;
 
         promoted.insert(ptr, promoted_ptr);
 
@@ -970,7 +971,7 @@ impl Interpreter {
     }
     
     fn heap_alloc(&mut self, size: u32) -> Res {
-        let ptr =self.heap.alloc(size)?;
+        let ptr =self.heap.gc_alloc(size, &self.stack[0..self.pointer])?;
 
         self.push(RefValue {ptr, len: size})?;
 
