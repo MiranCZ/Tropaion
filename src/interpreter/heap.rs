@@ -85,8 +85,6 @@ impl Heap {
             self.mark(i, stack, &mut used);
         }
 
-        println!("marked {used:?}");
-
         self.allocated.retain(|a| {
             if used.contains(&(a.ptr as u32)) {
                 true
@@ -152,7 +150,6 @@ impl Heap {
 
 
     fn find_space(&mut self, size: usize, stack: Option<&[Value]>) -> usize {
-        println!("find space");
         self._find_space(size, stack, true)
     }
 
@@ -181,9 +178,6 @@ impl Heap {
         if (prev.ptr + prev.len + size) >= self.heap_size && try_free && let Some(s) = stack {
             self.gc(s);
             return self._find_space(size, stack, false);
-        }
-        if (prev.ptr + prev.len + size) >= self.heap_size {
-            println!("OOM {try_free}, {stack:?}");
         }
 
         prev.ptr + prev.len

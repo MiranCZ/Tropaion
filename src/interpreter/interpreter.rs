@@ -931,7 +931,6 @@ impl Interpreter {
             return Ok(RefValue {ptr: *p, len});
         }
 
-        println!("PROMOTING");
         let promoted_ptr = heap.gc_alloc(len, &stack[0..(new_ptr as usize)])?;
 
         promoted.insert(ptr, promoted_ptr);
