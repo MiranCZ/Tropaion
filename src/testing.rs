@@ -2,6 +2,7 @@ use crate::analysis::type_registry::TypeRegistry;
 use crate::{compile, compile_typed, lex_code, parse_tokens, resolve_types, run_compiled};
 use std::time::Instant;
 use crate::interpreter::interpreter::Interpreter;
+use crate::interpreter::interpreter_builder::InterpreterBuilder;
 use crate::util::arg_convertor::{into_arg, struct_convertor, ValueConvertable, ValueLike};
 use crate::util::ast_printer::AstPrinter;
 
@@ -104,7 +105,9 @@ fn interpret(mut text: String) {
 
 
     let points = vec![Point{x: 10, y: 66}, Point{x: 0, y:1}, Point{x: 100, y: 200}];
-    let result = run_compiled(&mut Interpreter::new(compilation_res), "main", vec![], &mut std::io::stdout());
+
+    let mut interpret = InterpreterBuilder::new(compilation_res).build();
+    let result = run_compiled(&mut interpret, "main", vec![], &mut std::io::stdout());
 
     let result = if let Ok(r) = result {
         r

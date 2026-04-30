@@ -16,6 +16,7 @@ use crate::parser::Parser;
 use crate::util::arg_convertor::ValueConvertable;
 use intrinsics::builtins::builtin_injector::inject_builtins;
 use crate::error::error_type::ErrorType;
+use crate::interpreter::interpreter_builder::InterpreterBuilder;
 use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 
 pub mod lexer;
@@ -132,7 +133,8 @@ pub fn run_code_with_args(code: String, entry_point: &str, arguments: Vec<ValueC
         Err(e) => return Err(ErrorType::COMPILETIME(e))
     };
 
-    let run_result =  run_compiled(&mut Interpreter::new(compilation_result), entry_point, arguments, out);
+    let mut interpreter = InterpreterBuilder::new(compilation_result).build();
+    let run_result =  run_compiled(&mut interpreter, entry_point, arguments, out);
 
     match run_result {
         Ok(value) => Ok(value),

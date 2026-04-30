@@ -53,15 +53,16 @@ macro_rules! cmp_op {
 }
 
 
-const STACK_SIZE: usize = 1_000_000;
-const MAX_INSTRUCTION_COST: usize = 1_000_000;
-
 struct StackFrame {
     start: usize,
     len: usize
 }
 
 pub struct Interpreter {
+    stack_size: usize,
+    heap_size: usize,
+    max_instruction_cost: usize,
+    
     instructions: Vec<ByteCode>,
     line_maps: Vec<usize>,
     functions: Vec<FunctionInfo>,
@@ -82,7 +83,7 @@ type ValueRes = Result<Value, RuntimeError>;
 impl Interpreter {
 
 
-    pub fn new(compilation_result: CompilationResult) -> Self {
+    pub fn new(compilation_result: CompilationResult, stack_size: usize, heap_size: usize, max_instruction_cost: usize,) -> Self {
         let mut functions = Vec::with_capacity(compilation_result.functions.len());
         functions.resize(compilation_result.functions.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
 
@@ -93,10 +94,12 @@ impl Interpreter {
             functions[f.index as usize] = *f;
         }
 
-        let mut stack = Vec::with_capacity(STACK_SIZE);
-        stack.resize(STACK_SIZE, Null);
+        let mut stack = Vec::with_capacity(stack_size);
+        stack.resize(stack_size, Null);
 
         Self {
+            stack_size, heap_size, max_instruction_cost,
+            
             instructions: compilation_result.instructions,
             line_maps: compilation_result.lines,
             function_mapping: compilation_result.functions,
@@ -107,7 +110,7 @@ impl Interpreter {
             stack,
             stack_frames: vec![],
             call_stack: vec![],
-            heap: Heap::new(STACK_SIZE)
+            heap: Heap::new(stack_size, heap_size)
         }
     }
 
@@ -168,7 +171,7 @@ impl Interpreter {
         let mut converted_args = vec![];
 
         for a in arguments {
-            for value in a.into_value(self) {
+            for value in a.into_value(self)? {
                 converted_args.push(value);
             }
         }
@@ -196,8 +199,8 @@ impl Interpreter {
 
             cost += bytecode_counter::get_count(&insn, &self);
 
-            if (cost as usize) > MAX_INSTRUCTION_COST {
-                return Err(InstructionCostExceeded(MAX_INSTRUCTION_COST));
+            if (cost as usize) > self.max_instruction_cost {
+                return Err(InstructionCostExceeded(self.max_instruction_cost));
             }
 
             self.execute(insn, out)?;
@@ -336,7 +339,7 @@ impl Interpreter {
     fn push_string(&mut self, value: String) -> Res {
         let chars = value.chars().collect::<Vec<char>>();
 
-        let ptr =self.heap.alloc(chars.len() as u32);
+        let ptr =self.heap.alloc(chars.len() as u32)?;
 
         self.push(RefValue {ptr, len: chars.len() as u32})?;
 
@@ -510,7 +513,7 @@ impl Interpreter {
     }
 
     fn _load_at_ptr(&self, ptr: usize) -> Value {
-        if ptr < STACK_SIZE {
+        if ptr < self.stack_size {
             self.stack[ptr]
         } else {
             self.heap.load(ptr as u32, 0)
@@ -518,7 +521,7 @@ impl Interpreter {
     }
 
     fn store_at_ptr(&mut self, ptr: usize, value: Value) {
-        if ptr < STACK_SIZE {
+        if ptr < self.stack_size {
             self.stack[ptr] = value;
         } else {
             self.heap.store(ptr as u32, 0, value);
@@ -705,7 +708,7 @@ impl Interpreter {
 
         let new_length = len_a + len_b;
 
-        let heap_ptr = self.heap.alloc(new_length);
+        let heap_ptr = self.heap.alloc(new_length)?;
         let mut total_offset = 0;
 
         // copy over chars
@@ -893,7 +896,7 @@ impl Interpreter {
                 if let Some(promoted_ptr) = promoted.get(&ptr) {
                     v = RefValue {ptr: *promoted_ptr, len};
                 } else {
-                    v = Self::promote_ref(ptr, len, new_ptr, &mut self.heap, &self.stack, &mut promoted);
+                    v = Self::promote_ref(ptr, len, new_ptr, self.stack_size, &mut self.heap, &self.stack, &mut promoted)?;
                 }
             }
 
@@ -917,18 +920,18 @@ impl Interpreter {
         ok()
     }
 
-    fn promote_ref(ptr: u32, len: u32, new_ptr: u32, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Value {
-        if (ptr as usize) >= STACK_SIZE {
-            return RefValue {ptr,len};
+    fn promote_ref(ptr: u32, len: u32, new_ptr: u32, stack_size: usize, heap: &mut Heap, stack: &Vec<Value>, promoted: &mut HashMap<u32, u32>) -> Result<Value, RuntimeError> {
+        if (ptr as usize) >= stack_size {
+            return Ok(RefValue {ptr,len});
         }
 
         let mut values = Vec::with_capacity(len as usize);
 
         if let Some(p) = promoted.get(&ptr) {
-            return RefValue {ptr: *p, len};
+            return Ok(RefValue {ptr: *p, len});
         }
 
-        let promoted_ptr = heap.alloc(len);
+        let promoted_ptr = heap.alloc(len)?;
 
         promoted.insert(ptr, promoted_ptr);
 
@@ -939,7 +942,7 @@ impl Interpreter {
             let mut v = stack[i];
 
             if let RefValue {ptr, len} = v && ptr >= new_ptr {
-                v = Self::promote_ref(ptr, len, new_ptr, heap, stack, promoted);
+                v = Self::promote_ref(ptr, len, new_ptr, stack_size, heap, stack, promoted)?;
             }
 
             values.push(v);
@@ -949,7 +952,7 @@ impl Interpreter {
             heap.store(promoted_ptr, i, values[i as usize]);
         }
 
-        RefValue { ptr: promoted_ptr, len }
+        Ok(RefValue { ptr: promoted_ptr, len })
     }
 
     fn dyn_heap_alloc(&mut self) -> Res {
@@ -967,7 +970,7 @@ impl Interpreter {
     }
     
     fn heap_alloc(&mut self, size: u32) -> Res {
-        let ptr =self.heap.alloc(size);
+        let ptr =self.heap.alloc(size)?;
 
         self.push(RefValue {ptr, len: size})?;
 

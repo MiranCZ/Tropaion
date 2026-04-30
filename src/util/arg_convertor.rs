@@ -1,5 +1,6 @@
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression::int;
+use crate::error::runtime_error::RuntimeError;
 use crate::interpreter::interpreter::Interpreter;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::Value::{FloatValue, IntValue, RefValue};
@@ -38,31 +39,31 @@ impl ValueConvertable {
         }
     }
 
-    pub fn into_value(self, interpreter: &mut Interpreter) -> Vec<Value> {
+    pub fn into_value(self, interpreter: &mut Interpreter) -> Result<Vec<Value>, RuntimeError> {
         match self {
-            IntValueConv(i) => vec![IntValue(i)],
-            FloatValueConv(f) => vec![FloatValue(f)],
+            IntValueConv(i) => Ok(vec![IntValue(i)]),
+            FloatValueConv(f) => Ok(vec![FloatValue(f)]),
             StructValueConv(_, values) |
             TupleValueConv(values) => {
                 let len = values.len() as u32;
 
                 let mut ptr = interpreter.stack_top() as usize;
                 for _ in 0..values.len() {
-                    unsafe{interpreter.push_to_stack(Value::Null).unwrap();}
+                    unsafe{interpreter.push_to_stack(Value::Null)?;}
                 }
 
                 let rf = RefValue {ptr: interpreter.stack_top()-(values.len() as u32), len};
 
                 for x in values {
-                    let value = x.into_value(interpreter);
+                    let value = x.into_value(interpreter)?;
 
                     for v in value {
-                        unsafe {interpreter.write_stack_at(v, ptr).unwrap()};
+                        unsafe {interpreter.write_stack_at(v, ptr)?};
                         ptr += 1;
                     }
                 }
 
-                vec![rf]
+                Ok(vec![rf])
             }
             VecValueConv(values) => {
                 // vector is ptr -> (capacity, len, arr_ptr)
@@ -72,20 +73,20 @@ impl ValueConvertable {
                 let length = values.len();
 
 
-                unsafe{interpreter.push_to_stack(IntValue(capacity as i32)).unwrap();}
-                unsafe{interpreter.push_to_stack(IntValue(length as i32)).unwrap();}
+                unsafe{interpreter.push_to_stack(IntValue(capacity as i32))?;}
+                unsafe{interpreter.push_to_stack(IntValue(length as i32))?;}
 
-                let arr_ptr = unsafe {interpreter.get_heap().alloc(values.len() as u32)};
+                let arr_ptr = unsafe {interpreter.get_heap().alloc(values.len() as u32)?};
 
                 let ptr = RefValue {ptr, len: 3};
                 let arr_ptr_value = RefValue {ptr: arr_ptr, len: capacity as u32};
 
 
-                unsafe{interpreter.push_to_stack(arr_ptr_value).unwrap();}
+                unsafe{interpreter.push_to_stack(arr_ptr_value)?;}
 
                 let mut offset = 0;
                 for x in values {
-                    let value = x.into_value(interpreter);
+                    let value = x.into_value(interpreter)?;
 
                     for v in value {
                         unsafe {interpreter.get_heap().store(arr_ptr, offset, v)}
@@ -93,7 +94,7 @@ impl ValueConvertable {
                     }
                 }
 
-                vec![ptr]
+                Ok(vec![ptr])
             }
         }
     }

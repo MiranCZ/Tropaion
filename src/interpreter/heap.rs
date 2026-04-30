@@ -1,7 +1,8 @@
+use crate::error::runtime_error::RuntimeError;
+use crate::error::runtime_error::RuntimeError::OutOfMemory;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::Value::Null;
 
-const MAX_HEAP_SIZE: usize = 500_000_000;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct AllocInfo {
@@ -11,6 +12,8 @@ struct AllocInfo {
 
 #[derive(Debug)]
 pub struct Heap {
+    heap_size: usize,
+    
     mem: Vec<Value>,
     ptr_offset: usize,
 
@@ -18,27 +21,31 @@ pub struct Heap {
 }
 
 impl Heap {
-    pub fn new(ptr_offset: usize) -> Self {
+    pub fn new(ptr_offset: usize, heap_size: usize) -> Self {
         let mem = Vec::with_capacity(1000);
 
         Self {
-            mem, ptr_offset,
+            heap_size, mem, ptr_offset,
 
             allocated: vec![]
         }
     }
 
-    pub fn alloc(&mut self, size: u32) -> u32 {
+    pub fn alloc(&mut self, size: u32) -> Result<u32, RuntimeError> {
         let ptr = self.find_space(size as usize);
 
         self.allocated.push(AllocInfo{
             ptr,
             len: size as usize
         });
+        
+        if ptr + (size as usize) > self.heap_size {
+            return Err(OutOfMemory);
+        }
 
         self.allocated.sort_by_key(|i| i.ptr);
 
-        self.abs_ptr(ptr) as u32
+        Ok(self.abs_ptr(ptr) as u32)
     }
 
     pub fn free(&mut self, ptr: u32) {
@@ -119,9 +126,9 @@ mod test {
 
     #[test]
     fn test_offset() {
-        let mut heap = Heap::new(20);
+        let mut heap = Heap::new(20, 100);
 
-        let ptr = heap.alloc(7);
+        let ptr = heap.alloc(7).unwrap();
 
         assert_eq!(ptr, 20);
 
@@ -130,16 +137,16 @@ mod test {
 
     #[test]
     fn test_alloc() {
-        let mut heap = Heap::new(0);
+        let mut heap = Heap::new(0, 100);
 
         let value1 = IntValue(5);
         let value2 = IntValue(10);
 
-        let ptr = heap.alloc(5);
+        let ptr = heap.alloc(5).unwrap();
 
         heap.store(ptr, 1, value1);
 
-        let ptr2 = heap.alloc(1);
+        let ptr2 = heap.alloc(1).unwrap();
         heap.store(ptr2, 0, value2);
 
         assert!(heap.mem.len() > 5);
@@ -155,17 +162,17 @@ mod test {
 
     #[test]
     fn test_free() {
-        let mut heap = Heap::new(0);
+        let mut heap = Heap::new(0, 100);
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
-        let mid = heap.alloc(7);
+        let mid = heap.alloc(7).unwrap();
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
         heap.free(mid);
 
-        let ptr = heap.alloc(4);
+        let ptr = heap.alloc(4).unwrap();
 
         assert_eq!(ptr, 10);
 
@@ -174,17 +181,17 @@ mod test {
 
     #[test]
     fn test_free2() {
-        let mut heap = Heap::new(0);
+        let mut heap = Heap::new(0, 100);
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
-        let mid = heap.alloc(7);
+        let mid = heap.alloc(7).unwrap();
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
         heap.free(mid);
 
-        let ptr = heap.alloc(7);
+        let ptr = heap.alloc(7).unwrap();
 
         assert_eq!(ptr, 10);
 
@@ -193,17 +200,17 @@ mod test {
 
     #[test]
     fn test_free3() {
-        let mut heap = Heap::new(0);
+        let mut heap = Heap::new(0, 100);
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
-        let mid = heap.alloc(7);
+        let mid = heap.alloc(7).unwrap();
 
-        heap.alloc(10);
+        heap.alloc(10).unwrap();
 
         heap.free(mid);
 
-        let ptr = heap.alloc(8);
+        let ptr = heap.alloc(8).unwrap();
 
         assert_eq!(ptr, 27);
 
