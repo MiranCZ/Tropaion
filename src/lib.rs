@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::io::{stdout, Write};
+use std::panic::catch_unwind;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::statement::{TypedStmt, UntypedStmt};
 use crate::compiler::compiler::{CompilationResult, Compiler};
@@ -8,16 +9,18 @@ use crate::error::compilation_error::CompilationError;
 use crate::error::context::{ErrorContext, Errors};
 use crate::error::lexer_error::LexerError;
 use crate::error::parser_error::ParserError;
-use crate::error::runtime_error::RuntimeError;
 use crate::interpreter::interpreter::Interpreter;
 use crate::lexer::{Lexer, TokenInfo};
 use crate::memory_blob::MemoryBlob;
 use crate::parser::Parser;
 use crate::util::arg_convertor::ValueConvertable;
 use intrinsics::builtins::builtin_injector::inject_builtins;
+use crate::error::analysis_error::AnalysisError::InternalError;
 use crate::error::error_type::ErrorType;
+use crate::error::state_error::StateError;
 use crate::interpreter::interpreter_builder::InterpreterBuilder;
 use crate::interpreter::runtime_error_context::RuntimeErrorContext;
+use crate::util::spanned::Spanned;
 
 pub mod lexer;
 pub mod parser;
@@ -67,7 +70,16 @@ pub fn compile_typed(typed: TypedStmt, registry: &mut TypeRegistry, code: &Strin
     comp.compile(registry)
 }
 
-pub fn compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
+
+pub fn compile(code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
+    let res = catch_unwind(|| _compile(code));
+
+    res.unwrap_or_else(
+        |_| Err(vec![ErrorContext::unknown(Box::new(StateError::InternalError))])
+    )
+}
+
+fn _compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();

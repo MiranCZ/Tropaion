@@ -7,10 +7,8 @@ pub mod compilation_error;
 pub mod analysis_error;
 pub mod context;
 pub mod error_type;
+pub mod state_error;
 
 pub fn ok<T>() -> Result<(), T>{
     Ok(())
 }
-
-// pub trait Error : Debug {
-// }
