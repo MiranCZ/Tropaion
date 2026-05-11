@@ -8,8 +8,6 @@ use crate::util::ast_printer::AstPrinter;
 
 #[test]
 pub fn main() {
-    unsafe {backtrace_on_stack_overflow::enable()}
-
     let text = r#"
     fn step(game: Game) -> Direction {
     let head = game.snake.head();

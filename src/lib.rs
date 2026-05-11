@@ -76,12 +76,11 @@ pub fn compile_typed(typed: TypedStmt, registry: &mut TypeRegistry, code: &Strin
 
 
 pub fn compile(code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
-    // let res = catch_unwind(|| _compile(code));
+    let res = catch_unwind(|| _compile(code));
 
-    // res.unwrap_or_else(
-    //     |_| Err(vec![ErrorContext::unknown(Box::new(StateError::InternalError))])
-    // )
-    _compile(code)
+    res.unwrap_or_else(
+        |_| Err(vec![ErrorContext::unknown(Box::new(StateError::InternalError))])
+    )
 }
 
 fn _compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Error>>> {
