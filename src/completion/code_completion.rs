@@ -94,10 +94,6 @@ impl <'a> Visitor<'a> for SymbolCollector<'a> {
         self.registry
     }
 
-    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
-        todo!()
-    }
-
     fn visit_var_declaration(&mut self, name: &String, is_const: &bool, value: &TypedExpr, _explicit_type: &Option<TypeEntry>, _span: Span) {
         // declared after cursor
         if value.span.from > self.cursor {

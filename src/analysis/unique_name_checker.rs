@@ -37,10 +37,6 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.registry
     }
 
-    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
-        self.registry
-    }
-
     fn visit_struct(&mut self, name: &String, _pc: &bool, _fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, _generics: &Vec<String>, _span: Span) {
         self.owners.push(name.clone());
 
@@ -103,9 +99,6 @@ impl <'a> Visitor<'a> for ClassLikeCollector<'a> {
         self.registry
     }
 
-    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
-        self.registry
-    }
 
     fn visit_expr(&mut self, _expr: &TypedExpr) {
     }

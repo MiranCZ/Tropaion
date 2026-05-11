@@ -32,6 +32,11 @@ fn generate_ast_walk(trait_name: &str, suffix: &str, borrow_type: BorrowType) ->
         BorrowMut => "_mut",
     };
 
+    let get_mut_registry = match borrow_type {
+        Borrow => "",
+        BorrowMut => r#"fn get_registry_mut<'b>(&'b mut self) -> &'b mut TypeRegistry;"#
+    };
+
     let type_entry_part =
         match borrow_type {
             BorrowType::Borrow => {r#"
@@ -81,7 +86,7 @@ use ordermap::OrderMap;
 pub trait {trait_name}<'a> where Self: Sized {{
 
     fn get_registry<'b>(&'b self) -> &'b TypeRegistry;
-    fn get_registry_mut<'b>(&'b mut self) -> &'b mut TypeRegistry;
+    {get_mut_registry}
 
     fn {suffix}_block(&mut self, body: {borrow}StatementBlock<TypeEntry>) {{
         for s in body {{ s.walk_{suffix}(self); }}

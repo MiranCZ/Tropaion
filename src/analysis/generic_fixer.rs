@@ -133,10 +133,6 @@ impl <'a> Visitor<'a> for GenericChecker<'a> {
         self.registry
     }
 
-    fn get_registry_mut(&mut self) -> &mut TypeRegistry {
-        self.registry
-    }
-
     fn visit_type(&mut self, typ: &TypeEntry) {
         if self.visited.contains(typ) {
             return;
