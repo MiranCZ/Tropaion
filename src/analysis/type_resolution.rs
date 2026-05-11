@@ -441,7 +441,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     fn fold_struct(&mut self, name: String, pc: bool, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<TypeEntry> {
         let mut typed_fields = vec![];
 
-        let struct_type = self.symbol_table.get(&name).unwrap();
+        let struct_type = if let Some(v) = self.symbol_table.get(&name) {
+            v
+        } else {
+            return self.error_stmt(AnalysisError::InternalError(format!("name {name} not found")), span);
+        };
 
         self.type_table.push();
         if let StructType {generics,..} = struct_type.get(self.registry) {
@@ -509,8 +513,12 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         StructStmt {name, fields: typed_fields, body: resolved_body, generics, public_constructor: pc}
     }
 
-    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<()>) -> FoldedStmt<TypeEntry> {
-        let enum_type = self.symbol_table.get(&name).unwrap();
+    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<()>, span: Span) -> FoldedStmt<TypeEntry> {
+        let enum_type = if let Some(v) = self.symbol_table.get(&name) {
+            v
+        } else {
+            return self.error_stmt(AnalysisError::InternalError(format!("name {name} not found")), span);
+        };
 
         self.symbol_table.push();
 
@@ -747,6 +755,9 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
     fn fold_member(&mut self, t: (), member: Box<Spanned<Expression<()>>>, property: Box<Spanned<Expression<()>>>, null_safe: bool, span: Span) -> FoldedExpr<TypeEntry> {
         let member = self.fold_expr(*member);
+        if member.is_err(self.registry) {
+            return member.node;
+        }
 
         // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
         let mut struct_scope = false;

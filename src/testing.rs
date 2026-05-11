@@ -8,26 +8,78 @@ use crate::util::ast_printer::AstPrinter;
 
 #[test]
 pub fn main() {
+    unsafe {backtrace_on_stack_overflow::enable()}
+
     let text = r#"
-    fn main() -> int {
-        let i = 0;
-        while true {
-            let vec = Vec();
-            print(i);
+    fn step(game: Game) -> Direction {
+    let head = game.snake.head();
+    let reversed = head.x > (game.width / 2);
 
-            let hello =
-
-            print("hello");
-            i++;
-        }
-
-        return 0;
+    if (reversed) {
+        head.x -= game.width - 2;
     }
+
+    if (head.y == 0) {
+        if (head.x == 0) {
+            return Direction.RIGHT;
+        } else if (head.x == 1) {
+            return Direction.DOWN;
+        }
+    } else if (head.y == 1) {
+        if (head.x == 0) {
+            return Direction.UP;
+        } else if (head.x == 1) {
+            return Direction.LEFT;
+        }
+    }
+
+    if (head.y > 1) {
+        return Direction.UP;
+    }
+
+    if (reversed) {
+        return Direction.RIGHT;
+    } else {
+        return Direction.LEFT;a
+    }
+}
+
+struct Point(
+    x: int,
+    y: int,
+);
+
+struct Snake(
+    points: Vec<Point>,
+    direction: Direction,
+) {
+    pub fn head() -> Point {
+        return this.points.get(0);
+    }
+
+    pub fn tail() -> Point {
+        return this.points.get(this.points.size() - 1);
+    }
+
+    pub fn size() -> int {
+        return this.points.size();
+    }
+}
+
+struct Game(
+    width: int,
+    height: int,
+    snake: Snake,
+    opponents: Vec<Snake>,
+    apples: Vec<Point>,
+);
+
     "#;
 
-    // interpret(text.to_string());
+    interpret(text.to_string());
+    panic!();
 
-    let cursor = 70;
+    let cursor = 676;
     let (suggestions, errors) = lint(text.to_string(), cursor);
 
     for x in suggestions {
@@ -46,6 +98,8 @@ pub fn main() {
             print!("{ch}");
         }
     }
+
+    println!("CURSOR {cursor}")
 }
 
 fn interpret(mut text: String) {

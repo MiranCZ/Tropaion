@@ -151,6 +151,10 @@ impl Parser {
     }
 
     pub fn has_next(&self) -> bool {
+        if let Ok(token) = self.peek() && token == EOF {
+            return false;
+        }
+
         self.pos < self.tokens.len()
     }
 

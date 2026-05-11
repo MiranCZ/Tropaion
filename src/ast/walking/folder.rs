@@ -178,7 +178,7 @@ where
         }
     }
     
-    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<I>) -> FoldedStmt<O> {
+    fn fold_enum(&mut self, name: String, values: Vec<String>, body: StatementBlock<I>, span: Span) -> FoldedStmt<O> {
         Statement::EnumStmt {
             name,
             values,
@@ -587,7 +587,7 @@ impl<I: Clone> Spanned<Statement<I>> {
                     folder.fold_struct(name, public_constructor, fields, body, generics, span)
                 }
                 Statement::EnumStmt {name, values, body} => {
-                    folder.fold_enum(name, values, body)
+                    folder.fold_enum(name, values, body, span)
                 }
                 Statement::ReturnStmt(expr) => folder.fold_return(expr, span),
                 Statement::LoopInterrupt {break_loop} => folder.fold_loop_interrupt(break_loop, span),
