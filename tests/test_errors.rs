@@ -33,7 +33,8 @@ fn test_analysis_error(code: &str, expected: AnalysisError) {
 
     let mut analyzer = analysis::analyzer::Analyzer::new(parsed);
 
-    let resolved_root = analyzer.analyze(&mut registry);
+    let resolved_root = analyzer.resolve_types(&mut registry);
+    let resolved_root = analyzer.transform_syntax(&mut registry, resolved_root);
 
     assert_eq!(analyzer.errors.len(), 1);
 

@@ -1,5 +1,5 @@
 use crate::analysis::type_registry::TypeRegistry;
-use crate::{compile, compile_typed, lex_code, parse_tokens, resolve_types, run_compiled};
+use crate::{compile, compile_typed, lex_code, lint, parse_tokens, resolve_types_and_transform, run_compiled};
 use std::time::Instant;
 use crate::interpreter::interpreter::Interpreter;
 use crate::interpreter::interpreter_builder::InterpreterBuilder;
@@ -14,6 +14,10 @@ pub fn main() {
         while true {
             let vec = Vec();
             print(i);
+
+            let hello =
+
+            print("hello");
             i++;
         }
 
@@ -21,7 +25,27 @@ pub fn main() {
     }
     "#;
 
-    interpret(text.to_string());
+    // interpret(text.to_string());
+
+    let cursor = 70;
+    let (suggestions, errors) = lint(text.to_string(), cursor);
+
+    for x in suggestions {
+        println!("{x:?}");
+    }
+
+    for e in errors {
+        let msh = e.format(text.chars().collect());
+        println!("{msh}");
+    }
+
+    for (i, ch) in text.chars().enumerate() {
+        if i == cursor {
+            print!("#");
+        } else {
+            print!("{ch}");
+        }
+    }
 }
 
 fn interpret(mut text: String) {
@@ -54,7 +78,7 @@ fn interpret(mut text: String) {
 
     // println!("{v:#?}");
 
-    let (resolved_root, analyzer_errors) = resolve_types(v, &mut registry);
+    let (resolved_root, analyzer_errors) = resolve_types_and_transform(v, &mut registry);
 
     if !analyzer_errors.is_empty() {
         eprintln!("--------- Analyzer has {} errors ---------- \n", analyzer_errors.len());

@@ -44,7 +44,7 @@ impl Analyzer {
         }
     }
 
-    pub fn analyze(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
+    pub fn resolve_types(&mut self, registry: &mut TypeRegistry) -> TypedStmt {
         let mut type_resolver = TypeResolver::new(registry, &mut self.symbol_table, &mut self.type_table);
 
         TopLevelCollector::collect(&mut type_resolver, self.root.clone());
@@ -63,20 +63,21 @@ impl Analyzer {
             self.errors.append(&mut errors);
         }
 
-        // TODO semantic analysis would probs be nice xd
+        resolved_root
+    }
 
+    pub fn transform_syntax(&mut self, registry: &mut TypeRegistry, resolved_root: TypedStmt) -> TypedStmt {
         self.errors.append(&mut ThisValidator::collect_errors(&resolved_root, registry));
 
         let mut resolved_root = ConstructorLifter::new(resolved_root, &mut self.errors, registry, &mut self.symbol_table);
 
         self.errors.append(&mut UniqueNameChecker::check(registry, &resolved_root));
-        
+
         let mut mangler = ManglingVisitor::new(registry);
         resolved_root.walk_visit_mut(&mut mangler);
 
         if !mangler.errors.is_empty() {
             self.errors.append(&mut mangler.errors);
-            // return Err(mangler.errors);
         }
 
         TransformVisitor::transform(registry, &self.symbol_table, &mut resolved_root);
@@ -84,7 +85,6 @@ impl Analyzer {
 
         resolved_root
     }
-
 
     fn record_consts(root: UntypedStmt, type_resolver: &mut TypeResolver, errors: &mut Errors<AnalysisError>) {
         if let BlockStmt{ body } = root.node {
