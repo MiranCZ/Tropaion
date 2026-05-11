@@ -9,6 +9,7 @@ use crate::ast::walking::visitor::Visitor;
 use crate::completion::completion_type::CompletionType;
 use crate::error::context::Span;
 use crate::intrinsics::type_injector;
+use crate::lexer::token::SimpleToken;
 
 pub fn get_code_suggestions(cursor: usize, code: &TypedStmt, registry: &mut TypeRegistry) -> HashMap<String, CompletionType> {
     let mut suggestions = HashMap::new();
@@ -38,9 +39,33 @@ pub fn get_code_suggestions(cursor: usize, code: &TypedStmt, registry: &mut Type
         suggestions.insert(k, v);
     }
 
-
+    add_keywords(&mut suggestions);
 
     suggestions
+}
+
+fn add_keywords(suggestions: &mut HashMap<String, CompletionType>) {
+    let keywords = vec![
+        (SimpleToken::Const, CompletionType::KwDeclaration),
+        (SimpleToken::Let, CompletionType::KwDeclaration),
+        (SimpleToken::If, CompletionType::KwControl),
+        (SimpleToken::Else, CompletionType::KwControl),
+        (SimpleToken::While, CompletionType::KwControl),
+        (SimpleToken::For, CompletionType::KwControl),
+        (SimpleToken::Break, CompletionType::KwControl),
+        (SimpleToken::Const, CompletionType::KwControl),
+        (SimpleToken::Return, CompletionType::KwReturn),
+        (SimpleToken::Struct, CompletionType::KwDefinition),
+        (SimpleToken::Enum, CompletionType::KwDefinition),
+        (SimpleToken::Fn, CompletionType::KwDefinition),
+        (SimpleToken::Init, CompletionType::KwDefinition),
+        (SimpleToken::Pub, CompletionType::KwVisibility),
+        (SimpleToken::Priv, CompletionType::KwVisibility),
+    ];
+
+    for (token, compl_type) in keywords {
+        suggestions.insert(token.string_representation().to_string(), compl_type);
+    }
 }
 
 

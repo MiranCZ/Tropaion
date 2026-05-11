@@ -4,4 +4,11 @@ pub enum CompletionType {
     Constant,
     Function,
     Struct,
+    KwDeclaration,
+    KwControl,
+    KwReturn,
+    KwDefinition,
+    KwVisibility
+
+
 }
