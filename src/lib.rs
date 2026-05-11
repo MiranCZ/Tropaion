@@ -37,7 +37,7 @@ mod intrinsics;
 #[cfg(test)]
 mod testing;
 pub mod memory_blob;
-mod completion;
+pub mod completion;
 
 pub type RunResult = Result<MemoryBlob, ErrorType<Errors<Box<dyn Error>>, RuntimeErrorContext>>;
 
