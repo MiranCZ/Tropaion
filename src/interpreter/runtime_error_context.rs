@@ -4,8 +4,8 @@ use crate::error::runtime_error::RuntimeError;
 
 #[derive(Debug)]
 pub struct RuntimeErrorContext {
-    context: ErrorContext<RuntimeError>,
-    call_stack: Vec<(String, usize)>
+    pub context: ErrorContext<RuntimeError>,
+    pub call_stack: Vec<(String, usize)>
 }
 
 impl RuntimeErrorContext {
