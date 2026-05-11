@@ -1,17 +1,15 @@
 pub mod type_lookup;
 
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
-use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{Comma, Greater, Less};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::*;
 use crate::parser::binding_power::DEFAULT;
 use crate::parser::handlers::{ReturnedType, TypeLedInfo, TypeNudHandler};
 use crate::parser::type_lookups::type_lookup::TypeLookup;
-use crate::parser::Parser;
 use crate::parser::type_parser::parse_type;
+use crate::parser::Parser;
 
 impl Token {
     pub fn type_nud(&self, lookup: &TypeLookup) -> Option<TypeNudHandler> {

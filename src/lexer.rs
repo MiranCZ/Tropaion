@@ -1,8 +1,6 @@
 use crate::lexer::token::Token::{Comment, Identifier, MultilineComment, NumberFloatLiteral, NumberIntLiteral, StringLiteral, EOF};
 use crate::lexer::token::{SimpleToken, Token};
 use std::cmp::Reverse;
-use std::f32::consts::E;
-use std::num::ParseFloatError;
 use strum::IntoEnumIterator;
 use crate::error::context::{ErrorContext, Errors, Span};
 use crate::error::lexer_error::LexerError;

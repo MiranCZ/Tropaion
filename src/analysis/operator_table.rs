@@ -8,10 +8,10 @@ use crate::error::analysis_error::AnalysisError;
 
 type SimpleType = usize;
 
-const Bool: SimpleType = 0;
-const Int: SimpleType = 1;
-const Float: SimpleType = 2;
-const StringT: SimpleType = 3;
+const BOOL: SimpleType = 0;
+const INT: SimpleType = 1;
+const FLOAT: SimpleType = 2;
+const STRING_T: SimpleType = 3;
 
 #[derive(Debug)]
 pub struct OperatorTable {
@@ -79,8 +79,8 @@ impl OperatorTable {
             SlashAssign,
             PercentAssign,
         ] {
-            self.add(Int, op, Int, Int);
-            self.add(Float, op, Float, Float);
+            self.add(INT, op, INT, INT);
+            self.add(FLOAT, op, FLOAT, FLOAT);
         }
 
         // bit ops should probably be disallowed for float?
@@ -97,24 +97,24 @@ impl OperatorTable {
             VertBarAssign,
             BitXorAssign
         ] {
-            self.add(Int, bit_op, Int, Int);
+            self.add(INT, bit_op, INT, INT);
         }
 
         // TODO should comparisons int-float be allowed?
         for comp in [Equals, NotEquals, Less, LessEquals, Greater, GreaterEquals] {
-            self.add(Int, comp, Int, Bool);
-            self.add(Float, comp, Float, Bool);
+            self.add(INT, comp, INT, BOOL);
+            self.add(FLOAT, comp, FLOAT, BOOL);
         }
 
         for bool_op in [BoolOr, BoolAnd] {
-            self.add(Bool, bool_op, Bool, Bool);
+            self.add(BOOL, bool_op, BOOL, BOOL);
         }
 
-        for t in [Bool, Int, Float] {
+        for t in [BOOL, INT, FLOAT] {
             self.add(t, Assign, t, t);
         }
 
-        self.add(StringT, Plus, StringT, StringT);
+        self.add(STRING_T, Plus, STRING_T, STRING_T);
     }
 
     fn add(&mut self, left: SimpleType, op: SimpleToken, right: SimpleType, result: SimpleType) {
@@ -124,25 +124,25 @@ impl OperatorTable {
 
 fn from_ast_type(t: AstType, registry: &TypeRegistry) -> Option<SimpleType> {
     match t {
-        AstType::Bool => Some(Bool),
-        AstType::Int => Some(Int),
-        AstType::Float => Some(Float),
-        AstType::StringType => Some(StringT),
+        AstType::Bool => Some(BOOL),
+        AstType::Int => Some(INT),
+        AstType::Float => Some(FLOAT),
+        AstType::StringType => Some(STRING_T),
         _ => None,
     }
 }
 
 fn to_ast_type(t: SimpleType) -> Option<AstType> {
-    if t == Bool {
+    if t == BOOL {
         return Some(AstType::Bool);
     }
-    if t == Int {
+    if t == INT {
         return Some(AstType::Int);
     }
-    if t == Float {
+    if t == FLOAT {
         return Some(AstType::Float);
     }
-    if t == StringT {
+    if t == STRING_T {
         return Some(AstType::StringType);
     }
 

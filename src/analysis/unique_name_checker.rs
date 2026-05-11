@@ -41,7 +41,7 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.registry
     }
 
-    fn visit_struct(&mut self, name: &String, pc: &bool, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
+    fn visit_struct(&mut self, name: &String, _pc: &bool, _fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, _generics: &Vec<String>, _span: Span) {
         self.owners.push(name.clone());
 
         self.visit_block(body);
@@ -49,7 +49,7 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.owners.pop();
     }
 
-    fn visit_enum(&mut self, name: &String, values: &Vec<String>, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_enum(&mut self, name: &String, _values: &Vec<String>, body: &StatementBlock<TypeEntry>, _span: Span) {
         self.owners.push(name.clone());
 
         self.visit_block(body);
@@ -57,7 +57,7 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.owners.pop();
     }
 
-    fn visit_function(&mut self, name: &String, modifier: &Modifier, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_function(&mut self, name: &String, _modifier: &Modifier, _generics: &Vec<String>, params: &Vec<Parameter>, _return_type: &TypeEntry, _body: &StatementBlock<TypeEntry>, span: Span) {
         if self.class_like.contains(name) {
             self.errors.push(ErrorContext::of(AnalysisError::NameAlreadyUsed(name.clone()), span));
             return;
@@ -107,18 +107,18 @@ impl <'a> Visitor<'a> for ClassLikeCollector<'a> {
         self.registry
     }
 
-    fn visit_expr(&mut self, expr: &TypedExpr) {
+    fn visit_expr(&mut self, _expr: &TypedExpr) {
     }
 
-    fn visit_type(&mut self, typ: &TypeEntry) {
+    fn visit_type(&mut self, _typ: &TypeEntry) {
     }
 
-    fn visit_struct(&mut self, name: &String, pc: &bool, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
+    fn visit_struct(&mut self, name: &String, _pc: &bool, _fields: &Vec<Parameter>, _body: &StatementBlock<TypeEntry>, _generics: &Vec<String>, span: Span) {
         // FIXME this is the span of the whole struct, not of the name
         self.update(name, span);
     }
 
-    fn visit_enum(&mut self, name: &String, values: &Vec<String>, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_enum(&mut self, name: &String, _values: &Vec<String>, _body: &StatementBlock<TypeEntry>, span: Span) {
         // FIXME this is the span of the whole struct, not of the name
         self.update(name, span);
     }

@@ -1,17 +1,14 @@
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::expression;
-use crate::ast::expression::{Expression, UntypedExpr};
 use crate::ast::expression::Expression::*;
-use crate::ast::statement::Parameter;
+use crate::ast::expression::UntypedExpr;
+use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::lexer::token::SimpleToken::{CloseBracket, CloseSquare, Comma, Dot, False, Null, OpenBracket, OpenSquare, QuestionDot, True, TwoExcl};
-use crate::lexer::token::Token;
-use crate::lexer::token::Token::SimpleTokenType;
 use crate::parser::binding_power::{Bp, ASSIGNMENT, COMMA, DEFAULT, UNARY};
 use crate::parser::handlers::ReturnedExpression;
 use crate::parser::Parser;
 use crate::{spanned, spanned_led};
-use crate::error::context::ErrorContext;
 
 pub fn parse_expression(registry: &mut TypeRegistry, parser: &mut Parser, binding_power: Bp) -> ReturnedExpression {
     let token = parser.peek()?;

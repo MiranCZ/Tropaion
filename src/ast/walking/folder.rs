@@ -1,19 +1,18 @@
 use crate::analysis::type_registry::TypeEntry;
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType;
+use crate::ast::ast_type::AstType::{ConstructorType, GenericType};
 use crate::ast::ast_type::MemberInfo;
 use crate::ast::expression::Expression;
+use crate::ast::modifier::Modifier;
 use crate::ast::statement::Parameter;
 use crate::ast::statement::Statement;
 use crate::ast::statement::StatementBlock;
 use crate::error::context::Span;
 use crate::lexer::token::SimpleToken;
 use crate::util::spanned::Spanned;
-use std::collections::HashMap;
-use std::ops::Index;
 use ordermap::OrderMap;
-use crate::ast::ast_type::AstType::{ConstructorType, GenericType};
-use crate::ast::modifier::Modifier;
+use std::collections::HashMap;
 // ── Type aliases ─────────────────────────────────────────────────────────────
 
 pub type FoldedStmt<O> = Statement<O>;

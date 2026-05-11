@@ -1,10 +1,9 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType;
 use crate::ast::ast_type::AstType::*;
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
-use crate::lexer::token::{SimpleToken, Token};
 use crate::lexer::token::SimpleToken::{CloseBracket, Question, TwoQuestion};
+use crate::lexer::token::SimpleToken;
 use crate::parser::binding_power::{Bp, DEFAULT};
 use crate::parser::handlers::ReturnedType;
 use crate::parser::Parser;

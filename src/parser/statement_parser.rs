@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::ast_type::AstType::{UnknownType, Void};
+use crate::ast::ast_type::AstType::Void;
 use crate::ast::expression::UntypedExpr;
 use crate::ast::modifier::Modifier;
 use crate::ast::statement::Statement::ExpressionStmt;
@@ -73,7 +72,7 @@ pub fn parse_var_declaration_stmnt(registry: &mut TypeRegistry,parser: &mut Pars
 
         assert!(token == SimpleToken::Let || token == SimpleToken::Const);
 
-        let is_const = (token == SimpleToken::Const);
+        let is_const = token == SimpleToken::Const;
         let name = parser.expect_next_identifier()?;
 
         let mut explicit_type = None;

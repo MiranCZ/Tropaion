@@ -1,29 +1,24 @@
-use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
-use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ConstructorType, FunctionType, FunctionsType, GenericType, StructType, UnknownType};
-use crate::ast::ast_type::MemberInfo;
-use crate::ast::statement::Statement::{BlockStmt, FunctionStmt, StructStmt};
-use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
-use crate::error::analysis_error::AnalysisError::{ExpectedConst, IllegalScopelessStatement, IllegalStatementInStruct, StatementMismatch};
-use crate::error::analysis_error::StatementType::Block;
-use crate::error::analysis_error::{AnalysisError, EmptyRes};
-use crate::error::ok;
-use crate::error::runtime_error::ValueTypeVariant;
-use std::collections::HashMap;
-use ordermap::OrderMap;
 use crate::analysis::constant_folding::ConstExprFolder;
 use crate::analysis::contructor_lifter::ConstructorLifter;
 use crate::analysis::generic_fixer::GenericFixer;
 use crate::analysis::mangling::ManglingVisitor;
 use crate::analysis::method_transforms::TransformVisitor;
+use crate::analysis::symbol_table::{SymbolTable, TypeSymTable};
 use crate::analysis::this_validator::ThisValidator;
 use crate::analysis::top_level_collector::TopLevelCollector;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::analysis::type_resolution::TypeResolver;
 use crate::analysis::unique_name_checker::UniqueNameChecker;
-use crate::ast::modifier::Modifier;
+use crate::ast::ast_type::AstType::{FunctionType, FunctionsType};
+use crate::ast::statement::Statement::BlockStmt;
+use crate::ast::statement::{Statement, TypedStmt, UntypedStmt};
 use crate::ast::walking::folder::Folder;
-use crate::error::context::{ErrorContext, Errors, Span};
-use crate::intrinsics::type_injector::{get_injected_functions, get_injected_structs};
+use crate::error::analysis_error::AnalysisError::{ExpectedConst, StatementMismatch};
+use crate::error::analysis_error::StatementType::Block;
+use crate::error::analysis_error::AnalysisError;
+use crate::error::context::{ErrorContext, Errors};
+use crate::error::ok;
+use crate::error::runtime_error::ValueTypeVariant;
 
 pub struct Analyzer {
     root: UntypedStmt,

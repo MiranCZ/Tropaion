@@ -1,7 +1,6 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType;
-use crate::ast::expression::{Expression, UntypedExpr};
-use crate::ast::statement::{Statement, UntypedStmt};
+use crate::ast::expression::UntypedExpr;
+use crate::ast::statement::UntypedStmt;
 use crate::error::context::ErrorContext;
 use crate::error::parser_error::ParserError;
 use crate::parser::binding_power::Bp;

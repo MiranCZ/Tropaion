@@ -1,9 +1,9 @@
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::*;
-use crate::parser::binding_power::{BindingPower, Bp, UNARY};
+use crate::parser::binding_power::{BindingPower, UNARY};
 use crate::parser::handlers::*;
-use std::collections::HashMap;
 use crate::parser::type_parser::{parse_array_type, parse_double_nullable_type, parse_nullable_type, parse_reference_type, parse_tuple_type};
+use std::collections::HashMap;
 
 type TypeNudLookup = HashMap<SimpleToken, TypeNudHandler>;
 type TypeLedLookup = HashMap<SimpleToken, TypeLedInfo>;

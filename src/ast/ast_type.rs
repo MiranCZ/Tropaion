@@ -1,11 +1,9 @@
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ArrayType, EnumType, ErroredType, NullableType, ReferenceType, StructType, SymbolType, TupleType};
+use crate::ast::ast_type::AstType::{ArrayType, EnumType, ErroredType, NullableType, ReferenceType, StructType, TupleType};
+use crate::ast::modifier::Modifier;
+use ordermap::OrderMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
-use ordermap::OrderMap;
-use crate::ast::modifier::Modifier;
-use crate::ast::statement::{Parameter, StatementBlock};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstType {

@@ -18,13 +18,11 @@ use crate::util::arg_convertor::ValueConvertable;
 use intrinsics::builtins::builtin_injector::inject_builtins;
 use crate::completion::code_completion::get_code_suggestions;
 use crate::completion::completion_type::CompletionType;
-use crate::error::analysis_error::AnalysisError::InternalError;
 use crate::error::error_type::ErrorType;
 use crate::error::state_error::StateError;
 use crate::interpreter::interpreter_builder::InterpreterBuilder;
 use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 use crate::util::ast_printer::AstPrinter;
-use crate::util::spanned::Spanned;
 
 pub mod lexer;
 pub mod parser;
@@ -126,7 +124,7 @@ fn _compile(mut code: String) -> Result<CompilationResult, Errors<Box<dyn Error>
     unreachable!()
 }
 
-pub fn lint(mut code: String, cursor: usize) -> (HashMap<String, CompletionType>, Errors<Box<dyn Error>>){
+pub fn lint(mut code: String, cursor: usize) -> (HashMap<String, CompletionType>, Errors<Box<dyn Error>>) {
     let (tokens, lexer_errors) = lex_code(&mut code);
 
     let mut registry = TypeRegistry::new();

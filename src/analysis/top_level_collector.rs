@@ -243,7 +243,7 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
     }
 
     fn resolve_struct_signature(&mut self, type_entry: TypeEntry ,name: &String, public_constructor: &bool, fields: &Vec<Parameter>, body: &StatementBlock<()>, generics: &Vec<String>, span: &Span) {
-        let mut struct_type = self.get_registry_mut().register(UnknownType);
+        let struct_type = self.get_registry_mut().register(UnknownType);
 
         let mut children = HashMap::new();
 

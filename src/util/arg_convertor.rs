@@ -1,5 +1,3 @@
-use crate::analysis::type_registry::TypeRegistry;
-use crate::ast::expression::int;
 use crate::error::runtime_error::RuntimeError;
 use crate::interpreter::interpreter::Interpreter;
 use crate::interpreter::value::Value;

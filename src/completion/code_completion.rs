@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::iter::Map;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
 use crate::ast::expression::TypedExpr;
@@ -10,6 +8,7 @@ use crate::completion::completion_type::CompletionType;
 use crate::error::context::Span;
 use crate::intrinsics::type_injector;
 use crate::lexer::token::SimpleToken;
+use std::collections::HashMap;
 
 pub fn get_code_suggestions(cursor: usize, code: &TypedStmt, registry: &mut TypeRegistry) -> HashMap<String, CompletionType> {
     let mut suggestions = HashMap::new();
@@ -99,7 +98,7 @@ impl <'a> Visitor<'a> for SymbolCollector<'a> {
         todo!()
     }
 
-    fn visit_var_declaration(&mut self, name: &String, is_const: &bool, value: &TypedExpr, explicit_type: &Option<TypeEntry>, span: Span) {
+    fn visit_var_declaration(&mut self, name: &String, is_const: &bool, value: &TypedExpr, _explicit_type: &Option<TypeEntry>, _span: Span) {
         // declared after cursor
         if value.span.from > self.cursor {
             return;
@@ -130,7 +129,7 @@ impl <'a> Visitor<'a> for SymbolCollector<'a> {
         }
     }
 
-    fn visit_function(&mut self, name: &String, modifier: &Modifier, generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_function(&mut self, name: &String, _modifier: &Modifier, _generics: &Vec<String>, _params: &Vec<Parameter>, _return_type: &TypeEntry, body: &StatementBlock<TypeEntry>, span: Span) {
         self.symbols.insert(name.clone(), CompletionType::Function);
 
         if self.is_within_cursor(span) {
@@ -138,7 +137,7 @@ impl <'a> Visitor<'a> for SymbolCollector<'a> {
         }
     }
 
-    fn visit_struct(&mut self, name: &String, public_constructor: &bool, fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, generics: &Vec<String>, span: Span) {
+    fn visit_struct(&mut self, name: &String, _public_constructor: &bool, _fields: &Vec<Parameter>, body: &StatementBlock<TypeEntry>, _generics: &Vec<String>, span: Span) {
         self.symbols.insert(name.clone(), CompletionType::Struct);
 
         if self.is_within_cursor(span) {
@@ -146,7 +145,7 @@ impl <'a> Visitor<'a> for SymbolCollector<'a> {
         }
     }
 
-    fn visit_enum(&mut self, name: &String, values: &Vec<String>, body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_enum(&mut self, name: &String, _values: &Vec<String>, body: &StatementBlock<TypeEntry>, span: Span) {
         self.symbols.insert(name.clone(), CompletionType::Struct);
 
         if self.is_within_cursor(span) {

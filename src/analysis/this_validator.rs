@@ -6,7 +6,6 @@ use crate::ast::walking::visitor::Visitor;
 use crate::error::analysis_error::AnalysisError;
 use crate::error::analysis_error::AnalysisError::{IllegalThis, MultipleThisCall, ThisCallExpected};
 use crate::error::context::{ErrorContext, Span};
-use crate::util::spanned::Spanned;
 
 pub struct ThisValidator<'a> {
     registry: &'a mut TypeRegistry,

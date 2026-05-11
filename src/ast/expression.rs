@@ -1,18 +1,12 @@
-use crate::analysis::symbol_table::TypeSymTable;
+use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType;
-use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionsType, Int, NullableType, StringType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{Float, NullableType};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
+use crate::error::context::Span;
 use crate::lexer::token::SimpleToken;
 use crate::lexer::token::SimpleToken::{Ampersand, Assign, BitXor, Dash, LeftLeft, Percent, Plus, RightRight, Slash, Star, VerticalBar};
-use std::string::String;
-use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::statement::{Statement, TypedStmt};
-use crate::ast::statement::Statement::ExpressionStmt;
-use crate::error::analysis_error::AnalysisError;
-use crate::error::analysis_error::AnalysisError::IllegalNullDeref;
-use crate::error::context::{ErrorContext, Span};
-use crate::lexer::token::Token::Identifier;
 use crate::util::spanned::Spanned;
+use std::string::String;
 
 pub type UntypedExpr = Spanned<Expression<()>>;
 pub type TypedExpr = Spanned<Expression<TypeEntry>>;

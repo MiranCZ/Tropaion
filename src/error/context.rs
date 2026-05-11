@@ -1,7 +1,5 @@
 use std::cmp::{max, min};
-use std::fmt::{Debug, Display, Formatter, LowerExp};
-use crate::error::ok;
-use crate::util::either::Either;
+use std::fmt::{Debug, Display};
 
 pub type Errors<T> = Vec<ErrorContext<T>>;
 

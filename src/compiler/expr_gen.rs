@@ -4,16 +4,14 @@ use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::NullableExpr;
 use crate::ast::expression::{deref, Expression, TypedExpr};
 use crate::compiler::codegen::BytecodeGen;
-use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, LoadRefOffset, Store, StoreField, StoreRefOffset};
+use crate::compiler::expr_gen::Operation::{Load, LoadDeref, LoadField, LoadRefOffset, Store, StoreField};
 use crate::error::compilation_error::CompilationError::{IllegalBinOperator, InvalidOperator, MemberNotFound, StructTooLarge};
 use crate::error::compilation_error::{CompilationError, EmptyRes};
 use crate::error::ok;
-use crate::error::runtime_error::ValueTypeVariant;
 use crate::error::runtime_error::ValueTypeVariant::Nullable;
 use crate::lexer::token::SimpleToken;
-use std::collections::HashMap;
-use std::ops::Index;
 use crate::lexer::token::SimpleToken::TwoQuestion;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub enum Operation {
