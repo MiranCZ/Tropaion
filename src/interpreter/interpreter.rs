@@ -393,6 +393,10 @@ impl Interpreter {
     }
 
     fn push(&mut self, value: Value) -> Res {
+        if self.pointer >= self.stack.len() {
+            return Err(StackOverflow)
+        }
+
         self.stack[self.pointer] = value;
 
         self.pointer += 1;
