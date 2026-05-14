@@ -297,6 +297,7 @@ struct Box<T>(value: T);
 
 - `Vec<T>`: Growable array
   - `push(element: T)`, adds element `T` at the end of the vector
+  - `set(index: int, element:T)`, sets element at index to the specific element
   - `get(index: int) -> T`, returns `T` or panic if OOB
   - `pop() -> T`, returns and removes last element or panics if empty
   - `size() -> int` return size of vector

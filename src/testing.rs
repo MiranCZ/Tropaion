@@ -9,68 +9,42 @@ use crate::util::ast_printer::AstPrinter;
 #[test]
 pub fn main() {
     let text = r#"
-    fn step(game: Game) -> Direction {
-    let head = game.snake.head();
-    let reversed = head.x > (game.width / 2);
 
-    if (reversed) {
-        head.x -= game.width - 2;
-    }
-
-    if (head.y == 0) {
-        if (head.x == 0) {
-            return Direction.RIGHT;
-        } else if (head.x == 1) {
-            return Direction.DOWN;
+fn sort(arr: Vec<int>) {
+    let n = arr.size();
+    let i = 0;
+    while i < n {
+        let j = 0;
+        while j < n - i - 1 {
+            let a = arr.get(j);
+            let b = arr.get(j + 1);
+            if a > b {
+                arr.set(j, b);
+                arr.set(j + 1, a);
+            }
+            j++;
         }
-    } else if (head.y == 1) {
-        if (head.x == 0) {
-            return Direction.UP;
-        } else if (head.x == 1) {
-            return Direction.LEFT;
-        }
-    }
-
-    if (head.y > 1) {
-        return Direction.UP;
-    }
-
-    if (reversed) {
-        return Direction.RIGHT;
-    } else {
-        return Direction.LEFT;a
+        i++;
     }
 }
 
-struct Point(
-    x: int,
-    y: int,
-);
+fn main() {
+    let nums: Vec<int> = Vec();
+    nums.push(5);
+    nums.push(2);
+    nums.push(8);
+    nums.push(1);
+    nums.push(4);
 
-struct Snake(
-    points: Vec<Point>,
-    direction: Direction,
-) {
-    pub fn head() -> Point {
-        return this.points.get(0);
-    }
+    sort(nums);
 
-    pub fn tail() -> Point {
-        return this.points.get(this.points.size() - 1);
-    }
-
-    pub fn size() -> int {
-        return this.points.size();
+    let i = 0;
+    while i < nums.size() {
+        print(str(nums.get(i)));
+        i++;
     }
 }
 
-struct Game(
-    width: int,
-    height: int,
-    snake: Snake,
-    opponents: Vec<Snake>,
-    apples: Vec<Point>,
-);
 
     "#;
 

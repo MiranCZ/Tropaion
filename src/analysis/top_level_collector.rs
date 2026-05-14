@@ -122,10 +122,6 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
     fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
         if let FunctionType {name, ..} = func.get(registry) {
             let t = symbol_table.get(&name);
-            println!("RECORDED {name} type as {}",func.format(registry));
-            if name == "sort" {
-                // panic!()
-            }
 
             if t.is_none() {
                 let mut overloads = vec![];
