@@ -22,8 +22,13 @@ use Statement::EnumStmt;
 
 pub struct TopLevelCollector<'a, 'b> {
     resolver: &'a mut TypeResolver<'b>,
-    fields_pass: Vec<FieldPassInfo>
+    fields_pass: Vec<FieldPassInfo>,
+    current_pass: CollectionPass
+}
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CollectionPass {
+    STRUCT, FUNCTION
 }
 
 
@@ -35,7 +40,7 @@ struct FieldPassInfo {
 impl <'a, 'b> TopLevelCollector<'a, 'b> {
     pub fn new(resolver: &'a mut TypeResolver<'b>) -> Self {
         Self {
-            resolver, fields_pass: vec![]
+            resolver, fields_pass: vec![], current_pass: CollectionPass::STRUCT
         }
     }
 
@@ -82,6 +87,8 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
             }
         }
 
+        stmt.clone().walk_fold(&mut new);
+        new.current_pass = CollectionPass::FUNCTION;
         stmt.walk_fold(&mut new);
 
         for pass in new.fields_pass {
@@ -115,6 +122,10 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
     fn _record_function(symbol_table: &mut TypeSymTable, registry: &mut TypeRegistry, func: TypeEntry) -> Result<(), ErrorContext<AnalysisError>> {
         if let FunctionType {name, ..} = func.get(registry) {
             let t = symbol_table.get(&name);
+            println!("RECORDED {name} type as {}",func.format(registry));
+            if name == "sort" {
+                // panic!()
+            }
 
             if t.is_none() {
                 let mut overloads = vec![];
@@ -155,6 +166,17 @@ impl <'a, 'b> Folder<(), ()> for TopLevelCollector<'a, 'b> {
     }
 
     fn fold_function(&mut self, name: String, modifier: Modifier, generics: Vec<String>, params: Vec<Parameter>, return_type: TypeEntry, body: StatementBlock<()>, span: Span) -> FoldedStmt<()> {
+        if self.current_pass != CollectionPass::FUNCTION {
+            return Statement::FunctionStmt {
+                name,
+                modifier,
+                generics,
+                params,
+                return_type,
+                body,
+            };
+        }
+
         let func_type = self.resolve_func_signature(&name, &modifier, &generics, &params, &return_type, &body, &span, String::new());
 
         self.record_function(func_type);
@@ -170,7 +192,13 @@ impl <'a, 'b> Folder<(), ()> for TopLevelCollector<'a, 'b> {
     }
 
     fn fold_struct(&mut self, name: String, pc: bool, fields: Vec<Parameter>, body: StatementBlock<()>, generics: Vec<String>, span: Span) -> FoldedStmt<()> {
-        // let t = self.resolver.registry.register(UnknownType);
+        if self.current_pass != CollectionPass::STRUCT {
+            return StructStmt {
+                name, fields, body, generics,
+                public_constructor: pc
+            };
+        }
+
         let t = self.resolver.type_table.get(&name).unwrap();
         self.resolve_struct_signature(t, &name, &pc, &fields, &body, &generics, &span);
 
