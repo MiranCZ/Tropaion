@@ -1134,6 +1134,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         panic!();
                     }
 
+                    // guard against infinite recursion for self-referential generic structs
+                    if !self.resolved_types.insert(t) {
+                        return t.get(self.registry);
+                    }
+
                     let mut iter = generics.iter();
 
                     self.type_table.push();
@@ -1145,6 +1150,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
                     let res = TypeDuplicator::new(self.registry).fold_ast_type(res);
                     let resolved = res.walk_fold(self);
+
+                    self.resolved_types.remove(&t);
 
                     self.type_table.pop();
                     return resolved;
