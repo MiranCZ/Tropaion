@@ -5,6 +5,10 @@ pub fn inject_builtins(src: &mut String) {
     inject_direction(src);
     src.push('\n');
     inject_default_panic(src);
+    src.push('\n');
+    inject_bool_print(src);
+    src.push('\n');
+    inject_bool_str(src);
 }
 
 fn inject_vec(src: &mut String) {
@@ -25,4 +29,28 @@ fn inject_default_panic(src: &mut String) {
             panic("Explicit panic!"); 
         }
     "#);   
+}
+
+fn inject_bool_print(src: &mut String) {
+    src.push_str(r#"
+        fn print(value: bool) {
+            if value {
+                print("true");
+            } else {
+                print("false");
+            }
+        }
+    "#);
+}
+
+fn inject_bool_str(src: &mut String) {
+    src.push_str(r#"
+        fn str(value: bool) -> string {
+            if value {
+                return "true";
+            } else {
+                return "false";
+            }
+        }
+    "#);
 }
