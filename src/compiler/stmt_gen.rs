@@ -76,7 +76,6 @@ impl TypedStmt {
                 generator.end_scope()?;
             }
             Statement::FunctionStmt { name, body, params, .. } => {
-                generator.comment(format!("fn {name} -- START"));
                 generator.fn_start(name.clone())?;
 
                 for param in params.iter().rev() {
@@ -94,9 +93,6 @@ impl TypedStmt {
                 generator.ret(0);
 
                 generator.fn_end(name.clone(), registry)?;
-
-
-                generator.comment(format!("return of {name} -- END"));
             }
             Statement::ConstructorStmt {..} => {
                 return Err(CompilationError::InternalError("Constructors are syntactic sugar!".to_string()));

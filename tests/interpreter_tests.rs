@@ -1175,3 +1175,27 @@ fn test_for_loops3() {
     test_simple_code("main", code, 3);
 }
 
+#[test]
+fn test_nested_new() {
+    let code = r#"
+    struct Node(value: int, next: Node?);
+
+    fn main(){
+        let head: Node? = Node(9, Node(5, null));
+
+        let current = head;
+        if current != null {
+            if current!!.value == 9 {
+                return 41;
+            } else {
+                return 0;
+            }
+        }
+
+        return 1;
+    }
+    "#;
+
+    test_simple_code("main", code, 41);
+}
+

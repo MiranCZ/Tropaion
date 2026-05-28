@@ -247,8 +247,9 @@ impl BytecodeGen {
 
     pub fn fn_start(&mut self, name: String) -> EmptyRes {
         assert!(self.to_box.is_empty());
-        
-        if let Some(fun) = self.functions.get(&name) { 
+
+        self.comment(format!("$ fn start {name}"));
+        if let Some(fun) = self.functions.get(&name) {
             self.functions.insert(name, FunctionInfo {
                 index: fun.index,
                 params_len: fun.params_len,
@@ -266,6 +267,8 @@ impl BytecodeGen {
     }
 
     pub fn fn_end(&mut self, name: String, registry: &TypeRegistry) -> EmptyRes {
+        self.comment(format!("$ fn end {name}"));
+
         let fun = if let Some(f) = self.functions.get(&name) {
             f
         } else {
@@ -366,6 +369,26 @@ impl BytecodeGen {
         self.instructions.len() as i32
     }
 
+    pub fn reserve_locals(&mut self, count: u16) -> u16 {
+        let start = self.scope_local_count;
+        self.scope_local_count += count;
+
+        // Ensure the total frame size for this function grows accordingly
+        if self.scope_local_count > self.local_count {
+            self.local_count = self.scope_local_count;
+        }
+
+        start
+    }
+
+    pub fn store_to_local_index(&mut self, registry: &TypeRegistry, index: u16, value: TypeEntry) -> EmptyRes {
+        Self::typed_expr(value, registry, |_t| {
+            Ok(self.push_insn(Store(index)))
+        })
+    }
+
+
+
 }
 
 impl BytecodeGen {
@@ -415,11 +438,23 @@ impl BytecodeGen {
         })
     }
 
-    pub fn store_boxed_value(&mut self, value: TypeEntry) -> EmptyRes {
-        self.to_box.push((self.instructions.len(),value));
-        self.nop(); // store
-        self.nop(); // stack ptr
+    pub fn store_local_at_index(&mut self, index: u16) {
+        self.push_insn(Store(index));
+    }
 
+    pub fn load_local_at_index(&mut self, index: u16) {
+        self.push_insn(Load(index));
+    }
+
+    pub fn store_boxed_value(&mut self, registry: &TypeRegistry, value: TypeEntry) -> EmptyRes {
+        // value is on top of stack; box it into a heap-allocated 1-slot nullable wrapper
+        let temp = self.reserve_locals(1);
+        self.store_local_at_index(temp);              // temp = value,  stack: []
+        self.heap_alloc(1);                           // stack: [box_ref]
+        self.dup();                                   // stack: [box_ref, box_ref]
+        self.load_local_at_index(temp);               // stack: [box_ref, box_ref, value]
+        self.swap();                                  // stack: [box_ref, value, box_ref]
+        self.store_offset_value(registry, 0, value)?; // stack: [box_ref]
         ok()
     }
 

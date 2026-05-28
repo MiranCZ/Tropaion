@@ -131,7 +131,7 @@ impl TypedExpr {
                     return Err(CompilationError::type_mismatch(Nullable, t.get(registry), registry));
                 }
 
-                generator.store_boxed_value(typ)?;
+                generator.store_boxed_value(registry, typ)?;
             }
             Expression::IncrementExpr(_, e) => {
                 e.generate_bytecode(registry, generator, LoadDeref)?;
@@ -303,7 +303,7 @@ impl TypedExpr {
                     })?;
 
                     if *null_safe {
-                        generator.store_boxed_value(property.get_type())?;
+                        generator.store_boxed_value(registry, property.get_type())?;
 
                         generator.comment("Ended member expr generation".to_string());
 
@@ -376,19 +376,19 @@ impl TypedExpr {
                 }
 
                 AstType::StructType {.. } => {
-                    let mut size = 0;
-                    for a in args {
+                    let size = args.len() as u16;
+                    if (size as u32) > (u16::MAX as u32) {
+                        return Err(StructTooLarge(size as u32));
+                    }
+
+                    generator.heap_alloc(size as u32);
+
+                    for (i, a) in args.iter().enumerate() {
+                        generator.dup();
                         a.generate_bytecode(registry, generator, Load)?;
-
-                        generator.store_internal_value(registry, a.get_type())?;
-                        // FIXME aaaaaaaaaaaaaaaaaaaa
-                        size += 1;//a.get_type().get(registry).word_size(registry);
+                        generator.swap();
+                        generator.store_offset_value(registry, i as u32, a.get_type())?;
                     }
-                    if size > (u16::MAX as u32) {
-                        return Err(StructTooLarge(size));
-                    }
-
-                    generator.create_stack_ptr(size as u16);
                 },
                 AstType::NullableType { underlying } => {
                     call(registry, generator, args, underlying)?;
