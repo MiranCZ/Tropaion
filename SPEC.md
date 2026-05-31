@@ -30,6 +30,7 @@
 - string constants are declared using `"<text>"`
 - can be contacted using `+` only with other strings
 - no more operations are currently supported
+- the `str(<arg>)` function can be used to convert numbers to a string
 
 
 ## Tuples
@@ -47,6 +48,7 @@ let value: string = my_tuple.0;
 
 - must always be same types
 - the short `<op>=` syntax can be used for appropriate types where `x <op>= y` is semantically same as `x = x <op> y`
+  - eq. `x += y` is same as `x = x + y`
 
 `+`, `-`, `*`, `/`, `%` (modulo)
 
@@ -75,13 +77,13 @@ let value: string = my_tuple.0;
 
 ``if <condition> {...}``
 
-``for let i = 0; i < 10; i++``
+``for let i = 0; i < 10; i++ {...}``
 
 # Type annotations
 
 - variable types are implicit, can be defined with `:`
 
-- `let x: <type> = ...`
+- `let x: <type> = ...;`
 
 - function arg types and struct field type smust be explicit 
 
@@ -90,8 +92,6 @@ let value: string = my_tuple.0;
 - conversion functions (`int()`, ...)
 - `bool` is evaluated to `1` if `true`, to `0` if `false`
 - `bool(0)` and `bool(NaN)` is `false`, rest is `true`
-
-*note/TODO: `bool` conversion is not currently implemented*
 
 # Variables
 
@@ -149,12 +149,19 @@ do_stuff(12); // '12' gets promoted to type `int?` from `int` at compile time
 # Functions
 
 - `fn`
-- `return` keyword (NOT implicit)
+- to return a value the `return` keyword must be used
 - CAN have two functions with same name and different parameters
 - order of creation does not matter
 - can NOT be nested (for now I guess)
 - type of arguments must be defined
-- return type must be defined or is implicitly `void`
+- return type must be defined or implicitly does not return anything
+
+
+```
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+```
 
 <br>
 
