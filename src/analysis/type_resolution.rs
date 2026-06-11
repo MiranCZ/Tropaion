@@ -765,6 +765,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // if we are accessing something on a struct, temporarily add the structs methods and fields into scope
         let mut struct_scope = false;
+        let mut type_table_push = false;
+
         if let StructType{name, children, generics, ..} = self.deref(member.get_type()) {
             struct_scope = true;
 
@@ -804,6 +806,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 self.symbol_table.record_with_info(name, typ, TypeSymTableInfo::owner(self.deref(member.get_type())));
             }
 
+            type_table_push = true;
             self.type_table.push();
             for g in generics {
                 self.type_table.record(g.0, g.1);
@@ -853,8 +856,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // drop the struct scope
         if struct_scope {
-            self.type_table.pop();
             self.symbol_table.pop();
+        }
+        if type_table_push {
+            self.type_table.pop();
         }
 
         MemberExpr {
@@ -906,10 +911,10 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     func = *overload;
                     break;
                 } else {
-                    panic!();
+                    panic!("Overload is not a FunctionType but {:?}", overload.get(self.registry));
                 }
             }
-            
+
             if func.get(self.registry) == UnknownType {
                 return self.error(AnalysisError::illegal_func_args(name, resolved_args, self.registry),span);
             }
@@ -972,6 +977,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                             );
                         }
                     } else {
+                        self.type_table.pop();
                         return self.error(
                             AnalysisError::type_mismatch(
                                 ValueTypeVariant::Struct,
@@ -1002,6 +1008,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     property.change_type(self.registry, func.get(self.registry));
 
 
+                    self.type_table.pop();
                     return MemberExpr {
                         t: return_type,
                         member: member.clone().boxed(),
@@ -1017,9 +1024,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 }
 
                 if resolved_func.is_err(self.registry) {
+                    self.type_table.pop();
                     return TypedExpr::err(self.registry);
                 }
 
+                self.type_table.pop();
                 return CallExpr {
                     t: return_type,
                     func: resolved_func.boxed(),
@@ -1135,7 +1144,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
                 if let StructType {generics: g, ..} = &mut res {
                     if generics.len() != g.len() {
-                        panic!();
+                        panic!("Generic count mismatch for '{}': type has {} generics, got {} at call site", name, g.len(), generics.len());
                     }
 
                     // guard against infinite recursion for self-referential generic structs
