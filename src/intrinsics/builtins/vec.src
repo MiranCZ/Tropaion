@@ -11,15 +11,34 @@ struct Vec<T> priv(capacity: int, len: int, array: address) {
         len++;
     }
 
-    pub fn set(index: int, element: T) {
-        if index > size() {
+    pub fn push(element: T, index: int) {
+        if index == len {
+            push(element);
+            return;
+        }
+        if index < 0 {
+                panic("Negative index!");
+        }
+        if index > len {
             panic("Index out of bounds (len: " + str(len) + ", index: "+str(index)+")");
         }
-        if index == size() {
-            push(element);
-        } else {
-            array.__store_at(index, element);
+
+        ensure_size();
+        len++;
+
+        for let i = len-1; i > index; i-- {
+            set(i, get(i-1));
         }
+
+        set(index, element);
+    }
+
+    pub fn set(index: int, element: T) {
+        if index >= size() {
+            panic("Index out of bounds (len: " + str(len) + ", index: "+str(index)+")");
+        }
+
+        array.__store_at(index, element);
     }
 
     pub fn pop() -> T {
@@ -29,6 +48,29 @@ struct Vec<T> priv(capacity: int, len: int, array: address) {
 
         len--;
         return array.__load_at(len);
+    }
+
+    pub fn pop(index: int) -> T {
+        if index < 0 {
+            panic("Negative index!");
+        }
+
+        if index == (len-1) {
+            return pop();
+        }
+
+        if index >= len {
+            panic("Popping out of bounds! ("+index+" >= " + len + +")");
+        }
+
+        let res = get(index);
+
+        for let i = index+1; i < len; i++ {
+            set(i-1, get(i));
+        }
+
+        len--;
+        return res;
     }
 
     pub fn get(index: int) -> T {
