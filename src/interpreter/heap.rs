@@ -52,7 +52,7 @@ impl Heap {
             ptr,
             len: size as usize
         });
-        self.free_space -= size as usize;
+        // self.free_space -= size as usize;
 
         if ptr + (size as usize) >= self.heap_size {
             return Err(OutOfMemory);
@@ -86,7 +86,7 @@ impl Heap {
         }
 
         self.allocated.retain(|a| {
-            if used.contains(&(a.ptr as u32)) {
+            if used.contains(&((a.ptr + self.ptr_offset) as u32)) {
                 true
             } else {
                 self.free_space += a.len;
@@ -98,7 +98,7 @@ impl Heap {
 
     fn mark(&mut self, mem_ptr: usize, stack: &[Value], used: &mut HashSet<u32>) {
         let val;
-        if mem_ptr < used.len() {
+        if mem_ptr < self.ptr_offset {
             val = stack[mem_ptr];
         } else {
             if mem_ptr < self.ptr_offset {
