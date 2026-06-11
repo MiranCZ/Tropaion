@@ -186,8 +186,12 @@ where
         }
     }
 
-    fn fold_return(&mut self, expr: Spanned<Expression<I>>, span: Span) -> FoldedStmt<O> {
-        Statement::ReturnStmt(self.fold_expr(expr))
+    fn fold_return(&mut self, expr: Option<Spanned<Expression<I>>>, span: Span) -> FoldedStmt<O> {
+        if let Some(e) = expr {
+            Statement::ReturnStmt(Some(self.fold_expr(e)))
+        } else {
+            Statement::ReturnStmt(None)
+        }
     }
     
     fn fold_loop_interrupt(&mut self, break_loop: bool, span: Span) -> FoldedStmt<O> {

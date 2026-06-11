@@ -537,19 +537,23 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         EnumStmt {name, values, body}
     }
 
-    fn fold_return(&mut self, expr: Spanned<Expression<()>>, span: Span) -> FoldedStmt<TypeEntry> {
-        let mut expr = self.fold_expr(expr);
+    fn fold_return(&mut self, expr_opt: Option<Spanned<Expression<()>>>, span: Span) -> FoldedStmt<TypeEntry> {
+        if let Some(expr) = expr_opt {
+            let mut expr = self.fold_expr(expr);
 
-        let return_type = self.symbol_table.get_return_type();
+            let return_type = self.symbol_table.get_return_type();
 
-        let return_type = match return_type {
-            Some(r) => r,
-            None => return self.error_stmt(AnalysisError::DanglingReturn, span)
-        };
+            let return_type = match return_type {
+                Some(r) => r,
+                None => return self.error_stmt(AnalysisError::DanglingReturn, span)
+            };
 
-        self.box_arg(&mut expr, return_type);
+            self.box_arg(&mut expr, return_type);
 
-        ReturnStmt(expr)
+            ReturnStmt(Some(expr))
+        } else {
+            ReturnStmt(None)
+        }
     }
 
 
@@ -980,7 +984,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     owner = Some(struct_type);
                 }
 
-                let untyped_key = self.prepend_owner(name.clone());
+                let untyped_key = format!("{}${}", self.prepend_owner(name.clone()), params.len());
 
                 self.generic_helper.request_resolution(self.registry, untyped_key, generics.clone(), owner, );
 

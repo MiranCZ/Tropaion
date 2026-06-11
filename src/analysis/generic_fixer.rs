@@ -52,7 +52,7 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
     }
 
     fn visit_mut_block(&mut self, body: &mut StatementBlock<TypeEntry>) {
-        let mut removed = vec![];
+        let mut removed: HashSet<String> = HashSet::new();
 
         let mut functions = HashSet::new();
         body.retain_mut(|b| {
@@ -61,19 +61,19 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
                 let mangled_name = mangling::from_owner(name.clone(), self.owner.clone());
 
                 if GenericChecker::is_generic(*return_type, self.registry) {
-                    removed.push(mangled_name);
+                    removed.insert(mangled_name);
                     return false;
                 }
 
                 for p in params {
                     if GenericChecker::is_generic(p.param_type, self.registry) {
-                        removed.push(mangled_name);
+                        removed.insert(mangled_name);
                         return false;
                     }
                 }
 
                 if !generics.is_empty() {
-                    removed.push(mangled_name);
+                    removed.insert(mangled_name);
                     return false;
                 }
 

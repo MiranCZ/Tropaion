@@ -107,10 +107,14 @@ impl TypedStmt {
                     b.gen_bytecode(registry, generator)?;
                 }
             }
-            Statement::ReturnStmt(e) => {
-                e.generate_bytecode(registry, generator, Load)?;
+            Statement::ReturnStmt(expr) => {
+                if let Some(e) = expr {
+                    e.generate_bytecode(registry, generator, Load)?;
 
-                generator.ret(e.get_type().get(registry).word_size(registry));
+                    generator.ret(e.get_type().get(registry).word_size(registry));
+                } else {
+                    generator.ret(0)
+                }
             }
 
             Statement::LoopInterrupt {break_loop} => {

@@ -60,7 +60,7 @@ struct Vec<T> priv(capacity: int, len: int, array: address) {
         }
 
         if index >= len {
-            panic("Popping out of bounds! ("+index+" >= " + len + +")");
+            panic("Popping out of bounds! ("+str(index)+" >= " + str(len) + ")");
         }
 
         let res = get(index);

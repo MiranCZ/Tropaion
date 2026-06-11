@@ -123,12 +123,17 @@ fn _parse_block_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> Result<
 pub fn parse_return_stmt(registry: &mut TypeRegistry,parser: &mut Parser) -> ReturnedStatement {
     spanned!(parser, {
         parser.expect_next(Return)?;
-
-        let expr = parse_expression(registry, parser, DEFAULT.rbp)?;
-
-        parser.expect_next(Semicolon)?;
-
-        ReturnStmt(expr)
+        
+        if parser.consume_if_next(Semicolon)? {
+            ReturnStmt(None)
+        } else {
+    
+            let expr = parse_expression(registry, parser, DEFAULT.rbp)?;
+    
+            parser.expect_next(Semicolon)?;
+    
+            ReturnStmt(Some(expr))
+        }
     })
 }
 

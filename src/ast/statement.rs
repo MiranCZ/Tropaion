@@ -59,7 +59,7 @@ pub enum Statement<T> {
         values: Vec<String>,
         body: StatementBlock<T>
     },
-    ReturnStmt(Spanned<Expression<T>>),
+    ReturnStmt(Option<Spanned<Expression<T>>>),
     LoopInterrupt {
         break_loop: bool
     },

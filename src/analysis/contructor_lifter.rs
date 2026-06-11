@@ -128,7 +128,7 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorCollector<'a> {
 
             }
 
-            body.push(Spanned::new(ReturnStmt(Spanned::new(IdentifierExpr(*owner, "this".to_string()), 0, 0)), 0, 0));
+            body.push(Spanned::new(ReturnStmt(Some(Spanned::new(IdentifierExpr(*owner, "this".to_string()), 0, 0))), 0, 0));
 
             FunctionStmt {
                 name,

@@ -153,7 +153,7 @@ impl<'a> AstPrinter<'a> {
             }
             Statement::ReturnStmt(expr) => {
                 writeln!(out, "{prefix}ReturnStmt").unwrap();
-                self.fmt_expr(&expr.node, indent + 1, out);
+                // self.fmt_expr(&expr.node, indent + 1, out);
             }
             Statement::LoopInterrupt { break_loop } => {
                 let action = if *break_loop { "break" } else { "continue" };

@@ -143,8 +143,10 @@ pub trait {trait_name}<'a> where Self: Sized {{
         self.{suffix}_block(body);
     }}
 
-    fn {suffix}_return(&mut self, expr: {borrow}TypedExpr, span: Span) {{
-        self.{suffix}_expr(expr);
+    fn {suffix}_return(&mut self, expr: {borrow}Option<TypedExpr>, span: Span) {{
+        if let Some(e) = expr {{
+            self.{suffix}_expr(e);
+        }}
     }}
     
     fn {suffix}_loop_interrupt(&mut self, break_loop: {borrow}bool, span: Span) {{
