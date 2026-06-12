@@ -1,0 +1,75 @@
+struct LinkNode<T> (value: T, prev: LinkNode<T>?, next: LinkNode<T>?);
+
+struct LinkedList<T> priv(start: LinkNode<T>?, end: LinkNode<T>?) {
+
+    pub init() {
+        this(null, null);
+    }
+
+    pub fn push(element: T){
+        let new_node = LinkNode(element, end, null);
+
+        if start == null {
+            start = new_node;
+            end = new_node;
+        } else {
+            end!!.next = new_node;
+            end = new_node;
+        }
+    }
+
+    pub fn pop_first() -> T {
+        if start == null {
+            panic("List is empty!");
+        }
+
+        let value = start!!.value;
+        let next = start!!.next;
+
+        start = next;
+
+        if start == null {
+            end = null;
+        } else {
+            start!!.prev = null;
+        }
+
+        return value;
+    }
+
+    pub fn pop_last() -> T {
+        if start == null {
+            panic("List is empty!");
+        }
+        if end == null {
+            return pop_first();
+        }
+
+        let prev = end!!.prev;
+        let value = end!!.value;
+
+        end = prev;
+
+        if end == null {
+            start = null;
+        } else {
+            end!!.next = null;
+        }
+
+        return value;
+    }
+
+    pub fn size() -> int {
+        let size = 0;
+
+        let node = start;
+        while node != null {
+            size += 1;
+            node = node!!.next;
+        }
+
+        return size;
+    }
+
+
+}

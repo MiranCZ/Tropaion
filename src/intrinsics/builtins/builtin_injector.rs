@@ -4,6 +4,8 @@ pub fn inject_builtins(src: &mut String) {
     src.push('\n');
     inject_direction(src);
     src.push('\n');
+    inject_linked_list(src);
+    src.push('\n');
     inject_default_panic(src);
     src.push('\n');
     inject_bool_print(src);
@@ -19,6 +21,12 @@ fn inject_vec(src: &mut String) {
 
 fn inject_direction(src: &mut String) {
     let dir_str = include_str!("direction.src");
+
+    src.push_str(dir_str);
+}
+
+fn inject_linked_list(src: &mut String) {
+    let dir_str = include_str!("linked_list.src");
 
     src.push_str(dir_str);
 }
