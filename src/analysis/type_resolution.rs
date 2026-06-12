@@ -1114,6 +1114,16 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
 
         // calling constructor of a struct
         if let AstType::StructType { name,generics, constructors, mut children, .. } = resolved_func.get_type().get(self.registry) {
+            // merely calling eq. a field with some type should not be treated as a constructor
+            let denotes_type = matches!(
+                &resolved_func.node,
+                IdentifierExpr(_, ident) if *ident == name || *ident == "this"
+            );
+
+            if !denotes_type {
+                return self.error(AnalysisError::illegal_call(resolved_func.get_type(), self.registry), span);
+            }
+
             let mut resolved_args = vec![];
 
             let mut err = false;
