@@ -4,3 +4,4 @@ pub mod value;
 pub mod runtime_error_context;
 pub mod bytecode_counter;
 pub mod interpreter_builder;
+pub mod profiling;

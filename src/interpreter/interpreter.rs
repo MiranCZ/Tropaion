@@ -14,6 +14,7 @@ use crate::error::runtime_error::RuntimeError::{EmptyCallstack, FunctionNotFound
 use crate::error::runtime_error::ValueTypeVariant::Number;
 use crate::interpreter::bytecode_counter;
 use crate::interpreter::heap::Heap;
+use crate::interpreter::profiling::ProfilingData;
 use crate::interpreter::runtime_error_context::RuntimeErrorContext;
 use crate::interpreter::value::Value;
 use crate::interpreter::value::ValueType;
@@ -73,7 +74,10 @@ pub struct Interpreter {
     stack: Vec<Value>,
     stack_frames: Vec<StackFrame>,
     call_stack: Vec<(usize, u16)>,
-    heap: Heap
+    heap: Heap,
+
+    profiling_enabled: bool,
+    profiling_data: ProfilingData,
 }
 
 type Res = Result<(), RuntimeError>;
@@ -83,7 +87,7 @@ type ValueRes = Result<Value, RuntimeError>;
 impl Interpreter {
 
 
-    pub fn new(compilation_result: CompilationResult, stack_size: usize, heap_size: usize, max_instruction_cost: usize,) -> Self {
+    pub fn new(compilation_result: CompilationResult, stack_size: usize, heap_size: usize, max_instruction_cost: usize, profiling_enabled: bool) -> Self {
         let mut functions = Vec::with_capacity(compilation_result.functions.len());
         functions.resize(compilation_result.functions.len(),FunctionInfo{index: 0, start: 0, end: 0, params_len: 0});
 
@@ -110,7 +114,10 @@ impl Interpreter {
             stack,
             stack_frames: vec![],
             call_stack: vec![],
-            heap: Heap::new(stack_size, heap_size)
+            heap: Heap::new(stack_size, heap_size),
+
+            profiling_enabled,
+            profiling_data: ProfilingData::new(),
         }
     }
 
@@ -190,17 +197,27 @@ impl Interpreter {
         self.call(fun.index)?;
         self.insn_addr += 1;
 
-        let mut cost = 0;
+        let mut cost = 0u64;
         while self.insn_addr < self.instructions.len() {
             let insn = self.instructions[self.insn_addr].clone();
 
             // println!("values {:?} {:?}", &self.stack[0..self.pointer], self.heap);
             // println!("\t{insn:?}\n");
 
-            cost += bytecode_counter::get_count(&insn, &self);
+            let cost_delta = bytecode_counter::get_count(&insn, &self) as u64;
+            cost += cost_delta;
 
-            if (cost as usize) > self.max_instruction_cost {
+            if cost as usize > self.max_instruction_cost {
                 return Err(InstructionCostExceeded(self.max_instruction_cost));
+            }
+
+            if self.profiling_enabled {
+                let line = self.line_maps.get(self.insn_addr).copied().unwrap_or(0);
+                let insn_name = {
+                    let s = format!("{insn:?}");
+                    s.split(['(', '{']).next().unwrap_or("?").trim().to_string()
+                };
+                self.profiling_data.record(self.insn_addr, &insn_name, line, cost_delta);
             }
 
             self.execute(insn, out)?;
@@ -208,6 +225,16 @@ impl Interpreter {
         }
 
         Ok(resolve_blob(self.pop()?, self))
+    }
+
+    pub fn profiling_data(&self) -> &ProfilingData {
+        &self.profiling_data
+    }
+
+    pub fn generate_profile_html(&self, source: &str, wall_ms: u128) -> String {
+        assert!(self.profiling_enabled, "profiling must be enabled via InterpreterBuilder::with_profiling()");
+        let insn_reprs: Vec<String> = self.instructions.iter().map(|i| format!("{i:?}")).collect();
+        self.profiling_data.generate_html(source, wall_ms, &insn_reprs, &self.line_maps)
     }
 
     pub fn stack_top(&self) -> u32 {
@@ -868,14 +895,20 @@ impl Interpreter {
         }
         values.reverse();
 
-        self.insn_addr = (info.start as usize);
+        self.insn_addr = info.start as usize;
 
-        let next_insn = &self.instructions[self.insn_addr];
+        let next_insn = self.instructions[self.insn_addr].clone();
 
-        if let ByteCode::StackFrame(size) = next_insn {
-            self.push_stack_frame(*size);
+        if let ByteCode::StackFrame(frame_size) = &next_insn {
+            let frame_size = *frame_size;
+            if self.profiling_enabled {
+                let cost = bytecode_counter::get_count(&next_insn, self) as u64;
+                let line = self.line_maps.get(self.insn_addr).copied().unwrap_or(0);
+                self.profiling_data.record(self.insn_addr, "StackFrame", line, cost);
+            }
+            self.push_stack_frame(frame_size);
         } else {
-            return Err(StackFrameExpected(next_insn.clone()));
+            return Err(StackFrameExpected(next_insn));
         }
 
         for v in values {

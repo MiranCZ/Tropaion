@@ -11,6 +11,7 @@ pub struct InterpreterBuilder {
     stack_size: usize,
     heap_size: usize,
     max_instruction_cost: usize,
+    profiling_enabled: bool,
 }
 
 
@@ -22,7 +23,8 @@ impl InterpreterBuilder {
 
             stack_size: DEFAULT_STACK_SIZE,
             heap_size: DEFAULT_HEAP_SIZE,
-            max_instruction_cost: DEFAULT_MAX_INSTRUCTION_COST
+            max_instruction_cost: DEFAULT_MAX_INSTRUCTION_COST,
+            profiling_enabled: false,
         }
     }
 
@@ -41,8 +43,13 @@ impl InterpreterBuilder {
         self
     }
 
+    pub fn with_profiling(mut self) -> InterpreterBuilder {
+        self.profiling_enabled = true;
+        self
+    }
+
     pub fn build(self) -> Interpreter {
-        Interpreter::new(self.compilation_result, self.stack_size, self.heap_size, self.max_instruction_cost)
+        Interpreter::new(self.compilation_result, self.stack_size, self.heap_size, self.max_instruction_cost, self.profiling_enabled)
     }
 
 }
