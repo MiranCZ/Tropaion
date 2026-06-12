@@ -365,6 +365,33 @@ impl TypedExpr {
     fn generate_call_expr_load(registry: &TypeRegistry, generator: &mut BytecodeGen ,func: &Box<TypedExpr>, args: &Vec<TypedExpr>) -> EmptyRes {
         let t = func.get_type();
 
+        // For FunctionType callees, use the identifier's name from the AST node directly.
+        // FunctionType.name in the registry (set by visit_mut_function_type) omits the
+        // return-type suffix, while visit_mut_identifier correctly includes it via
+        // concrete_return_table.
+        if let AstType::FunctionType { .. } = t.get(registry) {
+            let fn_name = match &func.node {
+                Expression::IdentifierExpr(_, name) => Some(name.clone()),
+                Expression::MemberExpr { property, .. } => {
+                    if let Expression::IdentifierExpr(_, name) = &property.node {
+                        Some(name.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None
+            };
+
+            if let Some(name) = fn_name {
+                generator.comment(format!("Loading func {name}, with args {:?}", args.iter().map(|a| a.get_type().format(registry)).collect::<Vec<String>>()));
+                for a in args {
+                    a.generate_bytecode(registry, generator, Load)?;
+                }
+                generator.call(&name)?;
+                return ok();
+            }
+        }
+
         fn call(registry: &TypeRegistry, generator: &mut BytecodeGen, args: &Vec<TypedExpr>,typ: TypeEntry) -> EmptyRes {
             match typ.get(registry) {
                 AstType::FunctionType { name, .. } => {

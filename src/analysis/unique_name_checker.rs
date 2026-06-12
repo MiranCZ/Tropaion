@@ -53,13 +53,15 @@ impl <'a> Visitor<'a> for UniqueNameChecker<'a> {
         self.owners.pop();
     }
 
-    fn visit_function(&mut self, name: &String, _modifier: &Modifier, _generics: &Vec<String>, params: &Vec<Parameter>, _return_type: &TypeEntry, _body: &StatementBlock<TypeEntry>, span: Span) {
+    fn visit_function(&mut self, name: &String, _modifier: &Modifier, _generics: &Vec<String>, params: &Vec<Parameter>, return_type: &TypeEntry, _body: &StatementBlock<TypeEntry>, span: Span) {
         if self.class_like.contains(name) {
             self.errors.push(ErrorContext::of(AnalysisError::NameAlreadyUsed(name.clone()), span));
             return;
         }
 
-        let key = mangling::mangle_name(self.registry, name.clone(), self.owners.last().unwrap().clone(), params);
+        let owner = self.owners.last().unwrap().clone();
+        let ret = if owner.is_empty() { None } else { Some(*return_type) };
+        let key = mangling::mangle_name(self.registry, name.clone(), owner, params, ret);
 
         if self.functions.contains(&key) {
             self.errors.push(ErrorContext::of(AnalysisError::function_already_defined(name.clone(), params, self.registry), span));

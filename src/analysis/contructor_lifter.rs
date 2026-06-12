@@ -99,7 +99,7 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorCollector<'a> {
             }
             modifier = modifier.with_static();
 
-            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), owner_name.clone(), &type_params);
+            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), owner_name.clone(), &type_params, None);
 
             let fn_type = self.registry.register(FunctionType {
                 name: format!("{owner_name}${name}"),
@@ -196,7 +196,7 @@ impl <'a> Folder<TypeEntry, TypeEntry> for ConstructorLifter<'a> {
                 typed_args.push(a.get_type());
             }
 
-            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), name.clone(), &typed_args);
+            let mangled = mangling::mangle_name_type(self.registry, "<init>".to_string(), name.clone(), &typed_args, None);
 
             // we are calling an explicit constructor
             if let Some(constructor) = self.constructors.get(&mangled) {

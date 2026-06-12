@@ -259,11 +259,11 @@ impl <'a, 'b> TopLevelCollector<'a, 'b> {
     }
 
     fn get_func_key(&self, name: String, owner: String, params: &Vec<Parameter>) -> String {
-        mangling::mangle_name(self.resolver.registry, name, owner, &params)
+        mangling::mangle_name(self.resolver.registry, name, owner, &params, None)
     }
 
     fn get_func_key_type(&self, name: String, owner: String, params: &Vec<TypeEntry>) -> String {
-        mangling::mangle_name_type(self.resolver.registry, name, owner, &params)
+        mangling::mangle_name_type(self.resolver.registry, name, owner, &params, None)
     }
 
     fn resolve_struct_signature(&mut self, type_entry: TypeEntry ,name: &String, public_constructor: &bool, fields: &Vec<Parameter>, body: &StatementBlock<()>, generics: &Vec<String>, span: &Span) {

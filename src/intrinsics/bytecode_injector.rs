@@ -96,7 +96,7 @@ fn implement_load_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> Em
 }
 
 fn implement_store_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> EmptyRes {
-    generator.fn_start("address$__store_at_i?".to_string())?;
+    generator.fn_start("address$__store_at_i?V".to_string())?;
 
     generator.swap();
     generator.store_internal(|i| { Store(i) });
@@ -104,7 +104,7 @@ fn implement_store_at(registry: &TypeRegistry, generator: &mut BytecodeGen) -> E
     unsafe {generator.push_own_insn(Load(0));}
     generator.store_var_offset()?;
     generator.ret(0);
-    generator.fn_end("address$__store_at_i?".to_string(), registry)?;
+    generator.fn_end("address$__store_at_i?V".to_string(), registry)?;
 
     ok()
 }

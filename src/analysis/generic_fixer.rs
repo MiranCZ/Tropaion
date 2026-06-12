@@ -57,7 +57,8 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
         let mut functions = HashSet::new();
         body.retain_mut(|b| {
             return if let Statement::FunctionStmt { name, generics, params, return_type, .. } = &mut b.node {
-                let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
+                let ret = if self.owner.is_empty() { None } else { Some(*return_type) };
+                let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params, ret);
                 let mangled_name = mangling::from_owner(name.clone(), self.owner.clone());
 
                 if GenericChecker::is_generic(*return_type, self.registry) {
@@ -87,9 +88,9 @@ impl <'a> VisitorMut<'a> for GenericFixer<'a> {
         for r in removed {
             for func in self.generic_helper.get_implementation(&r) {
 
-                if let Statement::FunctionStmt {name, params, ..} = &func.node {
-
-                    let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params);
+                if let Statement::FunctionStmt {name, params, return_type, ..} = &func.node {
+                    let ret = if self.owner.is_empty() { None } else { Some(*return_type) };
+                    let key = mangling::mangle_name(self.registry, name.clone(), self.owner.clone(), params, ret);
 
                     if !functions.contains(&key) {
                         body.push(func);

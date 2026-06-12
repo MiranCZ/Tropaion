@@ -4,7 +4,7 @@ use crate::analysis::symbol_table::SymbolTable;
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
 use crate::ast::ast_type::AstType::{FunctionType, FunctionsType, NullableType, StructType};
 use crate::ast::ast_type::{AstType, MemberInfo};
-use crate::ast::expression::Expression::IdentifierExpr;
+use crate::ast::expression::Expression::{IdentifierExpr, MemberExpr};
 use crate::ast::expression::TypedExpr;
 use crate::ast::modifier::Modifier;
 use crate::ast::statement::{Parameter, StatementBlock};
@@ -15,8 +15,11 @@ use crate::error::context::{ErrorContext, Span};
 
 pub struct ManglingVisitor<'a> {
     registry: &'a mut TypeRegistry,
-    // owner: String,
     owner_table: SymbolTable<String, String>,
+    // Maps method name → concrete return TypeEntry, populated by visit_mut_call.
+    // Used in visit_mut_identifier so that methods whose generic T only appears in
+    // the return type still get unique mangled names per specialization.
+    concrete_return_table: SymbolTable<TypeEntry, ()>,
     resolved: HashSet<TypeEntry>,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
@@ -28,6 +31,7 @@ impl<'a> ManglingVisitor<'a> {
             registry,
             resolved: HashSet::new(),
             owner_table: SymbolTable::new(),
+            concrete_return_table: SymbolTable::<TypeEntry, ()>::new(),
             errors: vec![]
         }
     }
@@ -52,8 +56,11 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
 
     fn visit_mut_function(&mut self, name: &mut String, modifier: &mut Modifier, generics: &mut Vec<String>, params: &mut Vec<Parameter>, return_type: &mut TypeEntry, body: &mut StatementBlock<TypeEntry>, span: Span) {
         let owner = self.owner_table.get_or(name, String::new());
+        // Constructors encode the owner in their call-site name already; exclude return type
+        // to keep definitions and call sites consistent.
+        let ret = if owner.is_empty() || name == "<init>" { None } else { Some(*return_type) };
 
-        *name = mangle_name(self.registry, name.clone(), owner.clone(), params);
+        *name = mangle_name(self.registry, name.clone(), owner.clone(), params, ret);
 
         for s in body {
             s.walk_visit_mut(self);
@@ -82,13 +89,55 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
         self.owner_table.pop();
     }
 
+    fn visit_mut_call(&mut self, t: &mut TypeEntry, func: &mut TypedExpr, args: &mut [TypedExpr], span: Span) {
+        // Extract the callee name so we can store the concrete return type for
+        // visit_mut_identifier.  The call expression's type `t` is the concrete
+        // return type resolved by the type system, while the identifier's function
+        // type may still carry a generic T in the return position.
+        let fn_name = match &func.node {
+            IdentifierExpr(_, name) => Some(name.clone()),
+            MemberExpr { property, .. } => {
+                if let IdentifierExpr(_, name) = &property.node {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None
+        };
+
+        if let Some(name) = fn_name {
+            self.concrete_return_table.push();
+            self.concrete_return_table.record(name, *t);
+
+            self.visit_mut_type(t);
+            self.visit_mut_expr(func);
+            for a in args { self.visit_mut_expr(a); }
+
+            self.concrete_return_table.pop();
+        } else {
+            self.visit_mut_type(t);
+            self.visit_mut_expr(func);
+            for a in args { self.visit_mut_expr(a); }
+        }
+    }
+
     fn visit_mut_identifier(&mut self, t: &mut TypeEntry, name: &mut String, span: Span) {
         let owner = self.owner_table.get_or(name, String::new());
 
         self.visit_mut_type(t);
 
-        if let FunctionType{params, ..} = t.get(self.registry) {
-            *name = mangle_name_type(self.registry, name.clone(), owner.clone(), &params);
+        if let FunctionType{params, return_type, ..} = t.get(self.registry) {
+            let ret = if owner.is_empty() {
+                None
+            } else if matches!(return_type.get(self.registry), AstType::UnknownType) {
+                // UnknownType return (e.g. address.__load_at) has one bytecode impl for all types;
+                // don't include the return type in the mangled name.
+                None
+            } else {
+                self.concrete_return_table.get(name)
+            };
+            *name = mangle_name_type(self.registry, name.clone(), owner.clone(), &params, ret);
         }
     }
 
@@ -125,7 +174,12 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
     fn visit_mut_function_type(&mut self, name: &mut String, modifier: &mut Modifier, generics: &mut OrderMap<String, TypeEntry>, params: &mut Vec<TypeEntry>, return_type: &mut TypeEntry) {
         let owner = self.owner_table.get_or(name, String::new());
 
-        *name = mangle_name_type(self.registry, name.clone(), owner.clone(), &params);
+        // Do not include return type here: function types in the registry may still
+        // carry generic T in the return position, which would produce wrong names
+        // like "Vec$get_ig".  Identifier names are set correctly by visit_mut_identifier
+        // using concrete_return_table, and function definition names are set by
+        // visit_mut_function using the concrete return type from the AST.
+        *name = mangle_name_type(self.registry, name.clone(), owner.clone(), &params, None);
 
         for g in generics.values_mut() {
             self.visit_mut_type(g);
@@ -162,8 +216,7 @@ impl <'a> VisitorMut<'a> for ManglingVisitor<'a> {
 
 
 
-
-pub fn mangle_name(registry: &TypeRegistry, name: String, owner: String, params: &Vec<Parameter>) -> String {
+pub fn mangle_name(registry: &TypeRegistry, name: String, owner: String, params: &Vec<Parameter>, return_type: Option<TypeEntry>) -> String {
     let mut name = from_owner(name, owner) + "_";
 
     for p in params {
@@ -174,10 +227,14 @@ pub fn mangle_name(registry: &TypeRegistry, name: String, owner: String, params:
         name += p.param_type.get(registry).get_type_name(registry).as_str();
     }
 
+    if let Some(ret) = return_type {
+        name += ret.get(registry).get_type_name(registry).as_str();
+    }
+
     name
 }
 
-pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, params: &Vec<TypeEntry>) -> String {
+pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, params: &Vec<TypeEntry>, return_type: Option<TypeEntry>) -> String {
     let mut name = from_owner(name, owner) + "_";
 
     for p in params {
@@ -186,6 +243,10 @@ pub fn mangle_name_type(registry: &TypeRegistry, name: String, owner: String, pa
         }
 
         name += p.get(registry).get_type_name(registry).as_str();
+    }
+
+    if let Some(ret) = return_type {
+        name += ret.get(registry).get_type_name(registry).as_str();
     }
 
     name

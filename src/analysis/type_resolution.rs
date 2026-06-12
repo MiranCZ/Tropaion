@@ -28,6 +28,10 @@ pub struct TypeResolver<'a> {
     scopes: Vec<TypeEntry>,
     pub generic_helper: GenericHelper,
     resolved_types: HashSet<TypeEntry>,
+    // Tracks (template TypeEntry, type_args) to guard against infinite recursion in
+    // self-referential generic structs. Keyed on args so Vec<bool> and Vec<Vec<bool>>
+    // don't block each other.
+    resolving_generics: HashSet<(TypeEntry, Vec<TypeEntry>)>,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
 
@@ -39,6 +43,7 @@ impl <'a> TypeResolver<'a> {
             registry, symbol_table, type_table,
             scopes: vec![],
             resolved_types: HashSet::new(),
+            resolving_generics: HashSet::new(),
             generic_helper: GenericHelper::new(),
             errors: vec![]
         }
@@ -79,12 +84,12 @@ impl <'a> TypeResolver<'a> {
 
     fn get_func_key(&self, name: String, params: &Vec<Parameter>) -> String {
         let owner = self.get_current_owner(&name);
-        mangling::mangle_name(self.registry, name.clone(), owner, &params)
+        mangling::mangle_name(self.registry, name.clone(), owner, &params, None)
     }
 
     fn get_func_key_type(&self, name: String, params: &Vec<TypeEntry>) -> String {
         let owner = self.get_current_owner(&name);
-        mangling::mangle_name_type(self.registry, name.clone(), owner, &params)
+        mangling::mangle_name_type(self.registry, name.clone(), owner, &params, None)
     }
 
     fn prepend_owner(&self, name: String) -> String {
@@ -174,7 +179,9 @@ impl <'a> TypeResolver<'a> {
 
             for e in resolved {
                 if let Some(entry) = self.type_table.get(&e.0) {
-                    entry.mutate(self.registry, e.1.get(self.registry));
+                    if matches!(entry.get(self.registry), UnknownType) {
+                        entry.mutate(self.registry, e.1.get(self.registry));
+                    }
                 }
             }
         }
@@ -803,7 +810,8 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     }
                 }
 
-                self.symbol_table.record_with_info(name, typ, TypeSymTableInfo::owner(self.deref(member.get_type())));
+                let owner_type = self.deref(member.get_type());
+                self.symbol_table.record_with_info(name, typ, TypeSymTableInfo::owner(owner_type));
             }
 
             type_table_push = true;
@@ -918,7 +926,6 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
             if func.get(self.registry) == UnknownType {
                 return self.error(AnalysisError::illegal_func_args(name, resolved_args, self.registry),span);
             }
-
 
             if let FunctionType { name, modifier, generics, mut return_type, params, .. } = func.get(self.registry) {
                 self.type_table.push();
@@ -1147,8 +1154,11 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         panic!("Generic count mismatch for '{}': type has {} generics, got {} at call site", name, g.len(), generics.len());
                     }
 
-                    // guard against infinite recursion for self-referential generic structs
-                    if !self.resolved_types.insert(t) {
+                    // Guard against infinite recursion for self-referential generic structs.
+                    // Keyed on (template, type_args) so that Vec<bool> and Vec<Vec<bool>>
+                    // can both be resolved even though they share the same Vec template.
+                    let guard_key = (t, generics.clone());
+                    if !self.resolving_generics.insert(guard_key.clone()) {
                         return t.get(self.registry);
                     }
 
@@ -1164,7 +1174,7 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                     let res = TypeDuplicator::new(self.registry).fold_ast_type(res);
                     let resolved = res.walk_fold(self);
 
-                    self.resolved_types.remove(&t);
+                    self.resolving_generics.remove(&guard_key);
 
                     self.type_table.pop();
                     return resolved;

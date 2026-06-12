@@ -55,10 +55,31 @@ impl GenericHelper {
     }
 
     pub fn request_resolution(&mut self, type_registry: &TypeRegistry, name: String, generic_types: OrderMap<String, TypeEntry>, owner: Option<AstType>) {
-        if self.has_requested(type_registry, &name, &generic_types) {
+        let already = self.has_requested(type_registry, &name, &generic_types, &owner);
+        if already {
             return;
         }
 
+        self.add_request(name.clone(), generic_types.clone(), owner.clone());
+
+        // When any method of a struct specialization is first requested, eagerly request
+        // all sibling generic methods of the same struct. This ensures that internal
+        // cross-calls between methods (e.g. pop(int) calling pop()) are always resolved.
+        if let Some(AstType::StructType { name: struct_name, .. }) = &owner {
+            let prefix = format!("{}$", struct_name);
+            let siblings: Vec<String> = self.generic_functions.keys()
+                .filter(|k| k.starts_with(&prefix) && **k != name)
+                .cloned()
+                .collect();
+            for sibling in siblings {
+                if !self.has_requested(type_registry, &sibling, &generic_types, &owner) {
+                    self.add_request(sibling, generic_types.clone(), owner.clone());
+                }
+            }
+        }
+    }
+
+    fn add_request(&mut self, name: String, generic_types: OrderMap<String, TypeEntry>, owner: Option<AstType>) {
         if let Some(arr) = self.requests.get_mut(&name) {
             arr.push((generic_types, owner));
         } else {
@@ -79,15 +100,16 @@ impl GenericHelper {
         }
     }
 
-    fn has_requested(&self,registry: &TypeRegistry ,key: &String, generics: &OrderMap<String, TypeEntry>) -> bool {
+    fn has_requested(&self, registry: &TypeRegistry, key: &String, generics: &OrderMap<String, TypeEntry>, owner: &Option<AstType>) -> bool {
         if let Some(vec) = self.requests.get(key) {
 
             'loopCheck:
             for e in vec {
                 let gens = &e.0;
+                let req_owner = &e.1;
 
                 if gens.len() != generics.len() {
-                    return false;
+                    continue 'loopCheck;
                 }
 
                 let mut i1 = generics.iter();
@@ -101,6 +123,26 @@ impl GenericHelper {
                     if !g1.1.get(registry).equals(&g2.1.get(registry), registry) {
                         continue 'loopCheck;
                     }
+                }
+
+                match (req_owner, owner) {
+                    (None, None) => {}
+                    (Some(AstType::StructType { generics: g1, .. }), Some(AstType::StructType { generics: g2, .. })) => {
+                        if g1.len() != g2.len() {
+                            continue 'loopCheck;
+                        }
+                        let mut i1 = g1.iter();
+                        let mut i2 = g2.iter();
+                        while let Some(v1) = i1.next() && let Some(v2) = i2.next() {
+                            if v1.0 != v2.0 {
+                                continue 'loopCheck;
+                            }
+                            if !v1.1.get(registry).equals(&v2.1.get(registry), registry) {
+                                continue 'loopCheck;
+                            }
+                        }
+                    }
+                    _ => continue 'loopCheck
                 }
 
                 return true;

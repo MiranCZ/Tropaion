@@ -20,7 +20,7 @@ pub fn get_injected_function_identifiers() -> Vec<(&'static str, u32)> {
         ("panic_f", 1),
         ("__heap_alloc_i", 1),
         ("address$__load_at_i", 2),
-        ("address$__store_at_i?", 3)
+        ("address$__store_at_i?V", 3)
     ]
 }
 
