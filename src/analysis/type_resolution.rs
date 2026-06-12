@@ -3,7 +3,7 @@ use crate::analysis::mangling;
 use crate::analysis::symbol_table::{TypeSymTable, TypeSymTableInfo};
 use crate::analysis::type_duplicator::{TypeDuplicator, UntypedTypeDuplicator};
 use crate::analysis::type_registry::{TypeEntry, TypeRegistry};
-use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionType, FunctionsType, GenericType, Int, NullableType, StringType, StructType, TupleType, UnknownType, Void};
+use crate::ast::ast_type::AstType::{ArrayType, Bool, ErroredType, Float, FunctionType, FunctionsType, GenericType, Int, NullableType, StringType, StructType, SymbolType, TupleType, UnknownType, Void};
 use crate::ast::ast_type::{AstType, MemberInfo};
 use crate::ast::expression::Expression::{ArrayAccessExpr, ArrayLiteralExpr, AssignExpr, BinaryExpr, BoolLiteralExpr, CallExpr, DecrementExpr, ErroredExpr, FloatLiteralExpr, IdentifierExpr, IncrementExpr, IntLiteralExpr, MemberExpr, NullDerefExpr, NullLiteralExpr, NullableExpr, PrefixExpr, StringLiteralExpr, TupleExpr};
 use crate::ast::expression::{deref, Expression, TypedExpr};
@@ -28,10 +28,7 @@ pub struct TypeResolver<'a> {
     scopes: Vec<TypeEntry>,
     pub generic_helper: GenericHelper,
     resolved_types: HashSet<TypeEntry>,
-    // Tracks (template TypeEntry, type_args) to guard against infinite recursion in
-    // self-referential generic structs. Keyed on args so Vec<bool> and Vec<Vec<bool>>
-    // don't block each other.
-    resolving_generics: HashSet<(TypeEntry, Vec<TypeEntry>)>,
+    instantiation_entries: HashMap<(TypeEntry, Vec<String>), TypeEntry>,
     pub errors: Vec<ErrorContext<AnalysisError>>
 }
 
@@ -43,7 +40,7 @@ impl <'a> TypeResolver<'a> {
             registry, symbol_table, type_table,
             scopes: vec![],
             resolved_types: HashSet::new(),
-            resolving_generics: HashSet::new(),
+            instantiation_entries: HashMap::new(),
             generic_helper: GenericHelper::new(),
             errors: vec![]
         }
@@ -79,6 +76,52 @@ impl <'a> TypeResolver<'a> {
             }
 
             _ => t.get(self.registry)
+        }
+    }
+
+    /// Produces a stable, structural string for a resolved type, used as the argument
+    /// portion of the `instantiation_entries` recursion key. Unlike TypeEntry identity
+    /// (which the TypeDuplicator changes at every expansion level), this is invariant
+    /// across copies: an abstract param always renders as `G:<name>`, so a self-referential
+    /// instantiation like `LinkNode<T>` keys identically each time and the cycle is caught.
+    ///
+    /// Only descends into generic arguments / wrapper payloads — never into struct fields,
+    /// children or a constructor's `owner` back-reference — so it terminates on cyclic types.
+    fn type_structural_key(&self, t: TypeEntry) -> String {
+        match t.get(self.registry) {
+            ErroredType => "$err".to_string(),
+            UnknownType => "$unknown".to_string(),
+            Void => "void".to_string(),
+            Bool => "bool".to_string(),
+            Int => "int".to_string(),
+            Float => "float".to_string(),
+            StringType => "string".to_string(),
+            GenericType { name } => format!("G:{name}"),
+            SymbolType { name, generics } => {
+                let inner: Vec<String> = generics.iter().map(|g| self.type_structural_key(*g)).collect();
+                format!("S:{name}<{}>", inner.join(","))
+            }
+            AstType::ReferenceType { underlying } => format!("&{}", self.type_structural_key(underlying)),
+            NullableType { underlying } => format!("{}?", self.type_structural_key(underlying)),
+            ArrayType { underlying } => format!("[{}]", self.type_structural_key(underlying)),
+            TupleType(arr) => {
+                let inner: Vec<String> = arr.iter().map(|g| self.type_structural_key(*g)).collect();
+                format!("({})", inner.join(","))
+            }
+            StructType { name, generics, .. } => {
+                let inner: Vec<String> = generics.values().map(|g| self.type_structural_key(*g)).collect();
+                format!("ST:{name}<{}>", inner.join(","))
+            }
+            AstType::EnumType { name, .. } => format!("E:{name}"),
+            FunctionType { name, params, return_type, .. } => {
+                let p: Vec<String> = params.iter().map(|g| self.type_structural_key(*g)).collect();
+                format!("F:{name}({})->{}", p.join(","), self.type_structural_key(return_type))
+            }
+            FunctionsType { name, .. } => format!("FS:{name}"),
+            AstType::ConstructorType { params, .. } => {
+                let p: Vec<String> = params.iter().map(|g| self.type_structural_key(*g)).collect();
+                format!("C:<{}>", p.join(","))
+            }
         }
     }
 
@@ -334,6 +377,31 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
         }
 
         let ast_type = t.get(self.registry);
+
+        // For a parametrized SymbolType (e.g. `LinkNode<T>`), detect recursive
+        // instantiation of a generic struct: if we are already expanding (template, args),
+        // return the in-progress TypeEntry as a forward reference rather than expanding infinitely
+        if let SymbolType { name, generics } = &ast_type && !generics.is_empty() {
+            if let Some(tpl) = self.type_table.get(&name.clone()) {
+                let raw_generics = generics.clone();
+                let mut arg_keys: Vec<String> = Vec::with_capacity(raw_generics.len());
+
+                for g in raw_generics.iter() {
+                    let folded = self.fold_type_entry(*g);
+                    arg_keys.push(self.type_structural_key(folded));
+                }
+
+                let key = (tpl, arg_keys);
+                if let Some(&existing) = self.instantiation_entries.get(&key) {
+                    if !matches!(existing.get(self.registry), SymbolType { .. }) {
+                        t.mutate(self.registry, existing.get(self.registry));
+                    }
+                    return existing;
+                }
+
+                self.instantiation_entries.insert(key, t);
+            }
+        }
 
         let result = ast_type.walk_fold(self);
 
@@ -1122,6 +1190,13 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                 self.box_arg(arg, *field);
             }
 
+            // resolve nested generic fields
+            if let StructType { fields: struct_fields, .. } = resolved_func.get_type().get(self.registry) {
+                for f in struct_fields {
+                    self.fold_type_entry(f.typ);
+                }
+            }
+
             if resolved_func.is_err(self.registry) {
                 return TypedExpr::err(self.registry);
             }
@@ -1154,27 +1229,24 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
                         panic!("Generic count mismatch for '{}': type has {} generics, got {} at call site", name, g.len(), generics.len());
                     }
 
-                    // Guard against infinite recursion for self-referential generic structs.
-                    // Keyed on (template, type_args) so that Vec<bool> and Vec<Vec<bool>>
-                    // can both be resolved even though they share the same Vec template.
-                    let guard_key = (t, generics.clone());
-                    if !self.resolving_generics.insert(guard_key.clone()) {
-                        return t.get(self.registry);
-                    }
-
                     let mut iter = generics.iter();
 
                     self.type_table.push();
                     for x in g.iter_mut() {
-                        *x.1 = self.fold_type_entry(*iter.next().unwrap());
-
-                        self.type_table.record(x.0.clone(), *x.1);
+                        let raw_arg = *iter.next().unwrap();
+                        // If the arg is an abstract GenericType, bind the param to the outer
+                        // scope's canonical entry; otherwise resolve the concrete argument.
+                        let resolved = if let GenericType { name: gname } = raw_arg.get(self.registry) {
+                            self.type_table.get(&gname).unwrap_or(raw_arg)
+                        } else {
+                            self.fold_type_entry(raw_arg)
+                        };
+                        *x.1 = resolved;
+                        self.type_table.record(x.0.clone(), resolved);
                     }
 
                     let res = TypeDuplicator::new(self.registry).fold_ast_type(res);
                     let resolved = res.walk_fold(self);
-
-                    self.resolving_generics.remove(&guard_key);
 
                     self.type_table.pop();
                     return resolved;
@@ -1232,13 +1304,13 @@ impl<'a> Folder<(), TypeEntry> for TypeResolver<'a> {
     }
 
     fn fold_nullable_type(&mut self, underlying: TypeEntry) -> AstType {
-        self.fold_type_entry(underlying);
+        let resolved = self.fold_type_entry(underlying);
 
-        if matches!(underlying.get(self.registry), NullableType {..}) {
+        if matches!(resolved.get(self.registry), NullableType {..}) {
             return self.error_type(RedundantNullable);
         }
 
-        NullableType {underlying}
+        NullableType { underlying: resolved }
     }
 
     fn fold_generic_type(&mut self, name: String) -> AstType {
