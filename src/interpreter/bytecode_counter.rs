@@ -16,8 +16,8 @@ pub fn get_count(insn: &ByteCode, interpreter: &Interpreter) -> u32 {
         
         ByteCode::StrConst(_) => 2,
         
-        ByteCode::I2Str => 2,
-        ByteCode::F2Str => 2,
+        ByteCode::I2Str => 20,
+        ByteCode::F2Str => 20,
         
         ByteCode::Or |
         ByteCode::And |
@@ -47,33 +47,33 @@ pub fn get_count(insn: &ByteCode, interpreter: &Interpreter) -> u32 {
         ByteCode::CmpLess |
         ByteCode::CmpEqLess => 5,
         
-        ByteCode::Store(_) => 20,
-        ByteCode::Load(_) => 20,
+        ByteCode::Store(_) => 10,
+        ByteCode::Load(_) => 10,
         
-        ByteCode::CreateStackPtr { .. } => 20,
+        ByteCode::CreateStackPtr { .. } => 15,
         ByteCode::ILoadOffset(_) |
         ByteCode::FLoadOffset(_) |
         ByteCode::ALoadOffset(_) |
         ByteCode::IStoreOffset(_) |
         ByteCode::FStoreOffset(_) |
-        ByteCode::AStoreOffset(_) => 25,
+        ByteCode::AStoreOffset(_) => 14,
         
         ByteCode::LoadVarOffset |
-        ByteCode::StoreVarOffset => 30,
+        ByteCode::StoreVarOffset => 18,
         
         ByteCode::Goto(_) => 10,
         
         ByteCode::IfEq(_) |
-        ByteCode::IfNe(_) => 25,
+        ByteCode::IfNe(_) => 15,
         
-        ByteCode::StackFrame(size) => 8 + (*size as u32),
+        ByteCode::StackFrame(size) => 4 + (*size as u32),
         
         
         ByteCode::Call(_) => 20,
         
-        ByteCode::Ret(size) => 20 + (*size as u32),
+        ByteCode::Ret(size) => 10 + (*size as u32),
         
-        ByteCode::RetLong(size) => 20 + size,
+        ByteCode::RetLong(size) => 10 + size,
         
         ByteCode::HeapAlloc(size) => 50 + size*2,
         
