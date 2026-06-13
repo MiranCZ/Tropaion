@@ -33,7 +33,7 @@ impl Parser {
         Self {
             lookup: Lookup::new(),
             type_lookup: TypeLookup::new(),
-            tokens,
+            tokens : tokens.iter().map(|t| t.clone()).filter(|t| !matches!(t.token, MultilineComment(_))).collect(),
             pos: 0,
             errors: vec![]
         }
