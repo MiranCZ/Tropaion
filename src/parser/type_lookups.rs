@@ -2,7 +2,7 @@ pub mod type_lookup;
 
 use crate::analysis::type_registry::TypeRegistry;
 use crate::ast::ast_type::AstType::*;
-use crate::lexer::token::SimpleToken::{Comma, Greater, Less};
+use crate::lexer::token::SimpleToken::{Comma, Greater, Less, RightRight};
 use crate::lexer::token::Token;
 use crate::lexer::token::Token::*;
 use crate::parser::binding_power::DEFAULT;
@@ -65,7 +65,12 @@ fn parse_symbol_type(symbol: String, registry: &mut TypeRegistry,parser: &mut Pa
             generics.push(parse_type(registry, parser, DEFAULT.rbp)?);
 
             if !parser.consume_if_next(Comma)? {
-                parser.expect_next(Greater)?;
+                
+                // for nested generics like `Vec<Vec<bool>>` so that `>>` gets detected correctly
+                if !parser.replace_if_next(RightRight, Greater)? {
+                    parser.expect_next(Greater)?;
+                } 
+
                 break;
             }
         }

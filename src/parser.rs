@@ -173,6 +173,18 @@ impl Parser {
         Ok(false)
     }
 
+    pub fn replace_if_next(&mut self, expected: SimpleToken, replacement: SimpleToken) -> Result<bool, ErrorContext<ParserError>> {
+        if self.is_next(expected)? {
+            self.next()?;
+
+            self.pos -= 1;
+            self.tokens[self.pos].token = SimpleTokenType(replacement);
+
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ErrorContext<ParserError>> {
         let next = self.next_spanned()?;
         if let SimpleTokenType(v) = next.token && v == expected {
