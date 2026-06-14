@@ -25,7 +25,15 @@ pub fn parse_statement(registry: &mut TypeRegistry, parser: &mut Parser) -> Retu
         let stmnt_fn = token.statement(parser.lookup());
 
         if let Some(f) = stmnt_fn {
-            return Ok(f(registry, parser)?);
+            return match f(registry, parser) {
+                Ok(v) => Ok(v),
+                Err(e) => {
+                    parser.errors.push(e);
+                    parser.synchronize_error(&[]);
+
+                    Ok(UntypedStmt::err(parser.current_span()))
+                }
+            };
         }
 
         let expression = match parse_expression(registry, parser, DEFAULT.rbp) {

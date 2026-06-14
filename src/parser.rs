@@ -62,6 +62,11 @@ impl Parser {
                 break;
             }
 
+            if token == SimpleTokenType(SimpleToken::CloseCurly) {
+                let _ = self.next();
+                continue;
+            }
+
             match parse_statement(registry, self) {
                 Ok(stmt) => body.push(stmt),
                 Err(err) => {
@@ -99,6 +104,9 @@ impl Parser {
 
                     // keywords always escape out of bad expressions
                     if let SimpleTokenType(t) = &v && self.lookup.statement_lookup.contains_key(t) {
+                        return true;
+                    }
+                    if matches!(v, SimpleTokenType(SimpleToken::CloseCurly)) {
                         return true;
                     }
                     if let SimpleTokenType(t) = &v && sync_tokens.contains(t) {
@@ -186,12 +194,12 @@ impl Parser {
     }
 
     pub fn expect_next(&mut self, expected: SimpleToken) -> Result<Token, ErrorContext<ParserError>> {
-        let next = self.next_spanned()?;
-        if let SimpleTokenType(v) = next.token && v == expected {
-            return Ok(next.token);
+        let next = self.peek()?;
+        if let SimpleTokenType(v) = &next && *v == expected {
+            return self.next();
         }
 
-        Err(ErrorContext::of(ParserError::UnexpectedToken{expected: SimpleTokenType(expected), actual: next.token}, next.span))
+        Err(ErrorContext::of(ParserError::UnexpectedToken{expected: SimpleTokenType(expected), actual: next}, self.current_span()))
     }
 
     pub fn expect_next_simple(&mut self) -> Result<SimpleToken, ErrorContext<ParserError>> {

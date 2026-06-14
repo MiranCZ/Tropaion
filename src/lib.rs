@@ -136,7 +136,7 @@ pub fn lint(mut code: String, cursor: usize) -> (HashMap<String, CompletionType>
 
     // println!("{}", AstPrinter::new(Some(&registry)).print_statement(&resolved_root));
     println!("[DEBUG] Parsed AST");
-    let suggestions = get_code_suggestions(cursor,&resolved_root, &mut registry);
+    let suggestions = get_code_suggestions(cursor, &code, &resolved_root, &mut registry);
 
     let typed = analyzer.transform_syntax(&mut registry, resolved_root);
 
