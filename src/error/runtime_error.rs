@@ -33,8 +33,8 @@ pub enum RuntimeError {
     #[error("Stack overflow!")]
     StackOverflow,
     
-    #[error("Out of memory!")]
-    OutOfMemory,
+    #[error("Out of memory! Failed to allocate {0}, memory limit is {1}")]
+    OutOfMemory(u32, usize),
 
     #[error("Stack frame is missing!")]
     StackFrameMissing,

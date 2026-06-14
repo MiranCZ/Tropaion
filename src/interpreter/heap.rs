@@ -55,7 +55,7 @@ impl Heap {
         // self.free_space -= size as usize;
 
         if ptr + (size as usize) >= self.heap_size {
-            return Err(OutOfMemory);
+            return Err(OutOfMemory(size, self.heap_size));
         }
 
         self.allocated.sort_by_key(|i| i.ptr);
